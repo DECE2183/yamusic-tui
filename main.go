@@ -4,13 +4,17 @@ import (
 	"fmt"
 	"time"
 	"yamusic/api"
+	"yamusic/config"
+	"yamusic/ui"
 
 	"github.com/ebitengine/oto/v3"
 	"github.com/hajimehoshi/go-mp3"
 )
 
 func main() {
-	cl, err := api.NewClient("<token>")
+	ui.Run()
+
+	cl, err := api.NewClient(config.GetToken())
 	if err != nil {
 		panic(err)
 	}
