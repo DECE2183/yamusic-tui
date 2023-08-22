@@ -1,5 +1,7 @@
 package ui
 
 func (m model) renderMainPage() string {
-	return "\n"
+	sidePanel := m.sideList.View()
+
+	return sideBoxStyle.Render(sidePanel)
 }

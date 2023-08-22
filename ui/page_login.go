@@ -12,6 +12,5 @@ func (m model) renderLoginPage() string {
 		dialogBoxStyle.Render(content),
 	)
 
-	doc.WriteString(dialog + "\n")
-	return doc.String()
+	return dialog
 }
