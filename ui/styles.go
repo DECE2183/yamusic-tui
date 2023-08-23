@@ -17,7 +17,9 @@ var (
 			BorderRight(true).
 			BorderBottom(true).
 			Width(46)
+)
 
+var (
 	buttonStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#181818")).
 			Background(lipgloss.Color("#FC0")).
@@ -26,21 +28,20 @@ var (
 	activeButtonStyle = buttonStyle.Copy().
 				Foreground(lipgloss.Color("#181818")).
 				Background(lipgloss.Color("#FC0"))
+)
 
+var (
 	sideBoxStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#FC0")).
-			Padding(1, 0).
-			BorderTop(false).
-			BorderLeft(false).
-			BorderRight(true).
-			BorderBottom(false)
+			Background(lipgloss.Color("#121212")).
+			Width(32).
+			Padding(1, 0)
 	sideBoxItemStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("#CCC")).
-				Padding(0, 2)
+				Background(lipgloss.Color("#121212")).
+				PaddingLeft(2)
 	sideBoxSelItemStyle = sideBoxItemStyle.Copy().
 				Foreground(lipgloss.Color("#EEE")).
-				Padding(0, 1).
+				PaddingLeft(1).
 				Border(lipgloss.ThickBorder()).
 				BorderForeground(lipgloss.Color("#FC0")).
 				BorderTop(false).
@@ -49,15 +50,35 @@ var (
 				BorderBottom(false)
 	sideBoxInactiveItemStyle = sideBoxItemStyle.Copy().
 					Foreground(lipgloss.Color("#888")).
-					Padding(0, 2, 0, 2).
+					Padding(0, 0, 0, 2).
 					MarginTop(1)
 	sideBoxSelInactiveItemStyle = sideBoxSelItemStyle.Copy().
 					BorderForeground(lipgloss.Color("#888")).
 					Foreground(lipgloss.Color("#888")).
-					Padding(0, 2, 0, 1).
+					Padding(0, 0, 0, 1).
 					MarginTop(1)
 	sideBoxSubItemStyle = sideBoxItemStyle.Copy().
-				Padding(0, 2, 0, 4)
+				Padding(0, 0, 0, 4)
 	sideBoxSelSubItemStyle = sideBoxSelItemStyle.Copy().
-				Padding(0, 2, 0, 3)
+				Padding(0, 0, 0, 3)
+)
+
+var (
+	trackBoxStyle = lipgloss.NewStyle().
+			Background(lipgloss.Color("#181818")).
+			PaddingBottom(1)
+
+	trackTitleStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#dcdcdc")).
+			PaddingLeft(2).
+			Bold(true)
+	trackVersionStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("#999999")).
+				PaddingLeft(2)
+	trackArtistStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("#dcdcdc")).
+				PaddingLeft(2)
+
+	trackProgressStyle = lipgloss.NewStyle().
+				PaddingBottom(1)
 )

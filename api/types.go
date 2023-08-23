@@ -99,7 +99,7 @@ type Album struct {
 }
 
 type Track struct {
-	Id              uint64 `json:"id"`
+	Id              string `json:"id"`
 	Title           string `json:"title"`
 	Version         string `json:"version"`
 	Available       bool   `json:"available"`
@@ -160,6 +160,91 @@ type Playlist struct {
 		Timestamp string `json:"timestamp"`
 		Track     Track  `json:"track"`
 	} `json:"tracks"`
+}
+
+type StationId struct {
+	Type string `json:"type"`
+	Tag  string `json:"tag"`
+}
+
+type Station struct {
+	Id   StationId `json:"id"`
+	Name string    `json:"name"`
+
+	Icon struct {
+		BackgroundColor string `json:"backgroundIcon"`
+		ImageUrl        string `json:"imageUrl"`
+	} `json:"icon"`
+	FullImageUrl string `json:"fullImageUrl"`
+
+	Restrictions struct {
+		Language struct {
+			Type           string `json:"type"`
+			Name           string `json:"name"`
+			PossibleValues struct {
+				Name  string `json:"name"`
+				Value string `json:"value"`
+			} `json:"possibleValues"`
+		} `json:"language"`
+
+		Mood struct {
+			Type string `json:"type"`
+			Name string `json:"name"`
+			Min  struct {
+				Name  string  `json:"name"`
+				Value float32 `json:"value"`
+			} `json:"min"`
+			Max struct {
+				Name  string  `json:"name"`
+				Value float32 `json:"value"`
+			} `json:"max"`
+		} `json:"mood"`
+
+		Energy struct {
+			Type string `json:"type"`
+			Name string `json:"name"`
+			Min  struct {
+				Name  string  `json:"name"`
+				Value float32 `json:"value"`
+			} `json:"min"`
+			Max struct {
+				Name  string  `json:"name"`
+				Value float32 `json:"value"`
+			} `json:"max"`
+		} `json:"energy"`
+
+		Diversity struct {
+			Type           string `json:"type"`
+			Name           string `json:"name"`
+			PossibleValues struct {
+				Name  string `json:"name"`
+				Value string `json:"value"`
+			} `json:"possibleValues"`
+		} `json:"diversity"`
+	} `json:"restrictions"`
+}
+
+type StationDesc struct {
+	Station  Station `json:"station"`
+	Settings struct {
+		Language  string  `json:"language"`
+		Diversity string  `json:"diversity"`
+		Mood      float32 `json:"mood"`
+		Energy    float32 `json:"energy"`
+	} `json:"settings"`
+	RupTitle       string `json:"rupTitle"`
+	RupDescription string `json:"rupDescription"`
+}
+
+type StationTracks struct {
+	Id       StationId `json:"id"`
+	Sequence []struct {
+		Type  string `json:"type"`
+		Track Track  `json:"track"`
+		Liked bool   `json:"liked"`
+	} `json:"sequence"`
+	BatchId        string `json:"batchId"`
+	RadioSessionId string `json:"radioSessionId"`
 }
 
 type TrackDownloadInfo struct {

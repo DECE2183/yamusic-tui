@@ -111,7 +111,7 @@ func postRequest[RetT any](token, reqPath string, params url.Values) (result Ret
 	return
 }
 
-func downloadRequest(token, reqUrl, mimeType string) (body io.ReadCloser, err error) {
+func downloadRequest(token, reqUrl, mimeType string) (body io.ReadCloser, contentLen int64, err error) {
 	req, err := http.NewRequest(http.MethodGet, reqUrl, nil)
 	if err != nil {
 		return
@@ -127,6 +127,7 @@ func downloadRequest(token, reqUrl, mimeType string) (body io.ReadCloser, err er
 
 	if resp.StatusCode == 200 {
 		body = resp.Body
+		contentLen = resp.ContentLength
 	} else {
 		err = fmt.Errorf("error code %d", resp.StatusCode)
 		resp.Body.Close()
@@ -221,19 +222,36 @@ func (client *YaMusicClient) PlaylistTracks(kind uint64, mixed bool) (tracks []T
 	tracks = make([]Track, 0, playlists[0].TrackCount)
 	for i := 0; i < playlists[0].TrackCount; i++ {
 		tracks = append(tracks, playlists[0].Tracks[i].Track)
-		tracks[i].Id = playlists[0].Tracks[i].Id
 	}
 
 	return
 }
 
-func (client *YaMusicClient) TrackDownloadInfo(trackId uint64) (dowInfos []TrackDownloadInfo, err error) {
-	dowInfos, _, err = getRequest[[]TrackDownloadInfo](client.token, fmt.Sprintf("/tracks/%d/download-info", trackId), nil)
+func (client *YaMusicClient) Stations(language string) (stations []StationDesc, err error) {
+	stations, _, err = getRequest[[]StationDesc](client.token, "/rotor/stations/list", url.Values{
+		"language": {language},
+	})
 	return
 }
 
-func (client *YaMusicClient) DownloadTrack(dowInfo TrackDownloadInfo) (track io.ReadCloser, err error) {
-	fullInfoBody, err := downloadRequest(client.token, dowInfo.DownloadInfoUrl+"&format=json", "application/json")
+func (client *YaMusicClient) StationTracks(id StationId, lastTrack *Track) (tracks StationTracks, err error) {
+	params := url.Values{
+		"settings2": {"true"},
+	}
+	if lastTrack != nil {
+		params.Add("queue", fmt.Sprint(lastTrack.Id))
+	}
+	tracks, _, err = getRequest[StationTracks](client.token, fmt.Sprintf("/rotor/station/%s:%s/tracks", id.Type, id.Tag), nil)
+	return
+}
+
+func (client *YaMusicClient) TrackDownloadInfo(trackId string) (dowInfos []TrackDownloadInfo, err error) {
+	dowInfos, _, err = getRequest[[]TrackDownloadInfo](client.token, fmt.Sprintf("/tracks/%s/download-info", trackId), nil)
+	return
+}
+
+func (client *YaMusicClient) DownloadTrack(dowInfo TrackDownloadInfo) (track io.ReadCloser, fileSize int64, err error) {
+	fullInfoBody, _, err := downloadRequest(client.token, dowInfo.DownloadInfoUrl+"&format=json", "application/json")
 	if err != nil {
 		return
 	}
@@ -258,6 +276,6 @@ func (client *YaMusicClient) DownloadTrack(dowInfo TrackDownloadInfo) (track io.
 	}
 
 	trackUrl := createTrackUrl(info, dowInfo.Codec)
-	track, err = downloadRequest(client.token, trackUrl, mimeType)
+	track, fileSize, err = downloadRequest(client.token, trackUrl, mimeType)
 	return
 }

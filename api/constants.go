@@ -11,3 +11,10 @@ const (
 const (
 	YaMusicServerURL = "https://api.music.yandex.net:443/"
 )
+
+var (
+	MyWaveId = StationId{
+		Type: "user",
+		Tag:  "onyourwave",
+	}
+)
