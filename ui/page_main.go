@@ -31,17 +31,26 @@ func (m model) renderMainPage() string {
 
 	durTotal := time.Millisecond * time.Duration(currentTrack.DurationMs)
 	durEllapsed := time.Millisecond * time.Duration(float64(currentTrack.DurationMs)*m.trackProgress.Percent())
-	trackTime := trackVersionStyle.Copy().Width(26).Align(lipgloss.Right).Render(fmt.Sprintf("%02d:%02d/%02d:%02d",
+	trackTime := trackVersionStyle.Render(fmt.Sprintf("%02d:%02d/%02d:%02d",
 		int(durEllapsed.Minutes()),
 		int(durEllapsed.Seconds())%60,
 		int(durTotal.Minutes()),
 		int(durTotal.Seconds())%60,
 	))
 
+	var trackLike string
+	if m.likedTracksMap[currentTrack.Id] {
+		trackLike = "💛 "
+	} else {
+		trackLike = "🖤 "
+	}
+
+	trackAddInfo := trackAddInfoStyle.Render(trackLike + trackTime)
+
 	trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackVersion)
 	trackTitle = lipgloss.JoinVertical(lipgloss.Left, trackTitle, trackArtist)
 	trackTitle = lipgloss.NewStyle().Width(m.width - m.playlistList.Width() - 34).Render(trackTitle)
-	trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackTime)
+	trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackAddInfo)
 
 	tracker = trackProgressStyle.Render(m.trackProgress.View())
 	tracker = lipgloss.JoinHorizontal(lipgloss.Top, playButton, tracker)

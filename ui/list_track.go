@@ -48,15 +48,24 @@ func (d trackListItemDelegate) Render(w io.Writer, m list.Model, index int, list
 	trackArtist := trackVersionStyle.Render(item.artists)
 
 	durTotal := time.Millisecond * time.Duration(item.durationMs)
-	trackTime := trackVersionStyle.Copy().Width(26).Align(lipgloss.Right).Render(fmt.Sprintf("%d:%02d",
+	trackTime := trackVersionStyle.Render(fmt.Sprintf("%d:%02d",
 		int(durTotal.Minutes()),
 		int(durTotal.Seconds())%60,
 	))
 
+	var trackLike string
+	if item.liked {
+		trackLike = "💛 "
+	} else {
+		trackLike = "🖤 "
+	}
+
+	trackAddInfo := trackAddInfoStyle.Render(trackLike + trackTime)
+
 	trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackVersion)
 	trackTitle = lipgloss.JoinVertical(lipgloss.Left, trackTitle, trackArtist)
 	trackTitle = lipgloss.NewStyle().Width(m.Width() - 18).Render(trackTitle)
-	trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackTime)
+	trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackAddInfo)
 
 	if index == m.Index() {
 		fmt.Fprint(w, trackListActiveStyle.Render(trackTitle))

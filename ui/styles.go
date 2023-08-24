@@ -87,6 +87,10 @@ var (
 	trackProgressStyle = lipgloss.NewStyle().
 				PaddingLeft(2).
 				PaddingBottom(1)
+
+	trackAddInfoStyle = lipgloss.NewStyle().
+				Align(lipgloss.Right).
+				Width(26)
 )
 
 var (

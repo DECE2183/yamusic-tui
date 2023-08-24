@@ -52,6 +52,9 @@ type model struct {
 	currentTrackIdx int
 	playlistTracks  []api.Track
 	currentPlaylist playlistListItem
+
+	likedTracksMap   map[string]bool
+	likedTracksSlice []string
 }
 
 type playerControl uint
@@ -89,7 +92,8 @@ func Run(client *api.YaMusicClient) {
 		trackList:      list.New([]list.Item{}, trackListItemDelegate{}, 512, 512),
 		trackProgress:  progress.New(progress.WithSolidFill("#FC0")),
 
-		trackWrapper: &trackReaderWrapper{},
+		trackWrapper:   &trackReaderWrapper{},
+		likedTracksMap: make(map[string]bool),
 	}
 
 	op := &oto.NewContextOptions{}
@@ -122,7 +126,8 @@ func Run(client *api.YaMusicClient) {
 		CursorUp:     key.NewBinding(key.WithKeys("up"), key.WithHelp("↑", "up")),
 		CursorDown:   key.NewBinding(key.WithKeys("down"), key.WithHelp("↓", "down")),
 		Filter:       key.NewBinding(key.WithKeys(""), key.WithHelp("space", "play/pause")),
-		ShowFullHelp: key.NewBinding(key.WithKeys(""), key.WithHelp("enter", "select")),
+		Quit:         key.NewBinding(key.WithKeys(""), key.WithHelp("enter", "select")),
+		ShowFullHelp: key.NewBinding(key.WithKeys(""), key.WithHelp("l", "like/unlike")),
 	}
 
 	m.trackProgress.ShowPercentage = false
@@ -164,6 +169,15 @@ func Run(client *api.YaMusicClient) {
 				})
 			}
 			m.trackList.SetItems(playlist)
+		}
+
+		likes, err := m.client.LikedTracks()
+		if err == nil {
+			m.likedTracksSlice = make([]string, 0, len(likes))
+			for _, l := range likes {
+				m.likedTracksMap[l.Id] = true
+				m.likedTracksSlice = append(m.likedTracksSlice, l.Id)
+			}
 		}
 	}
 
@@ -222,6 +236,38 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				} else {
 					m.player.Play()
 				}
+			} else if keypress == "l" {
+				if len(m.playlistTracks) == 0 {
+					break
+				}
+				index := m.trackList.Index()
+				track := m.playlistTracks[index]
+				if m.likedTracksMap[track.Id] {
+					if m.client.UnlikeTrack(track.Id) != nil {
+						break
+					}
+					delete(m.likedTracksMap, track.Id)
+					for i, id := range m.likedTracksSlice {
+						if id == track.Id {
+							if i+1 < len(m.likedTracksSlice) {
+								m.likedTracksSlice = append(m.likedTracksSlice[:i], m.likedTracksSlice[i+1:]...)
+							} else {
+								m.likedTracksSlice = m.likedTracksSlice[:i]
+							}
+							break
+						}
+					}
+				} else {
+					if m.client.LikeTrack(track.Id) != nil {
+						break
+					}
+					m.likedTracksMap[track.Id] = true
+					m.likedTracksSlice = append(m.likedTracksSlice, track.Id)
+				}
+				item := m.trackList.SelectedItem().(trackListItem)
+				item.liked = m.likedTracksMap[track.Id]
+				cmd = m.trackList.SetItem(index, item)
+				cmds = append(cmds, cmd)
 			}
 		}
 
@@ -253,6 +299,12 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			for _, t := range tracks.Sequence {
 				m.playlistTracks = append(m.playlistTracks, t.Track)
 			}
+		} else if viewPlaylistControl(msg.kind) == _PLAYLIST_LIKES {
+			tracks, err := m.client.Tracks(m.likedTracksSlice)
+			if err != nil {
+				break
+			}
+			m.playlistTracks = tracks
 		} else {
 			tracks, err := m.client.PlaylistTracks(msg.kind, false)
 			if err != nil {
@@ -267,7 +319,7 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				version:    t.Version,
 				artists:    artistList(t.Artists),
 				id:         t.Id,
-				liked:      false,
+				liked:      m.likedTracksMap[t.Id],
 				durationMs: t.DurationMs,
 			})
 		}

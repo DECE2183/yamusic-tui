@@ -247,6 +247,20 @@ type StationTracks struct {
 	RadioSessionId string `json:"radioSessionId"`
 }
 
+type LikeTrackInfo struct {
+	Id        string `json:"id"`
+	AlbumId   string `json:"albumId"`
+	Timestamp string `json:"timestamp"`
+}
+
+type LikesDesc struct {
+	Library struct {
+		Uid       uint64          `json:"uid"`
+		Revisions int             `json:"revisions"`
+		Tracks    []LikeTrackInfo `json:"tracks"`
+	} `json:"library"`
+}
+
 type TrackDownloadInfo struct {
 	Codec           string `json:"codec"`
 	Gain            bool   `json:"gain"`

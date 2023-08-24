@@ -192,6 +192,11 @@ func NewClient(token string) (client *YaMusicClient, err error) {
 	return
 }
 
+func (client *YaMusicClient) Tracks(trackIds []string) (tracks []Track, err error) {
+	tracks, _, err = postRequest[[]Track](client.token, "/tracks", url.Values{"track-ids": trackIds, "with-positions": {"false"}})
+	return
+}
+
 func (client *YaMusicClient) ListPlaylists() (playlists []Playlist, err error) {
 	playlists, _, err = getRequest[[]Playlist](client.token, fmt.Sprintf("/users/%d/playlists/list", client.userid), nil)
 	return
@@ -242,6 +247,25 @@ func (client *YaMusicClient) StationTracks(id StationId, lastTrack *Track) (trac
 		params.Add("queue", fmt.Sprint(lastTrack.Id))
 	}
 	tracks, _, err = getRequest[StationTracks](client.token, fmt.Sprintf("/rotor/station/%s:%s/tracks", id.Type, id.Tag), nil)
+	return
+}
+
+func (client *YaMusicClient) LikedTracks() (tracks []LikeTrackInfo, err error) {
+	desc, _, err := getRequest[LikesDesc](client.token, fmt.Sprintf("/users/%d/likes/tracks", client.userid), nil)
+	if err != nil {
+		return
+	}
+	tracks = desc.Library.Tracks
+	return
+}
+
+func (client *YaMusicClient) LikeTrack(trackId string) (err error) {
+	_, _, err = postRequest[interface{}](client.token, fmt.Sprintf("/users/%d/likes/tracks/add-multiple", client.userid), url.Values{"track-ids": {trackId}})
+	return
+}
+
+func (client *YaMusicClient) UnlikeTrack(trackId string) (err error) {
+	_, _, err = postRequest[interface{}](client.token, fmt.Sprintf("/users/%d/likes/tracks/remove", client.userid), url.Values{"track-ids": {trackId}})
 	return
 }
 
