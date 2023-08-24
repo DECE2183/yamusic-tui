@@ -54,24 +54,29 @@ func (d playlistListItemDelegate) Render(w io.Writer, m list.Model, index int, l
 		return
 	}
 
+	name := item.name
+	if len(name) > 27 {
+		name = name[:24] + "..."
+	}
+
 	if item.active && !item.subitem {
 		if index == m.Index() {
-			fmt.Fprint(w, sideBoxSelItemStyle.Render(item.name))
+			fmt.Fprint(w, sideBoxSelItemStyle.Render(name))
 		} else {
-			fmt.Fprint(w, sideBoxItemStyle.Render(item.name))
+			fmt.Fprint(w, sideBoxItemStyle.Render(name))
 		}
 	} else {
 		if item.subitem {
 			if index == m.Index() {
-				fmt.Fprint(w, sideBoxSelSubItemStyle.Render(item.name))
+				fmt.Fprint(w, sideBoxSelSubItemStyle.Render(name))
 			} else {
-				fmt.Fprint(w, sideBoxSubItemStyle.Render(item.name))
+				fmt.Fprint(w, sideBoxSubItemStyle.Render(name))
 			}
 		} else {
 			if index == m.Index() {
-				fmt.Fprint(w, sideBoxSelInactiveItemStyle.Render(item.name))
+				fmt.Fprint(w, sideBoxSelInactiveItemStyle.Render(name))
 			} else {
-				fmt.Fprint(w, sideBoxInactiveItemStyle.Render(item.name))
+				fmt.Fprint(w, sideBoxInactiveItemStyle.Render(name))
 			}
 		}
 	}

@@ -45,11 +45,14 @@ var (
 			Padding(1, 0)
 	sideBoxItemStyle = lipgloss.NewStyle().
 				Foreground(normalTextColor).
-				PaddingLeft(2)
+				PaddingLeft(2).
+				Width(32).
+				MaxWidth(32)
 	sideBoxSelItemStyle = sideBoxItemStyle.Copy().
 				Foreground(activeTextColor).
+				Background(lipgloss.Color("#4a3c00")).
 				PaddingLeft(1).
-				Border(lipgloss.ThickBorder()).
+				Border(lipgloss.InnerHalfBlockBorder()).
 				BorderForeground(accentColor).
 				BorderTop(false).
 				BorderLeft(true).
@@ -61,6 +64,7 @@ var (
 					MarginTop(1)
 	sideBoxSelInactiveItemStyle = sideBoxSelItemStyle.Copy().
 					BorderForeground(inactiveTextColor).
+					UnsetBackground().
 					Foreground(inactiveTextColor).
 					Padding(0, 0, 0, 1).
 					MarginTop(1)

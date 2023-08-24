@@ -6,6 +6,7 @@ import (
 	"yamusic/api"
 	"yamusic/config"
 
+	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/progress"
@@ -41,6 +42,7 @@ type model struct {
 	playlistList   list.Model
 	trackList      list.Model
 	trackProgress  progress.Model
+	trackerHelp    help.Model
 
 	playerContext *oto.Context
 	player        *oto.Player
@@ -125,6 +127,7 @@ func Run(client *api.YaMusicClient) {
 	m.trackList.KeyMap = list.KeyMap{
 		CursorUp:     key.NewBinding(key.WithKeys("up"), key.WithHelp("↑", "up")),
 		CursorDown:   key.NewBinding(key.WithKeys("down"), key.WithHelp("↓", "down")),
+		GoToEnd:      key.NewBinding(key.WithKeys(""), key.WithHelp("→", "next track")),
 		Filter:       key.NewBinding(key.WithKeys(""), key.WithHelp("space", "play/pause")),
 		Quit:         key.NewBinding(key.WithKeys(""), key.WithHelp("enter", "select")),
 		ShowFullHelp: key.NewBinding(key.WithKeys(""), key.WithHelp("l", "like/unlike")),
@@ -236,6 +239,8 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				} else {
 					m.player.Play()
 				}
+			} else if keypress == "right" {
+				m.nextTrack()
 			} else if keypress == "l" {
 				if len(m.playlistTracks) == 0 {
 					break
