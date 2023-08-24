@@ -11,7 +11,6 @@ import (
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/ebitengine/oto/v3"
 	"github.com/hajimehoshi/go-mp3"
 )
@@ -43,23 +42,35 @@ type model struct {
 	trackList      list.Model
 	trackProgress  progress.Model
 
-	playerContext   *oto.Context
-	player          *oto.Player
+	playerContext *oto.Context
+	player        *oto.Player
+	trackWrapper  *trackReaderWrapper
+
+	infinitePlaylist bool
+
 	playQueue       []api.Track
-	infiniteQueue   bool
 	currentTrackIdx int
-	trackWrapper    *trackReaderWrapper
+	playlistTracks  []api.Track
+	currentPlaylist playlistListItem
 }
 
 type playerControl uint
-
-type progressControl float64
 
 const (
 	_PLAYER_PLAY  playerControl = iota
 	_PLAYER_PAUSE playerControl = iota
 	_PLAYER_NEXT  playerControl = iota
 	_PLAYER_PREV  playerControl = iota
+)
+
+type progressControl float64
+
+type viewPlaylistControl uint64
+
+const (
+	_PLAYLIST_MYWAVE viewPlaylistControl = iota
+	_PLAYLIST_LIKES  viewPlaylistControl = iota
+	_PLAYLIST_PREDEF viewPlaylistControl = iota
 )
 
 var (
@@ -97,20 +108,21 @@ func Run(client *api.YaMusicClient) {
 	m.loginTextInput.Width = 64
 	m.loginTextInput.CharLimit = 60
 
-	m.playlistList.SetShowHelp(false)
-	m.playlistList.Styles.StatusBar = m.playlistList.Styles.StatusBar.Background(lipgloss.Color("#121212"))
-	m.playlistList.Styles.TitleBar = m.playlistList.Styles.TitleBar.Background(lipgloss.Color("#121212"))
+	m.playlistList.Title = "Playlists"
+	m.playlistList.SetShowStatusBar(false)
+	m.playlistList.Styles.Title = m.playlistList.Styles.Title.Foreground(accentColor).UnsetBackground().Padding(0)
 	m.playlistList.KeyMap = list.KeyMap{
-		CursorUp:   key.NewBinding(key.WithKeys("ctrl+up")),
-		CursorDown: key.NewBinding(key.WithKeys("ctrl+down")),
+		CursorUp:   key.NewBinding(key.WithKeys("ctrl+up"), key.WithHelp("ctrl+↑", "up")),
+		CursorDown: key.NewBinding(key.WithKeys("ctrl+down"), key.WithHelp("ctrl+↓", "down")),
 	}
 
-	m.trackList.SetShowHelp(false)
-	m.trackList.Styles.StatusBar = m.trackList.Styles.StatusBar.Background(lipgloss.Color("#181818"))
-	m.trackList.Styles.TitleBar = m.trackList.Styles.TitleBar.Background(lipgloss.Color("#181818"))
+	m.trackList.Title = "Tracks"
+	m.trackList.Styles.Title = m.trackList.Styles.Title.Foreground(normalTextColor).UnsetBackground().Padding(0)
 	m.trackList.KeyMap = list.KeyMap{
-		CursorUp:   key.NewBinding(key.WithKeys("up")),
-		CursorDown: key.NewBinding(key.WithKeys("down")),
+		CursorUp:     key.NewBinding(key.WithKeys("up"), key.WithHelp("↑", "up")),
+		CursorDown:   key.NewBinding(key.WithKeys("down"), key.WithHelp("↓", "down")),
+		Filter:       key.NewBinding(key.WithKeys(""), key.WithHelp("space", "play/pause")),
+		ShowFullHelp: key.NewBinding(key.WithKeys(""), key.WithHelp("enter", "select")),
 	}
 
 	m.trackProgress.ShowPercentage = false
@@ -118,9 +130,8 @@ func Run(client *api.YaMusicClient) {
 	m.trackProgress.EmptyColor = "#6b6b6b"
 
 	playlistListItems := []list.Item{
-		playlistListItem{"wave", 0, true, false},
-		playlistListItem{"likes", 0, true, false},
-		playlistListItem{"dislikes", 0, true, false},
+		playlistListItem{"my wave", uint64(_PLAYLIST_MYWAVE), true, false},
+		playlistListItem{"likes", uint64(_PLAYLIST_LIKES), true, false},
 		playlistListItem{"playlists:", 0, false, false},
 	}
 
@@ -132,11 +143,28 @@ func Run(client *api.YaMusicClient) {
 		playlists, err := m.client.ListPlaylists()
 		if err == nil {
 			for _, playlist := range playlists {
-				playlistListItems = append(playlistListItems, playlistListItem{playlist.Title, playlist.Uid, true, true})
+				playlistListItems = append(playlistListItems, playlistListItem{playlist.Title, playlist.Kind, true, true})
 			}
 		}
-
 		m.playlistList.SetItems(playlistListItems)
+
+		tracks, err := m.client.StationTracks(api.MyWaveId, nil)
+		if err == nil {
+			var playlist []list.Item
+			m.playlistTracks = m.playlistTracks[:0]
+			for _, t := range tracks.Sequence {
+				m.playlistTracks = append(m.playlistTracks, t.Track)
+				playlist = append(playlist, trackListItem{
+					title:      t.Track.Title,
+					version:    t.Track.Version,
+					artists:    artistList(t.Track.Artists),
+					id:         t.Track.Id,
+					liked:      false,
+					durationMs: t.Track.DurationMs,
+				})
+			}
+			m.trackList.SetItems(playlist)
+		}
 	}
 
 	programm = tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
@@ -178,23 +206,74 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case _PAGE_MAIN:
 			if keypress == "enter" {
 				playlistItem := m.playlistList.SelectedItem().(playlistListItem)
-				if playlistItem.id == 0 {
-					switch playlistItem.name {
-					case "wave":
-						m.playWave()
-					}
+				if !playlistItem.active {
+					break
+				}
+				m.currentPlaylist = playlistItem
+				m.infinitePlaylist = playlistItem.kind == uint64(_PLAYLIST_MYWAVE)
+				m.playQueue = m.playlistTracks
+				m.playCurrentQueue(m.trackList.Index())
+			} else if keypress == " " {
+				if m.player == nil {
+					break
+				}
+				if m.player.IsPlaying() {
+					m.player.Pause()
+				} else {
+					m.player.Play()
 				}
 			}
 		}
 
+	// player control update
 	case playerControl:
 		switch msg {
 		case _PLAYER_NEXT:
 			m.nextTrack()
 		}
 
+	// track progress update
 	case progressControl:
 		cmd = m.trackProgress.SetPercent(float64(msg))
+		cmds = append(cmds, cmd)
+
+	// selected playlist
+	case playlistListItem:
+		var playlist []list.Item
+
+		if len(m.playQueue) > 0 && msg.kind == m.currentPlaylist.kind {
+			m.playlistTracks = m.playQueue
+			m.trackList.Select(m.currentTrackIdx)
+		} else if viewPlaylistControl(msg.kind) == _PLAYLIST_MYWAVE {
+			tracks, err := m.client.StationTracks(api.MyWaveId, nil)
+			if err != nil {
+				break
+			}
+			m.playlistTracks = m.playlistTracks[:0]
+			for _, t := range tracks.Sequence {
+				m.playlistTracks = append(m.playlistTracks, t.Track)
+			}
+		} else {
+			tracks, err := m.client.PlaylistTracks(msg.kind, false)
+			if err != nil {
+				break
+			}
+			m.playlistTracks = tracks
+		}
+
+		for _, t := range m.playlistTracks {
+			playlist = append(playlist, trackListItem{
+				title:      t.Title,
+				version:    t.Version,
+				artists:    artistList(t.Artists),
+				id:         t.Id,
+				liked:      false,
+				durationMs: t.DurationMs,
+			})
+		}
+
+		m.trackList.Title = "Tracks from " + msg.name
+		cmd = m.trackList.SetItems(playlist)
 		cmds = append(cmds, cmd)
 
 	case progress.FrameMsg:
@@ -230,39 +309,32 @@ func (m model) View() string {
 
 func (m *model) resize(w, h int) {
 	m.width, m.height = w, h
-	m.playlistList.SetSize(32, h)
-	m.trackList.SetSize(m.width-m.playlistList.Width(), h-5)
-	m.trackProgress.Width = m.width - m.playlistList.Width()
+	m.playlistList.SetSize(32, h-5)
+	m.trackList.SetSize(m.width-m.playlistList.Width()-20, h-12)
+	m.trackProgress.Width = m.width - m.playlistList.Width() - 13
 }
 
-func (m *model) playWave() {
+func (m *model) playCurrentQueue(trackIndex int) {
 	if m.player != nil {
-		if m.player.IsPlaying() {
-			m.player.Pause()
-			return
+		if m.currentTrackIdx == trackIndex {
+			if m.player.IsPlaying() {
+				m.player.Pause()
+				return
+			} else {
+				m.player.Play()
+				return
+			}
 		} else {
-			m.player.Play()
-			return
+			m.player.Close()
+			m.player = nil
 		}
-	}
-
-	tracks, err := m.client.StationTracks(api.MyWaveId, nil)
-	if err != nil {
-		return
-	}
-
-	m.currentTrackIdx = 0
-	m.playQueue = m.playQueue[:0]
-	m.infiniteQueue = true
-
-	for _, tr := range tracks.Sequence {
-		m.playQueue = append(m.playQueue, tr.Track)
 	}
 
 	if len(m.playQueue) == 0 {
 		return
 	}
 
+	m.currentTrackIdx = trackIndex
 	m.playTrack(&m.playQueue[m.currentTrackIdx])
 }
 
@@ -270,25 +342,28 @@ func (m *model) nextTrack() {
 	m.player.Close()
 	m.player = nil
 
-	if m.currentTrackIdx+1 >= len(m.playQueue) {
-		if m.infiniteQueue {
-			tracks, err := m.client.StationTracks(api.MyWaveId, &m.playQueue[m.currentTrackIdx])
-			if err != nil {
-				return
-			}
-
-			for _, tr := range tracks.Sequence {
-				m.playQueue = append(m.playQueue, tr.Track)
-			}
-		} else {
-			m.currentTrackIdx = 0
-			go programm.Send(_PLAYER_PAUSE)
+	if m.infinitePlaylist && m.currentTrackIdx+2 >= len(m.playQueue) {
+		tracks, err := m.client.StationTracks(api.MyWaveId, &m.playQueue[m.currentTrackIdx])
+		if err != nil {
 			return
 		}
+
+		for _, tr := range tracks.Sequence {
+			m.playQueue = append(m.playQueue, tr.Track)
+		}
+	} else if m.currentTrackIdx+1 >= len(m.playQueue) {
+		m.currentTrackIdx = 0
+		go programm.Send(_PLAYER_PAUSE)
+		return
 	}
 
 	m.currentTrackIdx++
 	m.playTrack(&m.playQueue[m.currentTrackIdx])
+
+	selectedPlaylis := m.playlistList.SelectedItem().(playlistListItem)
+	if m.currentPlaylist.kind == selectedPlaylis.kind {
+		go programm.Send(selectedPlaylis)
+	}
 }
 
 func (m *model) playTrack(track *api.Track) {

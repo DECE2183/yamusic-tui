@@ -3,17 +3,20 @@ package ui
 import (
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type trackListItem struct {
-	title   string
-	version string
-	artists string
-	id      string
-	liked   bool
+	title      string
+	version    string
+	artists    string
+	id         string
+	durationMs int
+	liked      bool
 }
 
 type trackListItemDelegate struct{}
@@ -23,7 +26,7 @@ func (i trackListItem) FilterValue() string {
 }
 
 func (d trackListItemDelegate) Height() int {
-	return 1
+	return 4
 }
 
 func (d trackListItemDelegate) Spacing() int {
@@ -39,5 +42,25 @@ func (d trackListItemDelegate) Render(w io.Writer, m list.Model, index int, list
 	if !ok {
 		return
 	}
-	fmt.Fprint(w, sideBoxInactiveItemStyle.Render(item.title))
+
+	trackTitle := trackTitleStyle.Render(item.title)
+	trackVersion := trackVersionStyle.Render(" " + item.version)
+	trackArtist := trackVersionStyle.Render(item.artists)
+
+	durTotal := time.Millisecond * time.Duration(item.durationMs)
+	trackTime := trackVersionStyle.Copy().Width(26).Align(lipgloss.Right).Render(fmt.Sprintf("%d:%02d",
+		int(durTotal.Minutes()),
+		int(durTotal.Seconds())%60,
+	))
+
+	trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackVersion)
+	trackTitle = lipgloss.JoinVertical(lipgloss.Left, trackTitle, trackArtist)
+	trackTitle = lipgloss.NewStyle().Width(m.Width() - 18).Render(trackTitle)
+	trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackTime)
+
+	if index == m.Index() {
+		fmt.Fprint(w, trackListActiveStyle.Render(trackTitle))
+	} else {
+		fmt.Fprint(w, trackListStyle.Render(trackTitle))
+	}
 }

@@ -5,12 +5,19 @@ import (
 )
 
 var (
+	accentColor       = lipgloss.Color("#FC0")
+	activeTextColor   = lipgloss.Color("#EEE")
+	normalTextColor   = lipgloss.Color("#CCC")
+	inactiveTextColor = lipgloss.Color("#888")
+)
+
+var (
 	dialogTitleStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("#F4F4F4")).
 				MarginBottom(1)
 	dialogBoxStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#FC0")).
+			BorderForeground(accentColor).
 			Padding(1, 2).
 			BorderTop(true).
 			BorderLeft(true).
@@ -22,39 +29,39 @@ var (
 var (
 	buttonStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#181818")).
-			Background(lipgloss.Color("#FC0")).
+			Background(accentColor).
 			Padding(0, 3).
 			MarginTop(1)
 	activeButtonStyle = buttonStyle.Copy().
 				Foreground(lipgloss.Color("#181818")).
-				Background(lipgloss.Color("#FC0"))
+				Background(accentColor)
 )
 
 var (
 	sideBoxStyle = lipgloss.NewStyle().
-			Background(lipgloss.Color("#121212")).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#444")).
 			Width(32).
 			Padding(1, 0)
 	sideBoxItemStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#CCC")).
-				Background(lipgloss.Color("#121212")).
+				Foreground(normalTextColor).
 				PaddingLeft(2)
 	sideBoxSelItemStyle = sideBoxItemStyle.Copy().
-				Foreground(lipgloss.Color("#EEE")).
+				Foreground(activeTextColor).
 				PaddingLeft(1).
 				Border(lipgloss.ThickBorder()).
-				BorderForeground(lipgloss.Color("#FC0")).
+				BorderForeground(accentColor).
 				BorderTop(false).
 				BorderLeft(true).
 				BorderRight(false).
 				BorderBottom(false)
 	sideBoxInactiveItemStyle = sideBoxItemStyle.Copy().
-					Foreground(lipgloss.Color("#888")).
+					Foreground(inactiveTextColor).
 					Padding(0, 0, 0, 2).
 					MarginTop(1)
 	sideBoxSelInactiveItemStyle = sideBoxSelItemStyle.Copy().
-					BorderForeground(lipgloss.Color("#888")).
-					Foreground(lipgloss.Color("#888")).
+					BorderForeground(inactiveTextColor).
+					Foreground(inactiveTextColor).
 					Padding(0, 0, 0, 1).
 					MarginTop(1)
 	sideBoxSubItemStyle = sideBoxItemStyle.Copy().
@@ -65,20 +72,30 @@ var (
 
 var (
 	trackBoxStyle = lipgloss.NewStyle().
-			Background(lipgloss.Color("#181818")).
-			PaddingBottom(1)
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#444")).
+			Padding(1, 2)
 
 	trackTitleStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#dcdcdc")).
-			PaddingLeft(2).
 			Bold(true)
 	trackVersionStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#999999")).
-				PaddingLeft(2)
+				Foreground(lipgloss.Color("#999999"))
 	trackArtistStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#dcdcdc")).
-				PaddingLeft(2)
+				Foreground(lipgloss.Color("#dcdcdc"))
 
 	trackProgressStyle = lipgloss.NewStyle().
+				PaddingLeft(2).
 				PaddingBottom(1)
+)
+
+var (
+	trackListStyle = lipgloss.NewStyle().
+			Padding(1, 2).
+			MarginTop(-2)
+	trackListActiveStyle = lipgloss.NewStyle().
+				Padding(0, 1).
+				MarginTop(-2).
+				Border(lipgloss.RoundedBorder()).
+				BorderForeground(accentColor)
 )

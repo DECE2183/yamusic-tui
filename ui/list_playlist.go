@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 type playlistListItem struct {
 	name    string
-	id      uint64
+	kind    uint64
 	active  bool
 	subitem bool
 }
@@ -29,7 +30,21 @@ func (d playlistListItemDelegate) Spacing() int {
 	return 0
 }
 
-func (d playlistListItemDelegate) Update(msg tea.Msg, m *list.Model) tea.Cmd {
+func (d playlistListItemDelegate) Update(message tea.Msg, m *list.Model) tea.Cmd {
+	item, ok := m.SelectedItem().(playlistListItem)
+	if !ok {
+		return nil
+	}
+
+	msg, ok := message.(tea.KeyMsg)
+	if !ok {
+		return nil
+	}
+
+	if (key.Matches(msg, m.KeyMap.CursorUp) || key.Matches(msg, m.KeyMap.CursorDown)) && item.active {
+		go programm.Send(item)
+	}
+
 	return nil
 }
 
