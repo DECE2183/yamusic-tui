@@ -320,6 +320,7 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				artists:    artistList(t.Artists),
 				id:         t.Id,
 				liked:      m.likedTracksMap[t.Id],
+				available:  t.Available,
 				durationMs: t.DurationMs,
 			})
 		}

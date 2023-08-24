@@ -17,6 +17,7 @@ type trackListItem struct {
 	id         string
 	durationMs int
 	liked      bool
+	available  bool
 }
 
 type trackListItemDelegate struct{}
@@ -43,7 +44,12 @@ func (d trackListItemDelegate) Render(w io.Writer, m list.Model, index int, list
 		return
 	}
 
-	trackTitle := trackTitleStyle.Render(item.title)
+	var trackTitle string
+	if item.available {
+		trackTitle = trackTitleStyle.Render(item.title)
+	} else {
+		trackTitle = trackTitleStyle.Copy().Strikethrough(true).Render(item.title)
+	}
 	trackVersion := trackVersionStyle.Render(" " + item.version)
 	trackArtist := trackVersionStyle.Render(item.artists)
 

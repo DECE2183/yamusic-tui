@@ -25,7 +25,13 @@ func (m model) renderMainPage() string {
 		playButton = activeButtonStyle.Padding(0, 1).Margin(0).Render("▶")
 	}
 
-	trackTitle := trackTitleStyle.Render(currentTrack.Title)
+	var trackTitle string
+	if currentTrack.Available {
+		trackTitle = trackTitleStyle.Render(currentTrack.Title)
+	} else {
+		trackTitle = trackTitleStyle.Copy().Strikethrough(true).Render(currentTrack.Title)
+	}
+
 	trackVersion := trackVersionStyle.Render(" " + currentTrack.Version)
 	trackArtist := trackArtistStyle.Render(artistList(currentTrack.Artists))
 
