@@ -119,6 +119,7 @@ func Run(client *api.YaMusicClient) {
 
 	op.SampleRate = 44100
 	op.ChannelCount = 2
+	op.BufferSize = time.Millisecond * 250
 	op.Format = oto.FormatSignedInt16LE
 
 	var readyChan chan struct{}

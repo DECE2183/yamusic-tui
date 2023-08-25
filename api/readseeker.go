@@ -11,18 +11,34 @@ var errOutOfSize = errors.New("position is out of data size")
 type HttpReadSeeker struct {
 	source     io.ReadCloser
 	readBuffer []byte
-	readIndex  int64
-	totalSize  int64
+	readIndex  int
+	totalSize  int
 	done       bool
 	mux        sync.Mutex
 }
 
-func newReadSeaker(rc io.ReadCloser, totalSize int64) *HttpReadSeeker {
+func newReadSeaker(rc io.ReadCloser, totalSize int) *HttpReadSeeker {
 	rs := HttpReadSeeker{
 		source:    rc,
 		totalSize: totalSize,
 	}
 	return &rs
+}
+
+func (h *HttpReadSeeker) bufferNextFrame(size int) {
+	h.mux.Lock()
+
+	if size < 128 {
+		size = 128
+	}
+
+	buf := make([]byte, size)
+	n, err := h.source.Read(buf)
+	if err == nil || err == io.EOF {
+		h.readBuffer = append(h.readBuffer, buf[:n]...)
+	}
+
+	h.mux.Unlock()
 }
 
 func (h *HttpReadSeeker) Close() error {
@@ -34,15 +50,17 @@ func (h *HttpReadSeeker) Close() error {
 func (h *HttpReadSeeker) Read(dest []byte) (n int, err error) {
 	h.mux.Lock()
 
-	if h.readIndex >= int64(len(h.readBuffer)) {
+	readBufLef := len(h.readBuffer)
+
+	if h.readIndex >= readBufLef {
 		n, err = h.source.Read(dest)
 		h.readBuffer = append(h.readBuffer, dest[:n]...)
-		h.readIndex += int64(n)
+		h.readIndex += n
 	} else {
 		var unbufferedLen int
-		endIndex := h.readIndex + int64(len(dest))
-		if endIndex > h.totalSize {
-			endIndex = h.totalSize
+		endIndex := h.readIndex + len(dest)
+		if endIndex > readBufLef {
+			endIndex = readBufLef
 		}
 		bufferedPart := h.readBuffer[h.readIndex:endIndex]
 		if len(dest)-len(bufferedPart) > 0 {
@@ -56,7 +74,10 @@ func (h *HttpReadSeeker) Read(dest []byte) (n int, err error) {
 			copy(dest, bufferedPart)
 			n = len(bufferedPart)
 		}
-		h.readIndex += int64(n)
+		h.readIndex += n
+		if h.readIndex >= h.totalSize {
+			err = io.EOF
+		}
 	}
 
 	if err == io.EOF {
@@ -64,13 +85,15 @@ func (h *HttpReadSeeker) Read(dest []byte) (n int, err error) {
 		h.done = true
 	} else if err == io.ErrClosedPipe {
 		err = io.EOF
+	} else {
+		go h.bufferNextFrame(n)
 	}
 
 	h.mux.Unlock()
 	return
 }
 
-func (h *HttpReadSeeker) SeekPos(offset int64, whence int) (pos int64, err error) {
+func (h *HttpReadSeeker) SeekPos(offset int, whence int) (pos int, err error) {
 	h.mux.Lock()
 
 	switch whence {
