@@ -119,7 +119,7 @@ func Run(client *api.YaMusicClient) {
 
 	op.SampleRate = 44100
 	op.ChannelCount = 2
-	op.BufferSize = time.Millisecond * 250
+	op.BufferSize = time.Millisecond * 80
 	op.Format = oto.FormatSignedInt16LE
 
 	var readyChan chan struct{}
@@ -558,10 +558,16 @@ func (m *model) playTrack(track *api.Track) {
 }
 
 func (w *trackReaderWrapper) Read(dest []byte) (n int, err error) {
+	if w.trackReader == nil {
+		err = io.EOF
+		return
+	}
+
 	n, err = w.decoder.Read(dest)
 	if err != nil && err != io.EOF {
-		go programm.Send(_PLAYER_STOP)
 		w.trackReader.Close()
+		w.trackReader = nil
+		go programm.Send(_PLAYER_STOP)
 		return
 	}
 

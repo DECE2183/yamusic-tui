@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"io"
+	"net/http"
 	"sync"
 )
 
@@ -83,7 +84,7 @@ func (h *HttpReadSeeker) Read(dest []byte) (n int, err error) {
 	if err == io.EOF {
 		h.source.Close()
 		h.done = true
-	} else if err == io.ErrClosedPipe {
+	} else if err == http.ErrBodyReadAfterClose {
 		err = io.EOF
 	} else {
 		go h.bufferNextFrame(n)
