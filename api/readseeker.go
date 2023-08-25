@@ -13,6 +13,7 @@ type HttpReadSeeker struct {
 	readBuffer []byte
 	readIndex  int64
 	totalSize  int64
+	done       bool
 	mux        sync.Mutex
 }
 
@@ -60,6 +61,7 @@ func (h *HttpReadSeeker) Read(dest []byte) (n int, err error) {
 
 	if err == io.EOF {
 		h.source.Close()
+		h.done = true
 	} else if err == io.ErrClosedPipe {
 		err = io.EOF
 	}
@@ -80,13 +82,26 @@ func (h *HttpReadSeeker) SeekPos(offset int64, whence int) (pos int64, err error
 		pos = h.totalSize + offset
 	}
 
-	if pos < 0 || pos >= h.totalSize {
+	if pos < 0 || pos > h.totalSize {
 		pos = h.readIndex
 		err = errOutOfSize
 	} else {
+		if pos == h.totalSize {
+			h.done = true
+		} else {
+			h.done = false
+		}
 		h.readIndex = pos
 	}
 
 	h.mux.Unlock()
 	return
+}
+
+func (h *HttpReadSeeker) IsDone() bool {
+	return h.done
+}
+
+func (h *HttpReadSeeker) Progress() float64 {
+	return float64(h.readIndex) / float64(h.totalSize)
 }

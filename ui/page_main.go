@@ -35,23 +35,23 @@ var trackerHelpMap = trackerHelpKeyMap{
 		key.WithKeys("L"),
 		key.WithHelp("L", "like/unlike"),
 	),
-	Forward: key.NewBinding(
+	Backward: key.NewBinding(
 		key.WithKeys("ctrl+left"),
 		key.WithHelp("ctrl+←", "-5 sec"),
 	),
-	Backward: key.NewBinding(
+	Forward: key.NewBinding(
 		key.WithKeys("ctrl+right"),
 		key.WithHelp("ctrl+→", "+5 sec"),
 	),
 }
 
 func (k trackerHelpKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.PlayPause, k.PrevTrack, k.NextTrack, k.Backward, k.Forward, k.LikeUnlike}
+	return []key.Binding{k.PlayPause, k.NextTrack, k.PrevTrack, k.Forward, k.Backward, k.LikeUnlike}
 }
 
 func (k trackerHelpKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.PlayPause, k.PrevTrack, k.NextTrack, k.Backward, k.Forward, k.LikeUnlike},
+		{k.PlayPause, k.NextTrack, k.PrevTrack, k.Forward, k.Backward, k.LikeUnlike},
 	}
 }
 
@@ -67,9 +67,9 @@ func (m model) renderMainPage() string {
 	var playButton string
 	isPlaying := m.player != nil && m.player.IsPlaying()
 	if isPlaying {
-		playButton = activeButtonStyle.Padding(0, 1).Margin(0).Render("■")
+		playButton = activeButtonStyle.Padding(0, 1).Margin(0).Render(iconStop)
 	} else {
-		playButton = activeButtonStyle.Padding(0, 1).Margin(0).Render("▶")
+		playButton = activeButtonStyle.Padding(0, 1).Margin(0).Render(iconPlay)
 	}
 
 	var trackTitle string
@@ -93,9 +93,9 @@ func (m model) renderMainPage() string {
 
 	var trackLike string
 	if m.likedTracksMap[currentTrack.Id] {
-		trackLike = "💛 "
+		trackLike = iconLiked + " "
 	} else {
-		trackLike = "🖤 "
+		trackLike = iconNotLiked + " "
 	}
 
 	trackAddInfo := trackAddInfoStyle.Render(trackLike + trackTime)

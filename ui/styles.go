@@ -12,6 +12,13 @@ var (
 )
 
 var (
+	iconPlay     = "▶"
+	iconStop     = "■"
+	iconLiked    = "💛"
+	iconNotLiked = "🤍"
+)
+
+var (
 	dialogTitleStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("#F4F4F4")).
 				MarginBottom(1)
@@ -28,12 +35,12 @@ var (
 
 var (
 	buttonStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#181818")).
+			Foreground(normalTextColor).
 			Background(accentColor).
 			Padding(0, 3).
 			MarginTop(1)
 	activeButtonStyle = buttonStyle.Copy().
-				Foreground(lipgloss.Color("#181818")).
+				Foreground(normalTextColor).
 				Background(accentColor)
 )
 

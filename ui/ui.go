@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"io"
 	"time"
 	"yamusic/api"
@@ -14,6 +15,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/ebitengine/oto/v3"
 	"github.com/hajimehoshi/go-mp3"
+	"golang.design/x/clipboard"
 )
 
 type page uint
@@ -66,6 +68,7 @@ type playerControl uint
 const (
 	_PLAYER_PLAY  playerControl = iota
 	_PLAYER_PAUSE playerControl = iota
+	_PLAYER_STOP  playerControl = iota
 	_PLAYER_NEXT  playerControl = iota
 	_PLAYER_PREV  playerControl = iota
 )
@@ -86,6 +89,11 @@ var (
 
 func Run(client *api.YaMusicClient) {
 	var err error
+
+	err = clipboard.Init()
+	if err != nil {
+		panic(err)
+	}
 
 	playlistListItems := []list.Item{
 		playlistListItem{"my wave", uint64(_PLAYLIST_MYWAVE), true, false},
@@ -136,8 +144,9 @@ func Run(client *api.YaMusicClient) {
 	m.trackList.KeyMap = list.KeyMap{
 		CursorUp:     key.NewBinding(key.WithKeys("up"), key.WithHelp("↑", "up")),
 		CursorDown:   key.NewBinding(key.WithKeys("down"), key.WithHelp("↓", "down")),
-		Quit:         key.NewBinding(key.WithKeys(""), key.WithHelp("enter", "select")),
-		ShowFullHelp: key.NewBinding(key.WithKeys(""), key.WithHelp("l", "like/unlike")),
+		Quit:         key.NewBinding(key.WithKeys(""), key.WithHelp("l", "like/unlike")),
+		Filter:       key.NewBinding(key.WithKeys(""), key.WithHelp("enter", "select")),
+		ShowFullHelp: key.NewBinding(key.WithKeys(""), key.WithHelp("ctrl+s", "share")),
 	}
 
 	m.trackProgress.ShowPercentage = false
@@ -261,6 +270,13 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				item.liked = m.likedTracksMap[track.Id]
 				cmd = m.trackList.SetItem(index, item)
 				cmds = append(cmds, cmd)
+			} else if keypress == "ctrl+s" {
+				if len(m.playlistTracks) == 0 {
+					break
+				}
+				track := m.playlistTracks[m.trackList.Index()]
+				link := fmt.Sprintf("https://music.yandex.ru/album/%d/track/%s", track.Albums[0].Id, track.Id)
+				clipboard.Write(clipboard.FmtText, []byte(link))
 			}
 		}
 
@@ -281,8 +297,17 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 					)
 				}
 			}
-
 			m.nextTrack()
+		case _PLAYER_PAUSE:
+			if m.player != nil {
+				m.player.Pause()
+			}
+		case _PLAYER_STOP:
+			if m.player != nil {
+				m.player.Pause()
+				m.player.Close()
+				m.player = nil
+			}
 		}
 
 	// track progress update
@@ -468,7 +493,7 @@ func (m *model) nextTrack() {
 		}
 	} else if m.currentTrackIdx+1 >= len(m.playQueue) {
 		m.currentTrackIdx = 0
-		go programm.Send(_PLAYER_PAUSE)
+		go programm.Send(_PLAYER_STOP)
 		return
 	}
 
@@ -533,16 +558,20 @@ func (m *model) playTrack(track *api.Track) {
 
 func (w *trackReaderWrapper) Read(dest []byte) (n int, err error) {
 	n, err = w.decoder.Read(dest)
-	if err == io.EOF {
+	if err != nil && err != io.EOF {
+		go programm.Send(_PLAYER_STOP)
+		w.trackReader.Close()
+		return
+	}
+
+	if w.trackReader.IsDone() {
 		w.trackReader = nil
-		go func() {
-			programm.Send(1)
-			programm.Send(_PLAYER_NEXT)
-		}()
+		go programm.Send(_PLAYER_NEXT)
 	} else if time.Since(w.lastUpdateTime) > time.Millisecond*33 {
 		w.lastUpdateTime = time.Now()
-		fraction := progressControl(float64(time.Since(w.trackStartTime).Milliseconds()) / float64(w.trackDurationMs))
+		fraction := progressControl(w.trackReader.Progress())
 		go programm.Send(fraction)
 	}
+
 	return
 }

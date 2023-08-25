@@ -61,9 +61,9 @@ func (d trackListItemDelegate) Render(w io.Writer, m list.Model, index int, list
 
 	var trackLike string
 	if item.liked {
-		trackLike = "💛 "
+		trackLike = iconLiked + " "
 	} else {
-		trackLike = "🖤 "
+		trackLike = iconNotLiked + " "
 	}
 
 	trackAddInfo := trackAddInfoStyle.Render(trackLike + trackTime)
