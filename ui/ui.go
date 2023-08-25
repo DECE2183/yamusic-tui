@@ -177,7 +177,7 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := message.(type) {
 	case tea.WindowSizeMsg:
 		m.resize(msg.Width, msg.Height)
-		return m, nil
+		return m, tea.ClearScreen
 
 	case tea.KeyMsg:
 		keypress := msg.String()
