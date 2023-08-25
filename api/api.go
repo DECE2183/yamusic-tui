@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
@@ -9,10 +10,53 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 func (e ResultError) Error() string {
 	return fmt.Sprintf("%s: %s", e.Name, e.Message)
+}
+
+func nowTimestamp() string {
+	nowTime := time.Now()
+	return fmt.Sprintf("%04d-%02d-%02dT%02d:%02d:%02d",
+		nowTime.Year(), nowTime.Month(), nowTime.Day(),
+		nowTime.Hour(), nowTime.Minute(), nowTime.Second(),
+	)
+}
+
+func proccessRequest[RetT any](req *http.Request) (result RetT, invInfo InvocInfo, err error) {
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == 200 {
+		var respBody struct {
+			InvocationInfo InvocInfo `json:"invocationInfo"`
+			Result         RetT      `json:"result"`
+		}
+
+		dec := json.NewDecoder(resp.Body)
+		dec.Decode(&respBody)
+
+		invInfo = respBody.InvocationInfo
+		result = respBody.Result
+	} else {
+		var respBody struct {
+			InvocationInfo InvocInfo   `json:"invocationInfo"`
+			Error          ResultError `json:"error"`
+		}
+
+		dec := json.NewDecoder(resp.Body)
+		dec.Decode(&respBody)
+
+		invInfo = respBody.InvocationInfo
+		err = respBody.Error
+	}
+
+	return
 }
 
 func getRequest[RetT any](token, reqPath string, params url.Values) (result RetT, invInfo InvocInfo, err error) {
@@ -31,37 +75,7 @@ func getRequest[RetT any](token, reqPath string, params url.Values) (result RetT
 	req.Header.Set("accept", "application/json")
 	req.Header.Set("Authorization", "OAuth "+token)
 
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == 200 {
-		var respBody struct {
-			InvocationInfo InvocInfo `json:"invocationInfo"`
-			Result         RetT      `json:"result"`
-		}
-
-		dec := json.NewDecoder(resp.Body)
-		dec.Decode(&respBody)
-
-		invInfo = respBody.InvocationInfo
-		result = respBody.Result
-	} else {
-		var respBody struct {
-			InvocationInfo InvocInfo   `json:"invocationInfo"`
-			Error          ResultError `json:"error"`
-		}
-
-		dec := json.NewDecoder(resp.Body)
-		dec.Decode(&respBody)
-
-		invInfo = respBody.InvocationInfo
-		err = respBody.Error
-	}
-
-	return
+	return proccessRequest[RetT](req)
 }
 
 func postRequest[RetT any](token, reqPath string, params url.Values) (result RetT, invInfo InvocInfo, err error) {
@@ -78,37 +92,31 @@ func postRequest[RetT any](token, reqPath string, params url.Values) (result Ret
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Authorization", "OAuth "+token)
 
-	resp, err := http.DefaultClient.Do(req)
+	return proccessRequest[RetT](req)
+}
+
+func postRequestJson[RetT any](token, reqPath string, params url.Values, body any) (result RetT, invInfo InvocInfo, err error) {
+	reqUrl, err := url.JoinPath(YaMusicServerURL, reqPath)
 	if err != nil {
 		return
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == 200 {
-		var respBody struct {
-			InvocationInfo InvocInfo `json:"invocationInfo"`
-			Result         RetT      `json:"result"`
-		}
-
-		dec := json.NewDecoder(resp.Body)
-		dec.Decode(&respBody)
-
-		invInfo = respBody.InvocationInfo
-		result = respBody.Result
-	} else {
-		var respBody struct {
-			InvocationInfo InvocInfo   `json:"invocationInfo"`
-			Error          ResultError `json:"error"`
-		}
-
-		dec := json.NewDecoder(resp.Body)
-		dec.Decode(&respBody)
-
-		invInfo = respBody.InvocationInfo
-		err = respBody.Error
+	if params != nil {
+		reqUrl += "?" + params.Encode()
+	}
+	bodyData, err := json.Marshal(body)
+	if err != nil {
+		return
+	}
+	req, err := http.NewRequest(http.MethodPost, reqUrl, bytes.NewReader(bodyData))
+	if err != nil {
+		return
 	}
 
-	return
+	req.Header.Set("accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "OAuth "+token)
+
+	return proccessRequest[RetT](req)
 }
 
 func downloadRequest(token, reqUrl, mimeType string) (body io.ReadCloser, contentLen int64, err error) {
@@ -250,6 +258,41 @@ func (client *YaMusicClient) StationTracks(id StationId, lastTrack *Track) (trac
 	return
 }
 
+func (client *YaMusicClient) StationFeedback(feedType string, stationId StationId, batchId, trackId string, playedSeconds int) (err error) {
+	queryParams := url.Values{}
+	if len(batchId) > 0 {
+		queryParams.Add("batch-id", batchId)
+	}
+
+	body := map[string]interface{}{
+		"type":               feedType,
+		"timestamp":          nowTimestamp(),
+		"from":               "yamusic-tui",
+		"trackId":            trackId,
+		"totalPlayedSeconds": playedSeconds,
+	}
+	_, _, err = postRequestJson[interface{}](client.token,
+		fmt.Sprintf("/rotor/station/%s:%s/feedback", stationId.Type, stationId.Tag),
+		queryParams,
+		body,
+	)
+	return
+}
+
+func (client *YaMusicClient) PlayTrack(track *Track, fromCache bool) (err error) {
+	queryParams := url.Values{
+		"from":                 {"yamusic-tui"},
+		"uid":                  {fmt.Sprint(client.userid)},
+		"timestamp":            {nowTimestamp()},
+		"track-id":             {track.Id},
+		"from-cache":           {fmt.Sprint(fromCache)},
+		"track-length-seconds": {fmt.Sprint(track.DurationMs + 1000)},
+		"total-played-seconds": {fmt.Sprint(track.DurationMs + 1000)},
+	}
+	_, _, err = postRequest[interface{}](client.token, "/play-audio", queryParams)
+	return
+}
+
 func (client *YaMusicClient) LikedTracks() (tracks []LikeTrackInfo, err error) {
 	desc, _, err := getRequest[LikesDesc](client.token, fmt.Sprintf("/users/%d/likes/tracks", client.userid), nil)
 	if err != nil {
@@ -274,7 +317,7 @@ func (client *YaMusicClient) TrackDownloadInfo(trackId string) (dowInfos []Track
 	return
 }
 
-func (client *YaMusicClient) DownloadTrack(dowInfo TrackDownloadInfo) (track io.ReadCloser, fileSize int64, err error) {
+func (client *YaMusicClient) DownloadTrack(dowInfo TrackDownloadInfo) (track *HttpReadSeeker, fileSize int64, err error) {
 	fullInfoBody, _, err := downloadRequest(client.token, dowInfo.DownloadInfoUrl+"&format=json", "application/json")
 	if err != nil {
 		return
@@ -300,6 +343,7 @@ func (client *YaMusicClient) DownloadTrack(dowInfo TrackDownloadInfo) (track io.
 	}
 
 	trackUrl := createTrackUrl(info, dowInfo.Codec)
-	track, fileSize, err = downloadRequest(client.token, trackUrl, mimeType)
+	trackReader, fileSize, err := downloadRequest(client.token, trackUrl, mimeType)
+	track = newReadSeaker(trackReader, fileSize)
 	return
 }

@@ -12,6 +12,15 @@ const (
 	YaMusicServerURL = "https://api.music.yandex.net:443/"
 )
 
+// Rotor feedback types
+const (
+	ROTOR_RADIO_STARTED  = "radioStarted"
+	ROTOR_RADIO_FINISHED = "radioFinished"
+	ROTOR_TRACK_STARTED  = "trackStarted"
+	ROTOR_TRACK_FINISHED = "trackFinished"
+	ROTOR_SKIP           = "skip"
+)
+
 var (
 	MyWaveId = StationId{
 		Type: "user",

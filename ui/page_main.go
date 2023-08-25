@@ -5,8 +5,55 @@ import (
 	"time"
 	"yamusic/api"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/lipgloss"
 )
+
+type trackerHelpKeyMap struct {
+	PlayPause  key.Binding
+	PrevTrack  key.Binding
+	NextTrack  key.Binding
+	LikeUnlike key.Binding
+	Forward    key.Binding
+	Backward   key.Binding
+}
+
+var trackerHelpMap = trackerHelpKeyMap{
+	PlayPause: key.NewBinding(
+		key.WithKeys(" "),
+		key.WithHelp("space", "play/pause"),
+	),
+	PrevTrack: key.NewBinding(
+		key.WithKeys("left"),
+		key.WithHelp("←", "previous track"),
+	),
+	NextTrack: key.NewBinding(
+		key.WithKeys("right"),
+		key.WithHelp("→", "next track"),
+	),
+	LikeUnlike: key.NewBinding(
+		key.WithKeys("L"),
+		key.WithHelp("L", "like/unlike"),
+	),
+	Forward: key.NewBinding(
+		key.WithKeys("ctrl+left"),
+		key.WithHelp("ctrl+←", "-5 sec"),
+	),
+	Backward: key.NewBinding(
+		key.WithKeys("ctrl+right"),
+		key.WithHelp("ctrl+→", "+5 sec"),
+	),
+}
+
+func (k trackerHelpKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.PlayPause, k.PrevTrack, k.NextTrack, k.Backward, k.Forward, k.LikeUnlike}
+}
+
+func (k trackerHelpKeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.PlayPause, k.PrevTrack, k.NextTrack, k.Backward, k.Forward, k.LikeUnlike},
+	}
+}
 
 func (m model) renderMainPage() string {
 	var tracker string = "\n"
@@ -54,13 +101,13 @@ func (m model) renderMainPage() string {
 	trackAddInfo := trackAddInfoStyle.Render(trackLike + trackTime)
 
 	trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackVersion)
-	trackTitle = lipgloss.JoinVertical(lipgloss.Left, trackTitle, trackArtist)
+	trackTitle = lipgloss.JoinVertical(lipgloss.Left, trackTitle, trackArtist, "")
 	trackTitle = lipgloss.NewStyle().Width(m.width - m.playlistList.Width() - 34).Render(trackTitle)
 	trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackAddInfo)
 
 	tracker = trackProgressStyle.Render(m.trackProgress.View())
 	tracker = lipgloss.JoinHorizontal(lipgloss.Top, playButton, tracker)
-	tracker = lipgloss.JoinVertical(lipgloss.Left, tracker, trackTitle)
+	tracker = lipgloss.JoinVertical(lipgloss.Left, tracker, trackTitle, m.trackerHelp.View(trackerHelpMap))
 
 	tracker = trackBoxStyle.Width(m.width - m.playlistList.Width() - 4).Render(tracker)
 	tracker = lipgloss.JoinVertical(lipgloss.Left, trackBoxStyle.Render(m.trackList.View()), tracker)

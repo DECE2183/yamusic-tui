@@ -26,7 +26,7 @@ const (
 
 type trackReaderWrapper struct {
 	decoder         *mp3.Decoder
-	trackReader     io.ReadCloser
+	trackReader     *api.HttpReadSeeker
 	trackDurationMs int
 	lastUpdateTime  time.Time
 	trackStartTime  time.Time
@@ -48,7 +48,9 @@ type model struct {
 	player        *oto.Player
 	trackWrapper  *trackReaderWrapper
 
-	infinitePlaylist bool
+	infinitePlaylist    bool
+	currentStationId    api.StationId
+	currentStationBatch string
 
 	playQueue       []api.Track
 	currentTrackIdx int
@@ -85,14 +87,21 @@ var (
 func Run(client *api.YaMusicClient) {
 	var err error
 
+	playlistListItems := []list.Item{
+		playlistListItem{"my wave", uint64(_PLAYLIST_MYWAVE), true, false},
+		playlistListItem{"likes", uint64(_PLAYLIST_LIKES), true, false},
+		playlistListItem{"playlists:", 0, false, false},
+	}
+
 	m := model{
 		client: client,
 		page:   _PAGE_MAIN,
 
 		loginTextInput: textinput.New(),
-		playlistList:   list.New([]list.Item{}, playlistListItemDelegate{}, 512, 512),
+		playlistList:   list.New(playlistListItems, playlistListItemDelegate{}, 512, 512),
 		trackList:      list.New([]list.Item{}, trackListItemDelegate{}, 512, 512),
 		trackProgress:  progress.New(progress.WithSolidFill("#FC0")),
+		trackerHelp:    help.New(),
 
 		trackWrapper:   &trackReaderWrapper{},
 		likedTracksMap: make(map[string]bool),
@@ -127,8 +136,6 @@ func Run(client *api.YaMusicClient) {
 	m.trackList.KeyMap = list.KeyMap{
 		CursorUp:     key.NewBinding(key.WithKeys("up"), key.WithHelp("↑", "up")),
 		CursorDown:   key.NewBinding(key.WithKeys("down"), key.WithHelp("↓", "down")),
-		GoToEnd:      key.NewBinding(key.WithKeys(""), key.WithHelp("→", "next track")),
-		Filter:       key.NewBinding(key.WithKeys(""), key.WithHelp("space", "play/pause")),
 		Quit:         key.NewBinding(key.WithKeys(""), key.WithHelp("enter", "select")),
 		ShowFullHelp: key.NewBinding(key.WithKeys(""), key.WithHelp("l", "like/unlike")),
 	}
@@ -137,51 +144,11 @@ func Run(client *api.YaMusicClient) {
 	m.trackProgress.Empty = m.trackProgress.Full
 	m.trackProgress.EmptyColor = "#6b6b6b"
 
-	playlistListItems := []list.Item{
-		playlistListItem{"my wave", uint64(_PLAYLIST_MYWAVE), true, false},
-		playlistListItem{"likes", uint64(_PLAYLIST_LIKES), true, false},
-		playlistListItem{"playlists:", 0, false, false},
-	}
-
 	if config.GetToken() == "" {
-		m.playlistList.SetItems(playlistListItems)
 		m.page = _PAGE_LOGIN
 		m.loginTextInput.Focus()
 	} else {
-		playlists, err := m.client.ListPlaylists()
-		if err == nil {
-			for _, playlist := range playlists {
-				playlistListItems = append(playlistListItems, playlistListItem{playlist.Title, playlist.Kind, true, true})
-			}
-		}
-		m.playlistList.SetItems(playlistListItems)
-
-		tracks, err := m.client.StationTracks(api.MyWaveId, nil)
-		if err == nil {
-			var playlist []list.Item
-			m.playlistTracks = m.playlistTracks[:0]
-			for _, t := range tracks.Sequence {
-				m.playlistTracks = append(m.playlistTracks, t.Track)
-				playlist = append(playlist, trackListItem{
-					title:      t.Track.Title,
-					version:    t.Track.Version,
-					artists:    artistList(t.Track.Artists),
-					id:         t.Track.Id,
-					liked:      false,
-					durationMs: t.Track.DurationMs,
-				})
-			}
-			m.trackList.SetItems(playlist)
-		}
-
-		likes, err := m.client.LikedTracks()
-		if err == nil {
-			m.likedTracksSlice = make([]string, 0, len(likes))
-			for _, l := range likes {
-				m.likedTracksMap[l.Id] = true
-				m.likedTracksSlice = append(m.likedTracksSlice, l.Id)
-			}
-		}
+		m.initialLoad()
 	}
 
 	programm = tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
@@ -218,6 +185,7 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 					return m, nil
 				}
 				m.page = _PAGE_MAIN
+				m.initialLoad()
 				return m, nil
 			}
 		case _PAGE_MAIN:
@@ -227,7 +195,13 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 					break
 				}
 				m.currentPlaylist = playlistItem
-				m.infinitePlaylist = playlistItem.kind == uint64(_PLAYLIST_MYWAVE)
+				if playlistItem.kind == uint64(_PLAYLIST_MYWAVE) {
+					m.infinitePlaylist = true
+					m.currentStationId = api.MyWaveId
+				} else {
+					m.infinitePlaylist = false
+					m.currentStationId = api.StationId{}
+				}
 				m.playQueue = m.playlistTracks
 				m.playCurrentQueue(m.trackList.Index())
 			} else if keypress == " " {
@@ -240,6 +214,20 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 					m.player.Play()
 				}
 			} else if keypress == "right" {
+				if len(m.playQueue) > 0 {
+					currTrack := m.playQueue[m.currentTrackIdx]
+
+					if len(m.currentStationId.Tag) > 0 && len(m.currentStationId.Type) > 0 {
+						go m.client.StationFeedback(
+							api.ROTOR_SKIP,
+							m.currentStationId,
+							m.currentStationBatch,
+							currTrack.Id,
+							int(time.Since(m.trackWrapper.trackStartTime).Seconds()),
+						)
+					}
+				}
+
 				m.nextTrack()
 			} else if keypress == "l" {
 				if len(m.playlistTracks) == 0 {
@@ -280,6 +268,20 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	case playerControl:
 		switch msg {
 		case _PLAYER_NEXT:
+			if len(m.playQueue) > 0 {
+				currTrack := m.playQueue[m.currentTrackIdx]
+
+				if len(m.currentStationId.Tag) > 0 && len(m.currentStationId.Type) > 0 {
+					go m.client.StationFeedback(
+						api.ROTOR_TRACK_FINISHED,
+						m.currentStationId,
+						m.currentStationBatch,
+						currTrack.Id,
+						currTrack.DurationMs*1000,
+					)
+				}
+			}
+
 			m.nextTrack()
 		}
 
@@ -300,6 +302,7 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			if err != nil {
 				break
 			}
+			m.currentStationBatch = tracks.BatchId
 			m.playlistTracks = m.playlistTracks[:0]
 			for _, t := range tracks.Sequence {
 				m.playlistTracks = append(m.playlistTracks, t.Track)
@@ -368,8 +371,50 @@ func (m model) View() string {
 func (m *model) resize(w, h int) {
 	m.width, m.height = w, h
 	m.playlistList.SetSize(32, h-5)
-	m.trackList.SetSize(m.width-m.playlistList.Width()-20, h-12)
+	m.trackList.SetSize(m.width-m.playlistList.Width()-20, h-14)
 	m.trackProgress.Width = m.width - m.playlistList.Width() - 13
+	m.trackerHelp.Width = m.trackProgress.Width
+}
+
+func (m *model) initialLoad() {
+	playlistListItems := m.playlistList.Items()
+
+	playlists, err := m.client.ListPlaylists()
+	if err == nil {
+		for _, playlist := range playlists {
+			playlistListItems = append(playlistListItems, playlistListItem{playlist.Title, playlist.Kind, true, true})
+		}
+	}
+	m.playlistList.SetItems(playlistListItems)
+
+	tracks, err := m.client.StationTracks(api.MyWaveId, nil)
+	if err == nil {
+		var playlist []list.Item
+		m.playlistTracks = m.playlistTracks[:0]
+		for _, t := range tracks.Sequence {
+			m.playlistTracks = append(m.playlistTracks, t.Track)
+			playlist = append(playlist, trackListItem{
+				title:      t.Track.Title,
+				version:    t.Track.Version,
+				artists:    artistList(t.Track.Artists),
+				id:         t.Track.Id,
+				liked:      false,
+				durationMs: t.Track.DurationMs,
+				available:  t.Track.Available,
+			})
+		}
+		m.trackList.SetItems(playlist)
+		m.currentStationBatch = tracks.BatchId
+	}
+
+	likes, err := m.client.LikedTracks()
+	if err == nil {
+		m.likedTracksSlice = make([]string, 0, len(likes))
+		for _, l := range likes {
+			m.likedTracksMap[l.Id] = true
+			m.likedTracksSlice = append(m.likedTracksSlice, l.Id)
+		}
+	}
 }
 
 func (m *model) playCurrentQueue(trackIndex int) {
@@ -392,13 +437,25 @@ func (m *model) playCurrentQueue(trackIndex int) {
 		return
 	}
 
+	if len(m.currentStationId.Tag) > 0 && len(m.currentStationId.Type) > 0 {
+		go m.client.StationFeedback(
+			api.ROTOR_RADIO_STARTED,
+			m.currentStationId,
+			"",
+			"",
+			0,
+		)
+	}
+
 	m.currentTrackIdx = trackIndex
 	m.playTrack(&m.playQueue[m.currentTrackIdx])
 }
 
 func (m *model) nextTrack() {
-	m.player.Close()
-	m.player = nil
+	if m.player != nil {
+		m.player.Close()
+		m.player = nil
+	}
 
 	if m.infinitePlaylist && m.currentTrackIdx+2 >= len(m.playQueue) {
 		tracks, err := m.client.StationTracks(api.MyWaveId, &m.playQueue[m.currentTrackIdx])
@@ -449,9 +506,20 @@ func (m *model) playTrack(track *api.Track) {
 		return
 	}
 
+	if len(m.currentStationId.Tag) > 0 && len(m.currentStationId.Type) > 0 {
+		go m.client.StationFeedback(
+			api.ROTOR_TRACK_STARTED,
+			m.currentStationId,
+			m.currentStationBatch,
+			track.Id,
+			0,
+		)
+	}
+
 	if m.trackWrapper.trackReader != nil {
 		m.trackWrapper.trackReader.Close()
 	}
+
 	m.trackWrapper.trackReader = trackReader
 	m.trackWrapper.decoder = decoder
 	m.trackWrapper.trackDurationMs = track.DurationMs
@@ -459,12 +527,13 @@ func (m *model) playTrack(track *api.Track) {
 
 	m.player = m.playerContext.NewPlayer(m.trackWrapper)
 	m.player.Play()
+
+	go m.client.PlayTrack(track, false)
 }
 
 func (w *trackReaderWrapper) Read(dest []byte) (n int, err error) {
 	n, err = w.decoder.Read(dest)
 	if err == io.EOF {
-		w.trackReader.Close()
 		w.trackReader = nil
 		go func() {
 			programm.Send(1)
