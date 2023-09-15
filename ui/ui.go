@@ -223,6 +223,8 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				} else {
 					m.player.Play()
 				}
+			} else if keypress == "left" {
+				m.prevTrack()
 			} else if keypress == "right" {
 				if len(m.playQueue) > 0 {
 					currTrack := m.playQueue[m.currentTrackIdx]
@@ -233,18 +235,29 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 							m.currentStationId,
 							m.currentStationBatch,
 							currTrack.Id,
-							int(time.Since(m.trackWrapper.trackStartTime).Seconds()),
+							int(m.trackWrapper.trackReader.Progress()*float64(currTrack.DurationMs))*1000,
 						)
 					}
 				}
 
 				m.nextTrack()
-			} else if keypress == "l" {
-				if len(m.playlistTracks) == 0 {
-					break
+			} else if keypress == "l" || keypress == "L" {
+				var track api.Track
+				if keypress == "l" {
+					if len(m.playlistTracks) == 0 {
+						break
+					}
+
+					index := m.trackList.Index()
+					track = m.playlistTracks[index]
+				} else {
+					if len(m.playQueue) == 0 {
+						break
+					}
+
+					track = m.playQueue[m.currentTrackIdx]
 				}
-				index := m.trackList.Index()
-				track := m.playlistTracks[index]
+
 				if m.likedTracksMap[track.Id] {
 					if m.client.UnlikeTrack(track.Id) != nil {
 						break
@@ -267,10 +280,16 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 					m.likedTracksMap[track.Id] = true
 					m.likedTracksSlice = append(m.likedTracksSlice, track.Id)
 				}
-				item := m.trackList.SelectedItem().(trackListItem)
-				item.liked = m.likedTracksMap[track.Id]
-				cmd = m.trackList.SetItem(index, item)
-				cmds = append(cmds, cmd)
+
+				if keypress == "l" {
+					index := m.trackList.Index()
+
+					item := m.trackList.SelectedItem().(trackListItem)
+					item.liked = m.likedTracksMap[track.Id]
+
+					cmd = m.trackList.SetItem(index, item)
+					cmds = append(cmds, cmd)
+				}
 			} else if keypress == "ctrl+s" {
 				if len(m.playlistTracks) == 0 {
 					break
@@ -284,6 +303,8 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	// player control update
 	case playerControl:
 		switch msg {
+		case _PLAYER_PREV:
+			m.prevTrack()
 		case _PLAYER_NEXT:
 			if len(m.playQueue) > 0 {
 				currTrack := m.playQueue[m.currentTrackIdx]
@@ -475,6 +496,26 @@ func (m *model) playCurrentQueue(trackIndex int) {
 
 	m.currentTrackIdx = trackIndex
 	m.playTrack(&m.playQueue[m.currentTrackIdx])
+}
+
+func (m *model) prevTrack() {
+	if m.player != nil {
+		m.player.Close()
+		m.player = nil
+	}
+
+	if m.currentTrackIdx == 0 {
+		go programm.Send(_PLAYER_STOP)
+		return
+	}
+
+	m.currentTrackIdx--
+	m.playTrack(&m.playQueue[m.currentTrackIdx])
+
+	selectedPlaylis := m.playlistList.SelectedItem().(playlistListItem)
+	if m.currentPlaylist.kind == selectedPlaylis.kind {
+		go programm.Send(selectedPlaylis)
+	}
 }
 
 func (m *model) nextTrack() {

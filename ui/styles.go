@@ -36,11 +36,11 @@ var (
 var (
 	buttonStyle = lipgloss.NewStyle().
 			Foreground(normalTextColor).
-			Background(accentColor).
+			Background(inactiveTextColor).
 			Padding(0, 3).
 			MarginTop(1)
 	activeButtonStyle = buttonStyle.Copy().
-				Foreground(normalTextColor).
+				Foreground(inactiveTextColor).
 				Background(accentColor)
 )
 
