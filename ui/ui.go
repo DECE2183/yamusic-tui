@@ -204,7 +204,6 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				if !playlistItem.active {
 					break
 				}
-				m.currentPlaylist = playlistItem
 				if playlistItem.kind == uint64(_PLAYLIST_MYWAVE) {
 					m.infinitePlaylist = true
 					m.currentStationId = api.MyWaveId
@@ -214,6 +213,7 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				m.playQueue = m.playlistTracks
 				m.playCurrentQueue(m.trackList.Index())
+				m.currentPlaylist = playlistItem
 			} else if keypress == " " {
 				if m.player == nil {
 					break
@@ -466,7 +466,8 @@ func (m *model) initialLoad() {
 
 func (m *model) playCurrentQueue(trackIndex int) {
 	if m.player != nil {
-		if m.currentTrackIdx == trackIndex {
+		selectedPlaylis := m.playlistList.SelectedItem().(playlistListItem)
+		if m.currentPlaylist.kind == selectedPlaylis.kind && m.currentTrackIdx == trackIndex {
 			if m.player.IsPlaying() {
 				m.player.Pause()
 				return
