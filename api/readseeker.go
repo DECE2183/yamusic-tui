@@ -9,8 +9,9 @@ import (
 )
 
 const (
-	minBufferSize = 256
-	readTimeout   = 2 * time.Second
+	minBufferSize    = 256
+	bufferFrameScale = 3
+	readTimeout      = 100 * time.Millisecond
 )
 
 var errOutOfSize = errors.New("position is out of data size")
@@ -59,6 +60,10 @@ func (h *HttpReadSeeker) bufferNextFrame(size int) {
 		// await next Read call or timer expiration
 		select {
 		case <-h.bufferTimer.C:
+			size += minBufferSize
+			if size > h.totalSize-len(h.readBuffer) {
+				size = h.totalSize - len(h.readBuffer)
+			}
 			continue
 		case <-h.readHappened:
 			return
@@ -68,6 +73,8 @@ func (h *HttpReadSeeker) bufferNextFrame(size int) {
 
 func (h *HttpReadSeeker) Close() error {
 	h.mux.Lock()
+	h.bufferTimer.Stop()
+	close(h.readHappened)
 	defer h.mux.Unlock()
 	return h.source.Close()
 }
@@ -119,7 +126,7 @@ func (h *HttpReadSeeker) Read(dest []byte) (n int, err error) {
 	} else {
 		h.readHappened = make(chan struct{})
 		h.bufferTimer.Reset(readTimeout)
-		go h.bufferNextFrame(n)
+		go h.bufferNextFrame(n * bufferFrameScale)
 	}
 
 	h.mux.Unlock()
@@ -160,4 +167,8 @@ func (h *HttpReadSeeker) IsDone() bool {
 
 func (h *HttpReadSeeker) Progress() float64 {
 	return float64(h.readIndex) / float64(h.totalSize)
+}
+
+func (h *HttpReadSeeker) BufferingProgress() float64 {
+	return float64(len(h.readBuffer)) / float64(h.totalSize)
 }
