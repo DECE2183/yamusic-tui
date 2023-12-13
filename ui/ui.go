@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"io"
+	"math"
 	"time"
 	"yamusic/api"
 	"yamusic/config"
@@ -13,8 +14,8 @@ import (
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	mp3 "github.com/dece2183/go-stream-mp3"
 	"github.com/ebitengine/oto/v3"
-	"github.com/hajimehoshi/go-mp3"
 	"golang.design/x/clipboard"
 )
 
@@ -24,6 +25,10 @@ const (
 	_PAGE_LOGIN page = iota
 	_PAGE_MAIN  page = iota
 	_PAGE_QUIT  page = iota
+)
+
+const (
+	rewindAmount = 5 * time.Second
 )
 
 type trackReaderWrapper struct {
@@ -223,6 +228,10 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				} else {
 					m.player.Play()
 				}
+			} else if keypress == "ctrl+left" {
+				m.rewind(-rewindAmount)
+			} else if keypress == "ctrl+right" {
+				m.rewind(rewindAmount)
 			} else if keypress == "left" {
 				m.prevTrack()
 			} else if keypress == "right" {
@@ -464,6 +473,29 @@ func (m *model) initialLoad() {
 	}
 }
 
+func (m *model) rewind(amount time.Duration) {
+	if m.player == nil || m.trackWrapper == nil {
+		go programm.Send(_PLAYER_STOP)
+		return
+	}
+
+	amountMs := amount.Milliseconds()
+	currentPos := int64(float64(m.trackWrapper.trackReader.Length()) * m.trackWrapper.trackReader.Progress())
+	byteOffset := int64(math.Round((float64(m.trackWrapper.trackReader.Length()) / float64(m.trackWrapper.trackDurationMs)) * float64(amountMs)))
+
+	// align position by 4 bytes
+	currentPos += byteOffset
+	currentPos -= currentPos % 4
+
+	if currentPos <= 0 {
+		m.player.Seek(0, io.SeekStart)
+	} else if currentPos >= m.trackWrapper.trackReader.Length() {
+		m.player.Seek(0, io.SeekEnd)
+	} else {
+		m.player.Seek(currentPos, io.SeekStart)
+	}
+}
+
 func (m *model) playCurrentQueue(trackIndex int) {
 	if m.player != nil {
 		selectedPlaylis := m.playlistList.SelectedItem().(playlistListItem)
@@ -624,4 +656,8 @@ func (w *trackReaderWrapper) Read(dest []byte) (n int, err error) {
 	}
 
 	return
+}
+
+func (w *trackReaderWrapper) Seek(offset int64, whence int) (int64, error) {
+	return w.decoder.Seek(offset, whence)
 }

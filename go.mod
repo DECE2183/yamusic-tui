@@ -6,8 +6,8 @@ require (
 	github.com/charmbracelet/bubbles v0.16.1
 	github.com/charmbracelet/bubbletea v0.24.2
 	github.com/charmbracelet/lipgloss v0.7.1
+	github.com/dece2183/go-stream-mp3 v1.0.0
 	github.com/ebitengine/oto/v3 v3.0.0
-	github.com/hajimehoshi/go-mp3 v0.3.4
 	golang.design/x/clipboard v0.7.0
 )
 

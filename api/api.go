@@ -344,6 +344,6 @@ func (client *YaMusicClient) DownloadTrack(dowInfo TrackDownloadInfo) (track *Ht
 
 	trackUrl := createTrackUrl(info, dowInfo.Codec)
 	trackReader, fileSize, err := downloadRequest(client.token, trackUrl, mimeType)
-	track = newReadSeaker(trackReader, int(fileSize))
+	track = newReadSeaker(trackReader, fileSize)
 	return
 }

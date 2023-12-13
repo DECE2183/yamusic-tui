@@ -37,11 +37,11 @@ var trackerHelpMap = trackerHelpKeyMap{
 	),
 	Backward: key.NewBinding(
 		key.WithKeys("ctrl+left"),
-		key.WithHelp("ctrl+←", "-5 sec"),
+		key.WithHelp("ctrl+←", fmt.Sprintf("-%d sec", int(rewindAmount.Seconds()))),
 	),
 	Forward: key.NewBinding(
 		key.WithKeys("ctrl+right"),
-		key.WithHelp("ctrl+→", "+5 sec"),
+		key.WithHelp("ctrl+→", fmt.Sprintf("+%d sec", int(rewindAmount.Seconds()))),
 	),
 }
 
