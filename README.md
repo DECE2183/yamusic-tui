@@ -18,7 +18,7 @@ The easiest way to get a token is to use this
     - [x] Play/pause
     - [x] Switch track
     - [x] Play progress
-    - [ ] Rewind
+    - [x] Rewind
     - [x] Like/unlike
     - [x] Share
  - [ ] Radio
