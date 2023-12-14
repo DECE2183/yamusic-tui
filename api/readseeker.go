@@ -38,6 +38,10 @@ func newReadSeaker(rc io.ReadCloser, totalSize int64) *HttpReadSeeker {
 }
 
 func (h *HttpReadSeeker) bufferNextFrame(size int64) {
+	if h.totalSize == int64(len(h.readBuffer)) {
+		return
+	}
+
 	if size < minBufferSize {
 		size = minBufferSize
 	}
@@ -72,13 +76,22 @@ func (h *HttpReadSeeker) bufferNextFrame(size int64) {
 }
 
 func (h *HttpReadSeeker) Close() error {
+	var err error
+
 	h.mux.Lock()
 	defer h.mux.Unlock()
 
-	h.bufferTimer.Stop()
-	close(h.readHappened)
+	h.readBuffer = nil
+	if h.totalSize > int64(len(h.readBuffer)) {
+		h.bufferTimer.Stop()
+		close(h.readHappened)
+	}
 
-	return h.source.Close()
+	if h.source != nil {
+		err = h.source.Close()
+	}
+
+	return err
 }
 
 func (h *HttpReadSeeker) Length() int64 {
@@ -91,7 +104,7 @@ func (h *HttpReadSeeker) Read(dest []byte) (n int, err error) {
 	readBufLen := int64(len(h.readBuffer))
 	destLen := int64(len(dest))
 
-	if readBufLen < h.totalSize {
+	if readBufLen < h.totalSize && h.source != nil {
 		// indicate buffering goroutine that Read was called
 		h.bufferTimer.Stop()
 		close(h.readHappened)
@@ -137,11 +150,12 @@ func (h *HttpReadSeeker) Read(dest []byte) (n int, err error) {
 	if err != nil {
 		if err == io.EOF {
 			h.source.Close()
+			h.source = nil
 			h.done = true
 		} else if err == http.ErrBodyReadAfterClose {
 			err = io.EOF
 		}
-	} else {
+	} else if h.totalSize > int64(len(h.readBuffer)) {
 		h.readHappened = make(chan struct{})
 		h.bufferTimer.Reset(readTimeout)
 		go h.bufferNextFrame(destLen * bufferFrameScale)

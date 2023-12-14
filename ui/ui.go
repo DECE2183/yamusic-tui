@@ -330,15 +330,9 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.nextTrack()
 		case _PLAYER_PAUSE:
-			if m.player != nil {
-				m.player.Pause()
-			}
+			m.pauseTrack()
 		case _PLAYER_STOP:
-			if m.player != nil {
-				m.player.Pause()
-				m.player.Close()
-				m.player = nil
-			}
+			m.stopTrack()
 		}
 
 	// track progress update
@@ -507,13 +501,11 @@ func (m *model) playCurrentQueue(trackIndex int) {
 				m.player.Play()
 				return
 			}
-		} else {
-			m.player.Close()
-			m.player = nil
 		}
 	}
 
 	if len(m.playQueue) == 0 {
+		m.stopTrack()
 		return
 	}
 
@@ -532,11 +524,6 @@ func (m *model) playCurrentQueue(trackIndex int) {
 }
 
 func (m *model) prevTrack() {
-	if m.player != nil {
-		m.player.Close()
-		m.player = nil
-	}
-
 	if m.currentTrackIdx == 0 {
 		go programm.Send(_PLAYER_STOP)
 		return
@@ -552,11 +539,6 @@ func (m *model) prevTrack() {
 }
 
 func (m *model) nextTrack() {
-	if m.player != nil {
-		m.player.Close()
-		m.player = nil
-	}
-
 	if m.infinitePlaylist && m.currentTrackIdx+2 >= len(m.playQueue) {
 		tracks, err := m.client.StationTracks(api.MyWaveId, &m.playQueue[m.currentTrackIdx])
 		if err != nil {
@@ -582,6 +564,8 @@ func (m *model) nextTrack() {
 }
 
 func (m *model) playTrack(track *api.Track) {
+	m.stopTrack()
+
 	dowInfo, err := m.client.TrackDownloadInfo(track.Id)
 	if err != nil {
 		return
@@ -616,10 +600,6 @@ func (m *model) playTrack(track *api.Track) {
 		)
 	}
 
-	if m.trackWrapper.trackReader != nil {
-		m.trackWrapper.trackReader.Close()
-	}
-
 	m.trackWrapper.trackReader = trackReader
 	m.trackWrapper.decoder = decoder
 	m.trackWrapper.trackDurationMs = track.DurationMs
@@ -630,6 +610,30 @@ func (m *model) playTrack(track *api.Track) {
 	m.player.Play()
 
 	go m.client.PlayTrack(track, false)
+}
+
+func (m model) pauseTrack() {
+	if m.player == nil {
+		return
+	}
+	m.player.Pause()
+}
+
+func (m *model) stopTrack() {
+	if m.player == nil {
+		return
+	}
+
+	if m.player.IsPlaying() {
+		m.player.Pause()
+	}
+
+	m.player.Close()
+	m.player = nil
+
+	if m.trackWrapper.trackReader != nil {
+		m.trackWrapper.trackReader.Close()
+	}
 }
 
 func (w *trackReaderWrapper) Read(dest []byte) (n int, err error) {
@@ -647,6 +651,7 @@ func (w *trackReaderWrapper) Read(dest []byte) (n int, err error) {
 	}
 
 	if w.trackReader.IsDone() {
+		w.trackReader.Close()
 		w.trackReader = nil
 		go programm.Send(_PLAYER_NEXT)
 	} else if time.Since(w.lastUpdateTime) > time.Millisecond*33 {
