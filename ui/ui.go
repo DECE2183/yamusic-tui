@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"net/url"
+	"os"
 	"time"
 	"yamusic/api"
 	"yamusic/config"
@@ -14,6 +16,7 @@ import (
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	mp3 "github.com/dece2183/go-stream-mp3"
 	"github.com/ebitengine/oto/v3"
 	"golang.design/x/clipboard"
@@ -92,7 +95,7 @@ var (
 	programm *tea.Program
 )
 
-func Run(client *api.YaMusicClient) {
+func Run() {
 	var err error
 
 	err = clipboard.Init()
@@ -107,8 +110,7 @@ func Run(client *api.YaMusicClient) {
 	}
 
 	m := model{
-		client: client,
-		page:   _PAGE_MAIN,
+		page: _PAGE_MAIN,
 
 		loginTextInput: textinput.New(),
 		playlistList:   list.New(playlistListItems, playlistListItemDelegate{}, 512, 512),
@@ -432,6 +434,19 @@ func (m *model) resize(w, h int) {
 }
 
 func (m *model) initialLoad() {
+	var err error
+	m.client, err = api.NewClient(config.Current.Token)
+	if err != nil {
+		errMsg := lipgloss.NewStyle().Foreground(lipgloss.Color("#F33")).Render("Error:")
+		if _, ok := err.(*url.Error); ok {
+			fmt.Print("\n", errMsg, "unable to connect to the Yandex server\n\n")
+			os.Exit(4)
+		} else {
+			fmt.Println(errMsg, err)
+			os.Exit(8)
+		}
+	}
+
 	playlistListItems := m.playlistList.Items()
 
 	playlists, err := m.client.ListPlaylists()
