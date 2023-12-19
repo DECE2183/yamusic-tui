@@ -626,7 +626,7 @@ func (m *model) playTrack(track *api.Track) {
 	m.trackWrapper.trackStartTime = time.Now()
 
 	m.player = m.playerContext.NewPlayer(m.trackWrapper)
-	m.player.SetVolume(0.5)
+	m.player.SetVolume(config.Current.Volume)
 	m.player.Play()
 
 	go m.client.PlayTrack(track, false)

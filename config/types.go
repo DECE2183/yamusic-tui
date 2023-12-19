@@ -48,12 +48,14 @@ type Config struct {
 	Token          string   `yaml:"token"`
 	BufferSize     float64  `yaml:"buffer-size-ms"`
 	RewindDuration float64  `yaml:"rewind-duration-s"`
+	Volume         float64  `yaml:"volume"`
 	Controls       Controls `yaml:"controls"`
 }
 
 var defaultConfig = Config{
 	BufferSize:     80,
 	RewindDuration: 5,
+	Volume:         0.5,
 	Controls: Controls{
 		PlaylistsUp:          "ctrl+up",
 		PlaylistsDown:        "ctrl+down",
