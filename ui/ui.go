@@ -27,8 +27,8 @@ const (
 	_PAGE_QUIT  page = iota
 )
 
-const (
-	rewindAmount = 5 * time.Second
+var (
+	rewindAmount = time.Duration(config.Current.RewindDuration) * time.Second
 )
 
 type trackReaderWrapper struct {
@@ -124,7 +124,7 @@ func Run(client *api.YaMusicClient) {
 
 	op.SampleRate = 44100
 	op.ChannelCount = 2
-	op.BufferSize = time.Millisecond * 80
+	op.BufferSize = time.Millisecond * time.Duration(config.Current.BufferSize)
 	op.Format = oto.FormatSignedInt16LE
 
 	var readyChan chan struct{}
@@ -137,29 +137,31 @@ func Run(client *api.YaMusicClient) {
 	m.loginTextInput.Width = 64
 	m.loginTextInput.CharLimit = 60
 
+	controls := config.Current.Controls
+
 	m.playlistList.Title = "Playlists"
 	m.playlistList.SetShowStatusBar(false)
 	m.playlistList.Styles.Title = m.playlistList.Styles.Title.Foreground(accentColor).UnsetBackground().Padding(0)
 	m.playlistList.KeyMap = list.KeyMap{
-		CursorUp:   key.NewBinding(key.WithKeys("ctrl+up"), key.WithHelp("ctrl+↑", "up")),
-		CursorDown: key.NewBinding(key.WithKeys("ctrl+down"), key.WithHelp("ctrl+↓", "down")),
+		CursorUp:   key.NewBinding(controls.PlaylistsUp.Binding(), controls.PlaylistsUp.Help("up")),
+		CursorDown: key.NewBinding(controls.PlaylistsDown.Binding(), controls.PlaylistsUp.Help("down")),
 	}
 
 	m.trackList.Title = "Tracks"
 	m.trackList.Styles.Title = m.trackList.Styles.Title.Foreground(normalTextColor).UnsetBackground().Padding(0)
 	m.trackList.KeyMap = list.KeyMap{
-		CursorUp:     key.NewBinding(key.WithKeys("up"), key.WithHelp("↑", "up")),
-		CursorDown:   key.NewBinding(key.WithKeys("down"), key.WithHelp("↓", "down")),
-		Quit:         key.NewBinding(key.WithKeys(""), key.WithHelp("l", "like/unlike")),
-		Filter:       key.NewBinding(key.WithKeys(""), key.WithHelp("enter", "select")),
-		ShowFullHelp: key.NewBinding(key.WithKeys(""), key.WithHelp("ctrl+s", "share")),
+		CursorUp:     key.NewBinding(controls.TrackListUp.Binding(), controls.TrackListUp.Help("up")),
+		CursorDown:   key.NewBinding(controls.TrackListDown.Binding(), controls.TrackListDown.Help("down")),
+		Quit:         key.NewBinding(key.WithKeys(""), controls.TrackListLike.Help("like/unlike")),
+		Filter:       key.NewBinding(key.WithKeys(""), controls.TrackListSelect.Help("select")),
+		ShowFullHelp: key.NewBinding(key.WithKeys(""), controls.TrackListShare.Help("share")),
 	}
 
 	m.trackProgress.ShowPercentage = false
 	m.trackProgress.Empty = m.trackProgress.Full
 	m.trackProgress.EmptyColor = "#6b6b6b"
 
-	if config.GetToken() == "" {
+	if config.Current.Token == "" {
 		m.page = _PAGE_LOGIN
 		m.loginTextInput.Focus()
 	} else {
@@ -180,6 +182,8 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		cmds []tea.Cmd
 	)
 
+	controls := config.Current.Controls
+
 	switch msg := message.(type) {
 	case tea.WindowSizeMsg:
 		m.resize(msg.Width, msg.Height)
@@ -195,7 +199,8 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		switch m.page {
 		case _PAGE_LOGIN:
 			if keypress == "enter" {
-				err := config.SaveToken(m.loginTextInput.Value())
+				config.Current.Token = m.loginTextInput.Value()
+				err := config.Save()
 				if err != nil {
 					return m, nil
 				}
@@ -204,7 +209,7 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 		case _PAGE_MAIN:
-			if keypress == "enter" {
+			if keypress == controls.TrackListSelect.Key() {
 				playlistItem := m.playlistList.SelectedItem().(playlistListItem)
 				if !playlistItem.active {
 					break
@@ -219,7 +224,7 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				m.playQueue = m.playlistTracks
 				m.playCurrentQueue(m.trackList.Index())
 				m.currentPlaylist = playlistItem
-			} else if keypress == " " {
+			} else if keypress == controls.PlayerPause.Key() {
 				if m.player == nil {
 					break
 				}
@@ -228,13 +233,13 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				} else {
 					m.player.Play()
 				}
-			} else if keypress == "ctrl+left" {
+			} else if keypress == controls.PlayerRewindBackward.Key() {
 				m.rewind(-rewindAmount)
-			} else if keypress == "ctrl+right" {
+			} else if keypress == controls.PlayerRewindForward.Key() {
 				m.rewind(rewindAmount)
-			} else if keypress == "left" {
+			} else if keypress == controls.PlayerPrevious.Key() {
 				m.prevTrack()
-			} else if keypress == "right" {
+			} else if keypress == controls.PlayerNext.Key() {
 				if len(m.playQueue) > 0 {
 					currTrack := m.playQueue[m.currentTrackIdx]
 
@@ -250,9 +255,9 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				}
 
 				m.nextTrack()
-			} else if keypress == "l" || keypress == "L" {
+			} else if keypress == controls.TrackListLike.Key() || keypress == controls.PlayerLike.Key() {
 				var track api.Track
-				if keypress == "l" {
+				if keypress == controls.TrackListLike.Key() {
 					if len(m.playlistTracks) == 0 {
 						break
 					}
@@ -290,7 +295,7 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 					m.likedTracksSlice = append(m.likedTracksSlice, track.Id)
 				}
 
-				if keypress == "l" {
+				if keypress == controls.TrackListLike.Key() {
 					index := m.trackList.Index()
 
 					item := m.trackList.SelectedItem().(trackListItem)
@@ -299,7 +304,7 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 					cmd = m.trackList.SetItem(index, item)
 					cmds = append(cmds, cmd)
 				}
-			} else if keypress == "ctrl+s" {
+			} else if keypress == controls.TrackListShare.Key() {
 				if len(m.playlistTracks) == 0 {
 					break
 				}

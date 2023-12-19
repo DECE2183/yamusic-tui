@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 	"yamusic/api"
+	"yamusic/config"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/lipgloss"
@@ -20,28 +21,28 @@ type trackerHelpKeyMap struct {
 
 var trackerHelpMap = trackerHelpKeyMap{
 	PlayPause: key.NewBinding(
-		key.WithKeys(" "),
-		key.WithHelp("space", "play/pause"),
+		config.Current.Controls.PlayerPause.Binding(),
+		config.Current.Controls.PlayerPause.Help("play/pause"),
 	),
 	PrevTrack: key.NewBinding(
-		key.WithKeys("left"),
-		key.WithHelp("←", "previous track"),
+		config.Current.Controls.PlayerPrevious.Binding(),
+		config.Current.Controls.PlayerPrevious.Help("previous track"),
 	),
 	NextTrack: key.NewBinding(
-		key.WithKeys("right"),
-		key.WithHelp("→", "next track"),
+		config.Current.Controls.PlayerNext.Binding(),
+		config.Current.Controls.PlayerNext.Help("next track"),
 	),
 	LikeUnlike: key.NewBinding(
-		key.WithKeys("L"),
-		key.WithHelp("L", "like/unlike"),
+		config.Current.Controls.PlayerLike.Binding(),
+		config.Current.Controls.PlayerLike.Help("like/unlike"),
 	),
 	Backward: key.NewBinding(
-		key.WithKeys("ctrl+left"),
-		key.WithHelp("ctrl+←", fmt.Sprintf("-%d sec", int(rewindAmount.Seconds()))),
+		config.Current.Controls.PlayerRewindBackward.Binding(),
+		config.Current.Controls.PlayerRewindBackward.Help(fmt.Sprintf("-%d sec", int(config.Current.RewindDuration))),
 	),
 	Forward: key.NewBinding(
-		key.WithKeys("ctrl+right"),
-		key.WithHelp("ctrl+→", fmt.Sprintf("+%d sec", int(rewindAmount.Seconds()))),
+		config.Current.Controls.PlayerRewindForward.Binding(),
+		config.Current.Controls.PlayerRewindForward.Help(fmt.Sprintf("+%d sec", int(config.Current.RewindDuration))),
 	),
 }
 

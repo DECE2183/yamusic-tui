@@ -3,61 +3,92 @@ package config
 import (
 	"os"
 	"path/filepath"
+
+	"gopkg.in/yaml.v3"
 )
 
-var userToken string
+var Current Config
 
 func init() {
-	userToken = LoadToken()
+	var err error
+	Current, err = load()
+	if err != nil {
+		configDir, err := getDir()
+		if err != nil {
+			panic(err)
+		}
+
+		if oldToken, err := os.ReadFile(filepath.Join(configDir, "token")); err == nil {
+			Current.Token = string(oldToken)
+		}
+
+		save(Current)
+	}
 }
 
-func GetToken() string {
-	return userToken
-}
-
-func SaveToken(token string) error {
+func getDir() (string, error) {
 	userDir, err := os.UserHomeDir()
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	configDir := filepath.Join(userDir, ".config/yamusic-tui")
+	configDir := filepath.Join(userDir, ".config", configPath)
 	err = os.MkdirAll(configDir, 0755)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	f, err := os.OpenFile(filepath.Join(configDir, "token"), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0755)
+	return configDir, nil
+}
+
+func load() (Config, error) {
+	configDir, err := getDir()
+	if err != nil {
+		return defaultConfig, err
+	}
+
+	configContent, err := os.ReadFile(filepath.Join(configDir, "config.yaml"))
+	if err != nil {
+		return defaultConfig, err
+	}
+
+	var newConfig Config
+	err = yaml.Unmarshal(configContent, &newConfig)
+	if err != nil {
+		return defaultConfig, err
+	}
+
+	return newConfig, nil
+}
+
+func save(conf Config) error {
+	configDir, err := getDir()
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
-	_, err = f.Write([]byte(token))
+	file, err := os.OpenFile(filepath.Join(configDir, "config.yaml"), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0755)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	enc := yaml.NewEncoder(file)
+	enc.SetIndent(4)
+	err = enc.Encode(conf)
 	if err != nil {
 		return err
 	}
 
-	userToken = token
 	return nil
 }
 
-func LoadToken() string {
-	userDir, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
+func Save() error {
+	return save(Current)
+}
 
-	configDir := filepath.Join(userDir, ".config/yamusic-tui")
-	err = os.MkdirAll(configDir, 0755)
-	if err != nil {
-		return ""
-	}
-
-	token, err := os.ReadFile(filepath.Join(configDir, "token"))
-	if err != nil {
-		return ""
-	}
-
-	return string(token)
+func Reset() error {
+	var err error
+	Current, err = load()
+	return err
 }

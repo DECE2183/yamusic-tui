@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	cl, err := api.NewClient(config.GetToken())
+	cl, err := api.NewClient(config.Current.Token)
 	if err != nil {
 		errMsg := lipgloss.NewStyle().Foreground(lipgloss.Color("#F33")).Render("Error:")
 		if _, ok := err.(*url.Error); ok {
