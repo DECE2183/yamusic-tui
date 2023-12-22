@@ -4,91 +4,22 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"net/url"
-	"os"
 	"time"
 	"yamusic/api"
 	"yamusic/config"
+	"yamusic/ui/model"
+	loginpage "yamusic/ui/model/loginPage"
+	mainpage "yamusic/ui/model/mainPage"
 
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/progress"
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	mp3 "github.com/dece2183/go-stream-mp3"
-	"github.com/ebitengine/oto/v3"
 	"golang.design/x/clipboard"
-)
-
-type page uint
-
-const (
-	_PAGE_LOGIN page = iota
-	_PAGE_MAIN  page = iota
-	_PAGE_QUIT  page = iota
 )
 
 var (
 	rewindAmount = time.Duration(config.Current.RewindDuration) * time.Second
-)
-
-type trackReaderWrapper struct {
-	decoder         *mp3.Decoder
-	trackReader     *api.HttpReadSeeker
-	trackDurationMs int
-	lastUpdateTime  time.Time
-	trackStartTime  time.Time
-}
-
-type model struct {
-	client *api.YaMusicClient
-
-	width, height int
-	page          page
-
-	loginTextInput textinput.Model
-	playlistList   list.Model
-	trackList      list.Model
-	trackProgress  progress.Model
-	trackerHelp    help.Model
-
-	playerContext *oto.Context
-	player        *oto.Player
-	trackWrapper  *trackReaderWrapper
-
-	infinitePlaylist    bool
-	currentStationId    api.StationId
-	currentStationBatch string
-
-	playQueue       []api.Track
-	currentTrackIdx int
-	playlistTracks  []api.Track
-	currentPlaylist playlistListItem
-
-	likedTracksMap   map[string]bool
-	likedTracksSlice []string
-}
-
-type playerControl uint
-
-const (
-	_PLAYER_PLAY  playerControl = iota
-	_PLAYER_PAUSE playerControl = iota
-	_PLAYER_STOP  playerControl = iota
-	_PLAYER_NEXT  playerControl = iota
-	_PLAYER_PREV  playerControl = iota
-)
-
-type progressControl float64
-
-type viewPlaylistControl uint64
-
-const (
-	_PLAYLIST_MYWAVE viewPlaylistControl = iota
-	_PLAYLIST_LIKES  viewPlaylistControl = iota
-	_PLAYLIST_PREDEF viewPlaylistControl = iota
 )
 
 var (
@@ -98,84 +29,19 @@ var (
 func Run() {
 	var err error
 
+	if config.Current.Token == "" {
+		err = loginpage.New().Run()
+		if err != nil {
+			model.PrettyExit(err, 4)
+		}
+	}
+
 	err = clipboard.Init()
 	if err != nil {
-		panic(err)
+		model.PrettyExit(err, 6)
 	}
 
-	playlistListItems := []list.Item{
-		playlistListItem{"my wave", uint64(_PLAYLIST_MYWAVE), true, false},
-		playlistListItem{"likes", uint64(_PLAYLIST_LIKES), true, false},
-		playlistListItem{"playlists:", 0, false, false},
-	}
-
-	m := model{
-		page: _PAGE_MAIN,
-
-		loginTextInput: textinput.New(),
-		playlistList:   list.New(playlistListItems, playlistListItemDelegate{}, 512, 512),
-		trackList:      list.New([]list.Item{}, trackListItemDelegate{}, 512, 512),
-		trackProgress:  progress.New(progress.WithSolidFill("#FC0")),
-		trackerHelp:    help.New(),
-
-		trackWrapper:   &trackReaderWrapper{},
-		likedTracksMap: make(map[string]bool),
-	}
-
-	op := &oto.NewContextOptions{}
-
-	op.SampleRate = 44100
-	op.ChannelCount = 2
-	op.BufferSize = time.Millisecond * time.Duration(config.Current.BufferSize)
-	op.Format = oto.FormatSignedInt16LE
-
-	var readyChan chan struct{}
-	m.playerContext, readyChan, err = oto.NewContext(op)
-	if err != nil {
-		panic("oto.NewContext failed: " + err.Error())
-	}
-	<-readyChan
-
-	m.loginTextInput.Width = 64
-	m.loginTextInput.CharLimit = 60
-
-	controls := config.Current.Controls
-
-	m.playlistList.Title = "Playlists"
-	m.playlistList.SetShowStatusBar(false)
-	m.playlistList.Styles.Title = m.playlistList.Styles.Title.Foreground(accentColor).UnsetBackground().Padding(0)
-	m.playlistList.KeyMap = list.KeyMap{
-		CursorUp:   key.NewBinding(controls.PlaylistsUp.Binding(), controls.PlaylistsUp.Help("up")),
-		CursorDown: key.NewBinding(controls.PlaylistsDown.Binding(), controls.PlaylistsUp.Help("down")),
-	}
-
-	m.trackList.Title = "Tracks"
-	m.trackList.Styles.Title = m.trackList.Styles.Title.Foreground(normalTextColor).UnsetBackground().Padding(0)
-	m.trackList.KeyMap = list.KeyMap{
-		CursorUp:     key.NewBinding(controls.TrackListUp.Binding(), controls.TrackListUp.Help("up")),
-		CursorDown:   key.NewBinding(controls.TrackListDown.Binding(), controls.TrackListDown.Help("down")),
-		Quit:         key.NewBinding(key.WithKeys(""), controls.TrackListLike.Help("like/unlike")),
-		Filter:       key.NewBinding(key.WithKeys(""), controls.TrackListSelect.Help("select")),
-		ShowFullHelp: key.NewBinding(key.WithKeys(""), controls.TrackListShare.Help("share")),
-	}
-
-	m.trackProgress.ShowPercentage = false
-	m.trackProgress.Empty = m.trackProgress.Full
-	m.trackProgress.EmptyColor = "#6b6b6b"
-
-	if config.Current.Token == "" {
-		m.page = _PAGE_LOGIN
-		m.loginTextInput.Focus()
-	} else {
-		m.initialLoad()
-	}
-
-	programm = tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
-	programm.Run()
-}
-
-func (m model) Init() tea.Cmd {
-	return textinput.Blink
+	err = mainpage.New().Run()
 }
 
 func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
@@ -425,68 +291,6 @@ func (m model) View() string {
 	return ""
 }
 
-func (m *model) resize(w, h int) {
-	m.width, m.height = w, h
-	m.playlistList.SetSize(32, h-5)
-	m.trackList.SetSize(m.width-m.playlistList.Width()-20, h-14)
-	m.trackProgress.Width = m.width - m.playlistList.Width() - 13
-	m.trackerHelp.Width = m.trackProgress.Width
-}
-
-func (m *model) initialLoad() {
-	var err error
-	m.client, err = api.NewClient(config.Current.Token)
-	if err != nil {
-		errMsg := lipgloss.NewStyle().Foreground(lipgloss.Color("#F33")).Render("Error:")
-		if _, ok := err.(*url.Error); ok {
-			fmt.Print("\n", errMsg, "unable to connect to the Yandex server\n\n")
-			os.Exit(4)
-		} else {
-			fmt.Println(errMsg, err)
-			os.Exit(8)
-		}
-	}
-
-	playlistListItems := m.playlistList.Items()
-
-	playlists, err := m.client.ListPlaylists()
-	if err == nil {
-		for _, playlist := range playlists {
-			playlistListItems = append(playlistListItems, playlistListItem{playlist.Title, playlist.Kind, true, true})
-		}
-	}
-	m.playlistList.SetItems(playlistListItems)
-
-	tracks, err := m.client.StationTracks(api.MyWaveId, nil)
-	if err == nil {
-		var playlist []list.Item
-		m.playlistTracks = m.playlistTracks[:0]
-		for _, t := range tracks.Sequence {
-			m.playlistTracks = append(m.playlistTracks, t.Track)
-			playlist = append(playlist, trackListItem{
-				title:      t.Track.Title,
-				version:    t.Track.Version,
-				artists:    artistList(t.Track.Artists),
-				id:         t.Track.Id,
-				liked:      false,
-				durationMs: t.Track.DurationMs,
-				available:  t.Track.Available,
-			})
-		}
-		m.trackList.SetItems(playlist)
-		m.currentStationBatch = tracks.BatchId
-	}
-
-	likes, err := m.client.LikedTracks()
-	if err == nil {
-		m.likedTracksSlice = make([]string, 0, len(likes))
-		for _, l := range likes {
-			m.likedTracksMap[l.Id] = true
-			m.likedTracksSlice = append(m.likedTracksSlice, l.Id)
-		}
-	}
-}
-
 func (m *model) rewind(amount time.Duration) {
 	if m.player == nil || m.trackWrapper == nil {
 		go programm.Send(_PLAYER_STOP)
@@ -654,35 +458,4 @@ func (m *model) stopTrack() {
 	if m.trackWrapper.trackReader != nil {
 		m.trackWrapper.trackReader.Close()
 	}
-}
-
-func (w *trackReaderWrapper) Read(dest []byte) (n int, err error) {
-	if w.trackReader == nil {
-		err = io.EOF
-		return
-	}
-
-	n, err = w.decoder.Read(dest)
-	if err != nil && err != io.EOF {
-		w.trackReader.Close()
-		w.trackReader = nil
-		go programm.Send(_PLAYER_STOP)
-		return
-	}
-
-	if w.trackReader.IsDone() {
-		w.trackReader.Close()
-		w.trackReader = nil
-		go programm.Send(_PLAYER_NEXT)
-	} else if time.Since(w.lastUpdateTime) > time.Millisecond*33 {
-		w.lastUpdateTime = time.Now()
-		fraction := progressControl(w.trackReader.Progress())
-		go programm.Send(fraction)
-	}
-
-	return
-}
-
-func (w *trackReaderWrapper) Seek(offset int64, whence int) (int64, error) {
-	return w.decoder.Seek(offset, whence)
 }

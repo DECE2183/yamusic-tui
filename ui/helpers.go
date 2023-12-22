@@ -1,6 +1,8 @@
 package ui
 
-import "yamusic/api"
+import (
+	"yamusic/api"
+)
 
 func artistList(artists []api.Artist) (txt string) {
 	for _, a := range artists {
