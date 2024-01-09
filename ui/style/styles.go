@@ -6,6 +6,7 @@ import (
 
 var (
 	AccentColor       = lipgloss.Color("#FC0")
+	BackgroundColor   = lipgloss.Color("#6b6b6b")
 	ActiveTextColor   = lipgloss.Color("#EEE")
 	NormalTextColor   = lipgloss.Color("#CCC")
 	InactiveTextColor = lipgloss.Color("#888")

@@ -10,6 +10,7 @@ import (
 )
 
 type Model struct {
+	err     error
 	program *tea.Program
 
 	width, height  int
@@ -32,7 +33,7 @@ func New() *Model {
 }
 
 //
-// modal.Modal interface implementation
+// model.Model interface implementation
 //
 
 func (m *Model) Run() error {
@@ -40,13 +41,9 @@ func (m *Model) Run() error {
 	if err != nil {
 		return err
 	}
-
-	config.Current.Token = m.loginTextInput.Value()
-	err = config.Save()
-	if err != nil {
-		return err
+	if m.err != nil {
+		return m.err
 	}
-
 	return nil
 }
 
@@ -55,7 +52,7 @@ func (m *Model) Send(msg tea.Msg) {
 }
 
 //
-// tea.Modal interface implementation
+// tea.Model interface implementation
 //
 
 func (m *Model) Init() tea.Cmd {
@@ -74,16 +71,24 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.ClearScreen
 
 	case tea.KeyMsg:
+		controls := config.Current.Controls
 		keypress := msg.String()
-		switch keypress {
-		case "esc", "ctrl+q", "ctrl+c":
+
+		switch {
+		case controls.Quit.Contains(keypress):
 			return m, tea.Quit
-		case "enter":
+		case controls.Apply.Contains(keypress):
+			config.Current.Token = m.loginTextInput.Value()
+			m.err = config.Save()
 			return m, tea.Quit
 		default:
 			m.loginTextInput, cmd = m.loginTextInput.Update(msg)
 			cmds = append(cmds, cmd)
 		}
+
+	default:
+		m.loginTextInput, cmd = m.loginTextInput.Update(msg)
+		cmds = append(cmds, cmd)
 	}
 
 	return m, tea.Batch(cmds...)

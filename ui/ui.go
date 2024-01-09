@@ -2,9 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"io"
-	"math"
-	"time"
 	"yamusic/api"
 	"yamusic/config"
 	"yamusic/ui/model"
@@ -14,12 +11,7 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
-	mp3 "github.com/dece2183/go-stream-mp3"
 	"golang.design/x/clipboard"
-)
-
-var (
-	rewindAmount = time.Duration(config.Current.RewindDuration) * time.Second
 )
 
 var (
@@ -59,23 +51,7 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		keypress := msg.String()
-		if keypress == "esc" || keypress == "ctrl+q" || keypress == "ctrl+c" {
-			m.page = _PAGE_QUIT
-			return m, tea.Quit
-		}
-
 		switch m.page {
-		case _PAGE_LOGIN:
-			if keypress == "enter" {
-				config.Current.Token = m.loginTextInput.Value()
-				err := config.Save()
-				if err != nil {
-					return m, nil
-				}
-				m.page = _PAGE_MAIN
-				m.initialLoad()
-				return m, nil
-			}
 		case _PAGE_MAIN:
 			if controls.TrackListSelect.Contains(keypress) {
 				playlistItem := m.playlistList.SelectedItem().(playlistListItem)
@@ -92,37 +68,6 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				m.playQueue = m.playlistTracks
 				m.playCurrentQueue(m.trackList.Index())
 				m.currentPlaylist = playlistItem
-			} else if controls.PlayerPause.Contains(keypress) {
-				if m.player == nil {
-					break
-				}
-				if m.player.IsPlaying() {
-					m.player.Pause()
-				} else {
-					m.player.Play()
-				}
-			} else if controls.PlayerRewindBackward.Contains(keypress) {
-				m.rewind(-rewindAmount)
-			} else if controls.PlayerRewindForward.Contains(keypress) {
-				m.rewind(rewindAmount)
-			} else if controls.PlayerPrevious.Contains(keypress) {
-				m.prevTrack()
-			} else if controls.PlayerNext.Contains(keypress) {
-				if len(m.playQueue) > 0 {
-					currTrack := m.playQueue[m.currentTrackIdx]
-
-					if len(m.currentStationId.Tag) > 0 && len(m.currentStationId.Type) > 0 {
-						go m.client.StationFeedback(
-							api.ROTOR_SKIP,
-							m.currentStationId,
-							m.currentStationBatch,
-							currTrack.Id,
-							int(m.trackWrapper.trackReader.Progress()*float64(currTrack.DurationMs))*1000,
-						)
-					}
-				}
-
-				m.nextTrack()
 			} else if controls.TrackListLike.Contains(keypress) || controls.PlayerLike.Contains(keypress) {
 				var track api.Track
 				if controls.TrackListLike.Contains(keypress) {
@@ -181,37 +126,6 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				clipboard.Write(clipboard.FmtText, []byte(link))
 			}
 		}
-
-	// player control update
-	case playerControl:
-		switch msg {
-		case _PLAYER_PREV:
-			m.prevTrack()
-		case _PLAYER_NEXT:
-			if len(m.playQueue) > 0 {
-				currTrack := m.playQueue[m.currentTrackIdx]
-
-				if len(m.currentStationId.Tag) > 0 && len(m.currentStationId.Type) > 0 {
-					go m.client.StationFeedback(
-						api.ROTOR_TRACK_FINISHED,
-						m.currentStationId,
-						m.currentStationBatch,
-						currTrack.Id,
-						currTrack.DurationMs*1000,
-					)
-				}
-			}
-			m.nextTrack()
-		case _PLAYER_PAUSE:
-			m.pauseTrack()
-		case _PLAYER_STOP:
-			m.stopTrack()
-		}
-
-	// track progress update
-	case progressControl:
-		cmd = m.trackProgress.SetPercent(float64(msg))
-		cmds = append(cmds, cmd)
 
 	// selected playlist
 	case playlistListItem:
@@ -278,184 +192,4 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, tea.Batch(cmds...)
-}
-
-func (m model) View() string {
-	switch m.page {
-	case _PAGE_LOGIN:
-		return m.renderLoginPage()
-	case _PAGE_MAIN:
-		return m.renderMainPage()
-	}
-
-	return ""
-}
-
-func (m *model) rewind(amount time.Duration) {
-	if m.player == nil || m.trackWrapper == nil {
-		go programm.Send(_PLAYER_STOP)
-		return
-	}
-
-	amountMs := amount.Milliseconds()
-	currentPos := int64(float64(m.trackWrapper.trackReader.Length()) * m.trackWrapper.trackReader.Progress())
-	byteOffset := int64(math.Round((float64(m.trackWrapper.trackReader.Length()) / float64(m.trackWrapper.trackDurationMs)) * float64(amountMs)))
-
-	// align position by 4 bytes
-	currentPos += byteOffset
-	currentPos -= currentPos % 4
-
-	if currentPos <= 0 {
-		m.player.Seek(0, io.SeekStart)
-	} else if currentPos >= m.trackWrapper.trackReader.Length() {
-		m.player.Seek(0, io.SeekEnd)
-	} else {
-		m.player.Seek(currentPos, io.SeekStart)
-	}
-}
-
-func (m *model) playCurrentQueue(trackIndex int) {
-	if m.player != nil {
-		selectedPlaylis := m.playlistList.SelectedItem().(playlistListItem)
-		if m.currentPlaylist.kind == selectedPlaylis.kind && m.currentTrackIdx == trackIndex {
-			if m.player.IsPlaying() {
-				m.player.Pause()
-				return
-			} else {
-				m.player.Play()
-				return
-			}
-		}
-	}
-
-	if len(m.playQueue) == 0 {
-		m.stopTrack()
-		return
-	}
-
-	if len(m.currentStationId.Tag) > 0 && len(m.currentStationId.Type) > 0 {
-		go m.client.StationFeedback(
-			api.ROTOR_RADIO_STARTED,
-			m.currentStationId,
-			"",
-			"",
-			0,
-		)
-	}
-
-	m.currentTrackIdx = trackIndex
-	m.playTrack(&m.playQueue[m.currentTrackIdx])
-}
-
-func (m *model) prevTrack() {
-	if m.currentTrackIdx == 0 {
-		go programm.Send(_PLAYER_STOP)
-		return
-	}
-
-	m.currentTrackIdx--
-	m.playTrack(&m.playQueue[m.currentTrackIdx])
-
-	selectedPlaylis := m.playlistList.SelectedItem().(playlistListItem)
-	if m.currentPlaylist.kind == selectedPlaylis.kind {
-		go programm.Send(selectedPlaylis)
-	}
-}
-
-func (m *model) nextTrack() {
-	if m.infinitePlaylist && m.currentTrackIdx+2 >= len(m.playQueue) {
-		tracks, err := m.client.StationTracks(api.MyWaveId, &m.playQueue[m.currentTrackIdx])
-		if err != nil {
-			return
-		}
-
-		for _, tr := range tracks.Sequence {
-			m.playQueue = append(m.playQueue, tr.Track)
-		}
-	} else if m.currentTrackIdx+1 >= len(m.playQueue) {
-		m.currentTrackIdx = 0
-		go programm.Send(_PLAYER_STOP)
-		return
-	}
-
-	m.currentTrackIdx++
-	m.playTrack(&m.playQueue[m.currentTrackIdx])
-
-	selectedPlaylis := m.playlistList.SelectedItem().(playlistListItem)
-	if m.currentPlaylist.kind == selectedPlaylis.kind {
-		go programm.Send(selectedPlaylis)
-	}
-}
-
-func (m *model) playTrack(track *api.Track) {
-	m.stopTrack()
-
-	dowInfo, err := m.client.TrackDownloadInfo(track.Id)
-	if err != nil {
-		return
-	}
-
-	var bestBitrate int
-	var bestTrackInfo api.TrackDownloadInfo
-	for _, t := range dowInfo {
-		if t.BbitrateInKbps > bestBitrate {
-			bestBitrate = t.BbitrateInKbps
-			bestTrackInfo = t
-		}
-	}
-
-	trackReader, _, err := m.client.DownloadTrack(bestTrackInfo)
-	if err != nil {
-		return
-	}
-
-	decoder, err := mp3.NewDecoder(trackReader)
-	if err != nil {
-		return
-	}
-
-	if len(m.currentStationId.Tag) > 0 && len(m.currentStationId.Type) > 0 {
-		go m.client.StationFeedback(
-			api.ROTOR_TRACK_STARTED,
-			m.currentStationId,
-			m.currentStationBatch,
-			track.Id,
-			0,
-		)
-	}
-
-	m.trackWrapper.trackReader = trackReader
-	m.trackWrapper.decoder = decoder
-	m.trackWrapper.trackDurationMs = track.DurationMs
-	m.trackWrapper.trackStartTime = time.Now()
-
-	m.player = m.playerContext.NewPlayer(m.trackWrapper)
-	m.player.SetVolume(config.Current.Volume)
-	m.player.Play()
-
-	go m.client.PlayTrack(track, false)
-}
-
-func (m model) pauseTrack() {
-	if m.player == nil {
-		return
-	}
-	m.player.Pause()
-}
-
-func (m *model) stopTrack() {
-	if m.player == nil {
-		return
-	}
-
-	if m.player.IsPlaying() {
-		m.player.Pause()
-	}
-
-	m.player.Close()
-	m.player = nil
-
-	if m.trackWrapper.trackReader != nil {
-		m.trackWrapper.trackReader.Close()
-	}
 }

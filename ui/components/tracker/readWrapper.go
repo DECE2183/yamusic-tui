@@ -1,4 +1,4 @@
-package mainpage
+package tracker
 
 import (
 	"io"

@@ -3,6 +3,8 @@ package playlist
 import (
 	"fmt"
 	"io"
+	"yamusic/config"
+	"yamusic/ui/model"
 	"yamusic/ui/style"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -91,4 +93,106 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 			}
 		}
 	}
+}
+
+type Model struct {
+	program       *tea.Program
+	list          list.Model
+	width, height int
+}
+
+func New(p *tea.Program) Model {
+	m := Model{
+		program: p,
+	}
+
+	playlistItems := []list.Item{
+		Item{Name: "my wave", Kind: uint64(MYWAVE), Active: true, Subitem: false},
+		Item{Name: "likes", Kind: uint64(LIKES), Active: true, Subitem: false},
+		Item{Name: "playlists:", Kind: 0, Active: false, Subitem: false},
+	}
+
+	controls := config.Current.Controls
+
+	m.list = list.New(playlistItems, ItemDelegate{}, 512, 512)
+	m.list.Title = "Playlists"
+	m.list.SetShowStatusBar(false)
+	m.list.Styles.Title = m.list.Styles.Title.Foreground(style.AccentColor).UnsetBackground().Padding(0)
+	m.list.KeyMap = list.KeyMap{
+		CursorUp:   key.NewBinding(controls.PlaylistsUp.Binding(), controls.PlaylistsUp.Help("up")),
+		CursorDown: key.NewBinding(controls.PlaylistsDown.Binding(), controls.PlaylistsUp.Help("down")),
+	}
+
+	return m
+}
+
+func (m Model) Init() tea.Cmd {
+	return nil
+}
+
+func (m Model) View() string {
+	return m.list.View()
+}
+
+func (m Model) Update(message tea.Msg) (Model, tea.Cmd) {
+	var (
+		cmd  tea.Cmd
+		cmds []tea.Cmd
+	)
+
+	switch msg := message.(type) {
+	case tea.KeyMsg:
+		controls := config.Current.Controls
+		keypress := msg.String()
+
+		m.list, cmd = m.list.Update(msg)
+		cmds = append(cmds, cmd)
+
+		switch {
+		case controls.PlaylistsUp.Contains(keypress):
+			cmds = append(cmds, model.Cmd(model.PLAYLIST_CURSOR_UP))
+		case controls.PlaylistsDown.Contains(keypress):
+			cmds = append(cmds, model.Cmd(model.PLAYLIST_CURSOR_DOWN))
+		}
+	}
+
+	return m, tea.Batch(cmds...)
+}
+
+func (m *Model) Items() []Item {
+	litems := m.list.Items()
+	items := make([]Item, len(litems))
+	for i := range litems {
+		items[i] = litems[i].(Item)
+	}
+	return items
+}
+
+func (m *Model) AddItem(item Item) {
+	m.list.InsertItem(len(m.list.Items())+1, item)
+}
+
+func (m *Model) SelectedItem() Item {
+	return m.list.SelectedItem().(Item)
+}
+
+func (m *Model) SetSize(w, h int) {
+	m.width = w
+	m.height = h
+}
+
+func (m *Model) SetWidth(w int) {
+	m.width = w
+}
+
+func (m *Model) Width() int {
+	return m.width
+}
+
+func (m *Model) SetHeight(h int) {
+	m.height = h
+}
+
+func (m *Model) Height() int {
+	return m.height
 }
