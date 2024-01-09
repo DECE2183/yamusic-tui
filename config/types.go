@@ -49,6 +49,8 @@ func (k Key) Contains(keyName string) bool {
 }
 
 type Controls struct {
+	// Main control
+	Quit Key `yaml:"quit"`
 	// Playlists control
 	PlaylistsUp   Key `yaml:"playlists-up"`
 	PlaylistsDown Key `yaml:"playlists-down"`
@@ -80,6 +82,7 @@ var defaultConfig = Config{
 	RewindDuration: 5,
 	Volume:         0.5,
 	Controls: Controls{
+		Quit:                 "ctrl+q,ctrl+c",
 		PlaylistsUp:          "ctrl+up",
 		PlaylistsDown:        "ctrl+down",
 		TrackListUp:          "up",

@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 
 	"gopkg.in/yaml.v3"
 )
@@ -56,6 +57,20 @@ func load() (Config, error) {
 	err = yaml.Unmarshal(configContent, &newConfig)
 	if err != nil {
 		return defaultConfig, err
+	}
+
+	newControls := reflect.ValueOf(&newConfig.Controls)
+	defaultControls := reflect.ValueOf(defaultConfig.Controls)
+	for i := 0; i < newControls.NumField(); i++ {
+		newField := newControls.Field(i)
+		defaultField := defaultControls.Field(i)
+		if newField.Len() == 0 {
+			newField.SetString(defaultField.String())
+		}
+	}
+
+	if newConfig.Controls.Quit == "" {
+		newConfig.Controls.Quit = defaultConfig.Controls.Quit
 	}
 
 	return newConfig, nil
