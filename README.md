@@ -78,4 +78,6 @@ controls:
     player-like: L
 ```
 
-You may increase the `buffer-size-ms` if you have glitches or statters.
+You can list multiple keys for the same control, separated by commas.
+
+Increase the `buffer-size-ms` if you have glitches or statters.
