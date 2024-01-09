@@ -77,7 +77,7 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 		case _PAGE_MAIN:
-			if keypress == controls.TrackListSelect.Key() {
+			if controls.TrackListSelect.Contains(keypress) {
 				playlistItem := m.playlistList.SelectedItem().(playlistListItem)
 				if !playlistItem.active {
 					break
@@ -92,7 +92,7 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				m.playQueue = m.playlistTracks
 				m.playCurrentQueue(m.trackList.Index())
 				m.currentPlaylist = playlistItem
-			} else if keypress == controls.PlayerPause.Key() {
+			} else if controls.PlayerPause.Contains(keypress) {
 				if m.player == nil {
 					break
 				}
@@ -101,13 +101,13 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				} else {
 					m.player.Play()
 				}
-			} else if keypress == controls.PlayerRewindBackward.Key() {
+			} else if controls.PlayerRewindBackward.Contains(keypress) {
 				m.rewind(-rewindAmount)
-			} else if keypress == controls.PlayerRewindForward.Key() {
+			} else if controls.PlayerRewindForward.Contains(keypress) {
 				m.rewind(rewindAmount)
-			} else if keypress == controls.PlayerPrevious.Key() {
+			} else if controls.PlayerPrevious.Contains(keypress) {
 				m.prevTrack()
-			} else if keypress == controls.PlayerNext.Key() {
+			} else if controls.PlayerNext.Contains(keypress) {
 				if len(m.playQueue) > 0 {
 					currTrack := m.playQueue[m.currentTrackIdx]
 
@@ -123,9 +123,9 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				}
 
 				m.nextTrack()
-			} else if keypress == controls.TrackListLike.Key() || keypress == controls.PlayerLike.Key() {
+			} else if controls.TrackListLike.Contains(keypress) || controls.PlayerLike.Contains(keypress) {
 				var track api.Track
-				if keypress == controls.TrackListLike.Key() {
+				if controls.TrackListLike.Contains(keypress) {
 					if len(m.playlistTracks) == 0 {
 						break
 					}
@@ -163,7 +163,7 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 					m.likedTracksSlice = append(m.likedTracksSlice, track.Id)
 				}
 
-				if keypress == controls.TrackListLike.Key() {
+				if controls.TrackListLike.Contains(keypress) {
 					index := m.trackList.Index()
 
 					item := m.trackList.SelectedItem().(trackListItem)
@@ -172,7 +172,7 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 					cmd = m.trackList.SetItem(index, item)
 					cmds = append(cmds, cmd)
 				}
-			} else if keypress == controls.TrackListShare.Key() {
+			} else if controls.TrackListShare.Contains(keypress) {
 				if len(m.playlistTracks) == 0 {
 					break
 				}
