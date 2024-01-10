@@ -25,7 +25,7 @@ const (
 type TracklistControl uint
 
 const (
-	TRACKLIST_PLAY PlaylistControl = iota
+	TRACKLIST_PLAY TracklistControl = iota
 	TRACKLIST_CURSOR_UP
 	TRACKLIST_CURSOR_DOWN
 	TRACKLIST_SHARE

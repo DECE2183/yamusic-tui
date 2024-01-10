@@ -59,7 +59,7 @@ func load() (Config, error) {
 		return defaultConfig, err
 	}
 
-	newControls := reflect.ValueOf(&newConfig.Controls)
+	newControls := reflect.ValueOf(&newConfig.Controls).Elem()
 	defaultControls := reflect.ValueOf(defaultConfig.Controls)
 	for i := 0; i < newControls.NumField(); i++ {
 		newField := newControls.Field(i)

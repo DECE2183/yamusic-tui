@@ -69,8 +69,7 @@ func (k trackerHelpKeyMap) FullHelp() [][]key.Binding {
 var rewindAmount = time.Duration(config.Current.RewindDuration) * time.Second
 
 type Model struct {
-	Playing bool
-	Liked   bool
+	Liked bool
 
 	width    int
 	track    *api.Track
@@ -87,8 +86,11 @@ type Model struct {
 
 func New(p *tea.Program) Model {
 	m := Model{
+		program:  p,
 		progress: progress.New(progress.WithSolidFill(string(style.AccentColor))),
 		help:     help.New(),
+		track:    &api.Track{},
+		volume:   config.Current.Volume,
 	}
 
 	m.progress.ShowPercentage = false
@@ -121,7 +123,7 @@ func (m Model) Init() tea.Cmd {
 
 func (m Model) View() string {
 	var playButton string
-	if m.Playing {
+	if m.IsPlaying() {
 		playButton = style.ActiveButtonStyle.Padding(0, 1).Margin(0).Render(style.IconStop)
 	} else {
 		playButton = style.ActiveButtonStyle.Padding(0, 1).Margin(0).Render(style.IconPlay)
@@ -157,15 +159,14 @@ func (m Model) View() string {
 
 	trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackVersion)
 	trackTitle = lipgloss.JoinVertical(lipgloss.Left, trackTitle, trackArtist, "")
-	trackTitle = lipgloss.NewStyle().Width(m.width).Render(trackTitle)
+	trackTitle = lipgloss.NewStyle().Width(m.width - 36).Render(trackTitle)
 	trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackAddInfo)
 
 	tracker := style.TrackProgressStyle.Render(m.progress.View())
 	tracker = lipgloss.JoinHorizontal(lipgloss.Top, playButton, tracker)
 	tracker = lipgloss.JoinVertical(lipgloss.Left, tracker, trackTitle, m.help.View(trackerHelpMap))
 
-	tracker = style.TrackBoxStyle.Width(m.width - 4).Render(tracker)
-	return tracker
+	return style.TrackBoxStyle.Width(m.width - 4).Render(tracker)
 }
 
 func (m Model) Update(message tea.Msg) (Model, tea.Cmd) {
@@ -221,6 +222,11 @@ func (m Model) Update(message tea.Msg) (Model, tea.Cmd) {
 	case model.ProgressControl:
 		cmd = m.progress.SetPercent(float64(msg))
 		cmds = append(cmds, cmd)
+
+	case progress.FrameMsg:
+		progressModel, cmd := m.progress.Update(msg)
+		m.progress = progressModel.(progress.Model)
+		cmds = append(cmds, cmd)
 	}
 
 	return m, tea.Batch(cmds...)
@@ -228,8 +234,8 @@ func (m Model) Update(message tea.Msg) (Model, tea.Cmd) {
 
 func (m *Model) SetWidth(width int) {
 	m.width = width
-	m.progress.Width = width - 8
-	m.help.Width = m.progress.Width
+	m.progress.Width = width - 14
+	m.help.Width = width - 8
 }
 
 func (m *Model) Width() int {
@@ -296,6 +302,10 @@ func (m *Model) Stop() {
 
 func (m *Model) IsPlaying() bool {
 	return m.player != nil && m.trackWrapper.trackReader != nil && m.player.IsPlaying()
+}
+
+func (m *Model) CurrentTrack() *api.Track {
+	return m.track
 }
 
 func (m *Model) Play() {

@@ -12,12 +12,12 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-type PlaylistType uint64
+type PlaylistType = uint64
 
 const (
-	MYWAVE PlaylistType = iota
-	LIKES  PlaylistType = iota
-	PREDEF PlaylistType = iota
+	NONE PlaylistType = iota
+	MYWAVE
+	LIKES
 )
 
 type Item struct {
@@ -107,14 +107,14 @@ func New(p *tea.Program) Model {
 	}
 
 	playlistItems := []list.Item{
-		Item{Name: "my wave", Kind: uint64(MYWAVE), Active: true, Subitem: false},
-		Item{Name: "likes", Kind: uint64(LIKES), Active: true, Subitem: false},
-		Item{Name: "playlists:", Kind: 0, Active: false, Subitem: false},
+		Item{Name: "my wave", Kind: MYWAVE, Active: true, Subitem: false},
+		Item{Name: "likes", Kind: LIKES, Active: true, Subitem: false},
+		Item{Name: "playlists:", Kind: NONE, Active: false, Subitem: false},
 	}
 
 	controls := config.Current.Controls
 
-	m.list = list.New(playlistItems, ItemDelegate{}, 512, 512)
+	m.list = list.New(playlistItems, ItemDelegate{programm: p}, 512, 512)
 	m.list.Title = "Playlists"
 	m.list.SetShowStatusBar(false)
 	m.list.Styles.Title = m.list.Styles.Title.Foreground(style.AccentColor).UnsetBackground().Padding(0)
@@ -168,8 +168,15 @@ func (m *Model) Items() []Item {
 	return items
 }
 
-func (m *Model) AddItem(item Item) {
-	m.list.InsertItem(len(m.list.Items())+1, item)
+func (m *Model) InsertItem(index int, item Item) tea.Cmd {
+	if index < 0 {
+		index = len(m.list.Items()) + 1
+	}
+	return m.list.InsertItem(index, item)
+}
+
+func (m *Model) SetItem(index int, item Item) tea.Cmd {
+	return m.list.SetItem(index, item)
 }
 
 func (m *Model) SelectedItem() Item {
@@ -179,10 +186,12 @@ func (m *Model) SelectedItem() Item {
 func (m *Model) SetSize(w, h int) {
 	m.width = w
 	m.height = h
+	m.list.SetSize(m.width, m.height)
 }
 
 func (m *Model) SetWidth(w int) {
 	m.width = w
+	m.list.SetSize(m.width, m.height)
 }
 
 func (m *Model) Width() int {
@@ -191,6 +200,7 @@ func (m *Model) Width() int {
 
 func (m *Model) SetHeight(h int) {
 	m.height = h
+	m.list.SetSize(m.width, m.height)
 }
 
 func (m *Model) Height() int {
