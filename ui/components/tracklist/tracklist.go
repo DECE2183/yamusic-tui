@@ -22,6 +22,7 @@ type Item struct {
 	DurationMs int
 	Liked      bool
 	Available  bool
+	IsPlaying  bool
 }
 
 type ItemDelegate struct{}
@@ -49,10 +50,13 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	}
 
 	var trackTitle string
+	if item.IsPlaying {
+		trackTitle = style.AccentTextStyle.Render(style.IconPlay) + " "
+	}
 	if item.Available {
-		trackTitle = style.TrackTitleStyle.Render(item.Title)
+		trackTitle += style.TrackTitleStyle.Render(item.Title)
 	} else {
-		trackTitle = style.TrackTitleStyle.Copy().Strikethrough(true).Render(item.Title)
+		trackTitle += style.TrackTitleStyle.Copy().Strikethrough(true).Render(item.Title)
 	}
 	trackVersion := style.TrackVersionStyle.Render(" " + item.Version)
 	trackArtist := style.TrackVersionStyle.Render(item.Artists)

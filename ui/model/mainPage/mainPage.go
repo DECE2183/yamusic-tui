@@ -284,6 +284,8 @@ func (m *Model) prevTrack() {
 		return
 	}
 
+	m.indicateCurrentTrackPlaying(false)
+
 	m.currentTrackIdx--
 	m.playTrack(&m.playQueue[m.currentTrackIdx])
 
@@ -297,6 +299,8 @@ func (m *Model) nextTrack() {
 	if len(m.playQueue) == 0 {
 		return
 	}
+
+	m.indicateCurrentTrackPlaying(false)
 
 	if m.infinitePlaylist {
 		currTrack := m.playQueue[m.currentTrackIdx]
@@ -378,6 +382,7 @@ func (m *Model) playTrack(track *api.Track) {
 		return
 	}
 
+	m.indicateCurrentTrackPlaying(true)
 	m.tracker.StartTrack(track, trackReader)
 
 	if m.infinitePlaylist {
@@ -399,6 +404,7 @@ func (m *Model) playCurrentQueue(trackIndex int) {
 		return
 	}
 
+	m.indicateCurrentTrackPlaying(false)
 	selectedPlaylist := m.playlist.SelectedItem()
 	if m.currentPlaylist.Kind == selectedPlaylist.Kind && m.currentTrackIdx == trackIndex {
 		if m.tracker.IsPlaying() {
@@ -521,5 +527,13 @@ func (m *Model) likeTrack(track *api.Track) {
 				Available:  track.Available,
 			})
 		}
+	}
+}
+
+func (m *Model) indicateCurrentTrackPlaying(playing bool) {
+	if playing || m.currentPlaylist.Kind == m.playlist.SelectedItem().Kind && m.currentTrackIdx < len(m.tracklist.Items()) {
+		track := m.tracklist.Items()[m.currentTrackIdx]
+		track.IsPlaying = playing
+		m.tracklist.SetItem(m.currentTrackIdx, track)
 	}
 }

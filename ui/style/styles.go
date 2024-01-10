@@ -20,6 +20,10 @@ var (
 )
 
 var (
+	AccentTextStyle = lipgloss.NewStyle().Foreground(AccentColor)
+)
+
+var (
 	DialogTitleStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("#F4F4F4")).
 				MarginBottom(1)
