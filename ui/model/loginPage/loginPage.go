@@ -1,8 +1,8 @@
 package loginpage
 
 import (
-	"yamusic/config"
-	"yamusic/ui/style"
+	"github.com/dece2183/yamusic-tui/config"
+	"github.com/dece2183/yamusic-tui/ui/style"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"

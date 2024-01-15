@@ -3,7 +3,8 @@ package tracker
 import (
 	"io"
 	"time"
-	"yamusic/api"
+
+	"github.com/dece2183/yamusic-tui/api"
 
 	tea "github.com/charmbracelet/bubbletea"
 	mp3 "github.com/dece2183/go-stream-mp3"

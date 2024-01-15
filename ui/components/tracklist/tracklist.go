@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"io"
 	"time"
-	"yamusic/api"
-	"yamusic/config"
-	"yamusic/ui/helpers"
-	"yamusic/ui/model"
-	"yamusic/ui/style"
+
+	"github.com/dece2183/yamusic-tui/api"
+	"github.com/dece2183/yamusic-tui/config"
+	"github.com/dece2183/yamusic-tui/ui/helpers"
+	"github.com/dece2183/yamusic-tui/ui/model"
+	"github.com/dece2183/yamusic-tui/ui/style"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"

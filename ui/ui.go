@@ -1,10 +1,11 @@
 package ui
 
 import (
-	"yamusic/config"
-	"yamusic/ui/model"
-	loginpage "yamusic/ui/model/loginPage"
-	mainpage "yamusic/ui/model/mainPage"
+	loginpage "github.com/dece2183/yamusic-tui/ui/model/loginPage"
+	mainpage "github.com/dece2183/yamusic-tui/ui/model/mainPage"
+
+	"github.com/dece2183/yamusic-tui/config"
+	"github.com/dece2183/yamusic-tui/ui/model"
 )
 
 func Run() {

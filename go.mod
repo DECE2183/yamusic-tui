@@ -1,4 +1,4 @@
-module yamusic
+module github.com/dece2183/yamusic-tui
 
 go 1.20
 

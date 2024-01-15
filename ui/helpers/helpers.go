@@ -1,7 +1,7 @@
 package helpers
 
 import (
-	"yamusic/api"
+	"github.com/dece2183/yamusic-tui/api"
 )
 
 func ArtistList(artists []api.Artist) (txt string) {

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"yamusic/ui"
+	"github.com/dece2183/yamusic-tui/ui"
 )
 
 func main() {

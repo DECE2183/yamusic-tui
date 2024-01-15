@@ -3,13 +3,14 @@ package mainpage
 import (
 	"fmt"
 	"net/url"
-	"yamusic/api"
-	"yamusic/config"
-	"yamusic/ui/components/playlist"
-	"yamusic/ui/components/tracker"
-	"yamusic/ui/components/tracklist"
-	"yamusic/ui/model"
-	"yamusic/ui/style"
+
+	"github.com/dece2183/yamusic-tui/api"
+	"github.com/dece2183/yamusic-tui/config"
+	"github.com/dece2183/yamusic-tui/ui/components/playlist"
+	"github.com/dece2183/yamusic-tui/ui/components/tracker"
+	"github.com/dece2183/yamusic-tui/ui/components/tracklist"
+	"github.com/dece2183/yamusic-tui/ui/model"
+	"github.com/dece2183/yamusic-tui/ui/style"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
