@@ -4,7 +4,6 @@ import (
 	"io"
 	"time"
 	"yamusic/api"
-	"yamusic/ui/model"
 
 	tea "github.com/charmbracelet/bubbletea"
 	mp3 "github.com/dece2183/go-stream-mp3"
@@ -29,17 +28,17 @@ func (w *readWrapper) Read(dest []byte) (n int, err error) {
 	if err != nil && err != io.EOF {
 		w.trackReader.Close()
 		w.trackReader = nil
-		go w.program.Send(model.PLAYER_STOP)
+		go w.program.Send(STOP)
 		return
 	}
 
 	if w.trackReader.IsDone() {
 		w.trackReader.Close()
 		w.trackReader = nil
-		go w.program.Send(model.PLAYER_NEXT)
+		go w.program.Send(NEXT)
 	} else if time.Since(w.lastUpdateTime) > time.Millisecond*33 {
 		w.lastUpdateTime = time.Now()
-		fraction := model.ProgressControl(w.trackReader.Progress())
+		fraction := ProgressControl(w.trackReader.Progress())
 		go w.program.Send(fraction)
 	}
 

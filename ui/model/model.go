@@ -15,36 +15,6 @@ type Model interface {
 	Send(cmd tea.Cmd)
 }
 
-type PlaylistControl uint
-
-const (
-	PLAYLIST_CURSOR_UP PlaylistControl = iota
-	PLAYLIST_CURSOR_DOWN
-)
-
-type TracklistControl uint
-
-const (
-	TRACKLIST_PLAY TracklistControl = iota
-	TRACKLIST_CURSOR_UP
-	TRACKLIST_CURSOR_DOWN
-	TRACKLIST_SHARE
-	TRACKLIST_LIKE
-)
-
-type PlayerControl uint
-
-const (
-	PLAYER_PLAY PlayerControl = iota
-	PLAYER_PAUSE
-	PLAYER_STOP
-	PLAYER_NEXT
-	PLAYER_PREV
-	PLAYER_LIKE
-)
-
-type ProgressControl float64
-
 func PrettyExit(err error, code int) {
 	fmt.Println()
 

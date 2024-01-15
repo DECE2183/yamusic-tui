@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"io"
 	"time"
+	"yamusic/api"
 	"yamusic/config"
+	"yamusic/ui/helpers"
 	"yamusic/ui/model"
 	"yamusic/ui/style"
 
@@ -14,21 +16,35 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+type TracklistControl uint
+
+const (
+	PLAY TracklistControl = iota
+	CURSOR_UP
+	CURSOR_DOWN
+	SHARE
+	LIKE
+)
+
 type Item struct {
-	Title      string
-	Version    string
-	Artists    string
-	Id         string
-	DurationMs int
-	Liked      bool
-	Available  bool
-	IsPlaying  bool
+	Track     *api.Track
+	Artists   string
+	IsPlaying bool
 }
 
-type ItemDelegate struct{}
+func NewItem(track *api.Track) Item {
+	return Item{
+		Track:   track,
+		Artists: helpers.ArtistList(track.Artists),
+	}
+}
+
+type ItemDelegate struct {
+	likesMap *map[string]bool
+}
 
 func (i Item) FilterValue() string {
-	return i.Title
+	return i.Track.Title
 }
 
 func (d ItemDelegate) Height() int {
@@ -53,22 +69,22 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	if item.IsPlaying {
 		trackTitle = style.AccentTextStyle.Render(style.IconPlay) + " "
 	}
-	if item.Available {
-		trackTitle += style.TrackTitleStyle.Render(item.Title)
+	if item.Track.Available {
+		trackTitle += style.TrackTitleStyle.Render(item.Track.Title)
 	} else {
-		trackTitle += style.TrackTitleStyle.Copy().Strikethrough(true).Render(item.Title)
+		trackTitle += style.TrackTitleStyle.Copy().Strikethrough(true).Render(item.Track.Title)
 	}
-	trackVersion := style.TrackVersionStyle.Render(" " + item.Version)
+	trackVersion := style.TrackVersionStyle.Render(" " + item.Track.Version)
 	trackArtist := style.TrackVersionStyle.Render(item.Artists)
 
-	durTotal := time.Millisecond * time.Duration(item.DurationMs)
+	durTotal := time.Millisecond * time.Duration(item.Track.DurationMs)
 	trackTime := style.TrackVersionStyle.Render(fmt.Sprintf("%d:%02d",
 		int(durTotal.Minutes()),
 		int(durTotal.Seconds())%60,
 	))
 
 	var trackLike string
-	if item.Liked {
+	if (*d.likesMap)[item.Track.Id] {
 		trackLike = style.IconLiked + " "
 	} else {
 		trackLike = style.IconNotLiked + " "
@@ -94,14 +110,14 @@ type Model struct {
 	width, height int
 }
 
-func New(p *tea.Program) Model {
+func New(p *tea.Program, likesMap *map[string]bool) Model {
 	m := Model{
 		program: p,
 	}
 
 	controls := config.Current.Controls
 
-	m.list = list.New([]list.Item{}, ItemDelegate{}, 512, 512)
+	m.list = list.New([]list.Item{}, ItemDelegate{likesMap}, 512, 512)
 	m.list.Title = "Tracks"
 	m.list.Styles.Title = m.list.Styles.Title.Foreground(style.NormalTextColor).UnsetBackground().Padding(0)
 	m.list.KeyMap = list.KeyMap{
@@ -139,15 +155,15 @@ func (m Model) Update(message tea.Msg) (Model, tea.Cmd) {
 
 		switch {
 		case controls.Apply.Contains(keypress):
-			cmds = append(cmds, model.Cmd(model.TRACKLIST_PLAY))
+			cmds = append(cmds, model.Cmd(PLAY))
 		case controls.TrackListUp.Contains(keypress):
-			cmds = append(cmds, model.Cmd(model.TRACKLIST_CURSOR_UP))
+			cmds = append(cmds, model.Cmd(CURSOR_UP))
 		case controls.TrackListDown.Contains(keypress):
-			cmds = append(cmds, model.Cmd(model.TRACKLIST_CURSOR_DOWN))
+			cmds = append(cmds, model.Cmd(CURSOR_DOWN))
 		case controls.TrackListShare.Contains(keypress):
-			cmds = append(cmds, model.Cmd(model.TRACKLIST_SHARE))
+			cmds = append(cmds, model.Cmd(SHARE))
 		case controls.TrackListLike.Contains(keypress):
-			cmds = append(cmds, model.Cmd(model.TRACKLIST_LIKE))
+			cmds = append(cmds, model.Cmd(LIKE))
 		}
 	}
 

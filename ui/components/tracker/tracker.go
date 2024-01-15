@@ -20,6 +20,23 @@ import (
 	"github.com/ebitengine/oto/v3"
 )
 
+type PlayerControl uint
+
+const (
+	PLAY PlayerControl = iota
+	PAUSE
+	STOP
+	NEXT
+	PREV
+	LIKE
+)
+
+type ProgressControl float64
+
+func (p ProgressControl) Value() float64 {
+	return float64(p)
+}
+
 type trackerHelpKeyMap struct {
 	PlayPause  key.Binding
 	PrevTrack  key.Binding
@@ -69,8 +86,6 @@ func (k trackerHelpKeyMap) FullHelp() [][]key.Binding {
 var rewindAmount = time.Duration(config.Current.RewindDuration) * time.Second
 
 type Model struct {
-	Liked bool
-
 	width    int
 	track    *api.Track
 	progress progress.Model
@@ -81,12 +96,14 @@ type Model struct {
 	player        *oto.Player
 	trackWrapper  *readWrapper
 
-	program *tea.Program
+	program  *tea.Program
+	likesMap *map[string]bool
 }
 
-func New(p *tea.Program) Model {
+func New(p *tea.Program, likesMap *map[string]bool) Model {
 	m := Model{
 		program:  p,
+		likesMap: likesMap,
 		progress: progress.New(progress.WithSolidFill(string(style.AccentColor))),
 		help:     help.New(),
 		track:    &api.Track{},
@@ -149,7 +166,7 @@ func (m Model) View() string {
 	))
 
 	var trackLike string
-	if m.Liked {
+	if (*m.likesMap)[m.track.Id] {
 		trackLike = style.IconLiked + " "
 	} else {
 		trackLike = style.IconNotLiked + " "
@@ -198,29 +215,29 @@ func (m Model) Update(message tea.Msg) (Model, tea.Cmd) {
 			m.rewind(-rewindAmount)
 
 		case controls.PlayerNext.Contains(keypress):
-			cmds = append(cmds, model.Cmd(model.PLAYER_NEXT))
+			cmds = append(cmds, model.Cmd(NEXT))
 
 		case controls.PlayerPrevious.Contains(keypress):
-			cmds = append(cmds, model.Cmd(model.PLAYER_PREV))
+			cmds = append(cmds, model.Cmd(PREV))
 
 		case controls.PlayerLike.Contains(keypress):
-			cmds = append(cmds, model.Cmd(model.PLAYER_LIKE))
+			cmds = append(cmds, model.Cmd(LIKE))
 		}
 
 	// player control update
-	case model.PlayerControl:
+	case PlayerControl:
 		switch msg {
-		case model.PLAYER_PLAY:
+		case PLAY:
 			m.Play()
-		case model.PLAYER_PAUSE:
+		case PAUSE:
 			m.Pause()
-		case model.PLAYER_STOP:
+		case STOP:
 			m.Stop()
 		}
 
 	// track progress update
-	case model.ProgressControl:
-		cmd = m.progress.SetPercent(float64(msg))
+	case ProgressControl:
+		cmd = m.progress.SetPercent(msg.Value())
 		cmds = append(cmds, cmd)
 
 	case progress.FrameMsg:
@@ -330,7 +347,7 @@ func (m *Model) Pause() {
 
 func (m *Model) rewind(amount time.Duration) {
 	if m.player == nil || m.trackWrapper == nil {
-		go m.program.Send(model.PLAYER_STOP)
+		go m.program.Send(STOP)
 		return
 	}
 

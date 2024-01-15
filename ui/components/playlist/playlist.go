@@ -3,6 +3,7 @@ package playlist
 import (
 	"fmt"
 	"io"
+	"yamusic/api"
 	"yamusic/config"
 	"yamusic/ui/model"
 	"yamusic/ui/style"
@@ -10,6 +11,13 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+)
+
+type PlaylistControl uint
+
+const (
+	CURSOR_UP PlaylistControl = iota
+	CURSOR_DOWN
 )
 
 type PlaylistType = uint64
@@ -21,10 +29,17 @@ const (
 )
 
 type Item struct {
-	Name    string
-	Kind    uint64
-	Active  bool
-	Subitem bool
+	Name         string
+	Kind         uint64
+	StationId    api.StationId
+	StationBatch string
+	Active       bool
+	Subitem      bool
+	Infinite     bool
+
+	Tracks        []api.Track
+	CurrentTrack  int
+	SelectedTrack int
 }
 
 type ItemDelegate struct {
@@ -107,7 +122,7 @@ func New(p *tea.Program) Model {
 	}
 
 	playlistItems := []list.Item{
-		Item{Name: "my wave", Kind: MYWAVE, Active: true, Subitem: false},
+		Item{Name: "my wave", Kind: MYWAVE, Active: true, Subitem: false, Infinite: true},
 		Item{Name: "likes", Kind: LIKES, Active: true, Subitem: false},
 		Item{Name: "playlists:", Kind: NONE, Active: false, Subitem: false},
 	}
@@ -150,9 +165,9 @@ func (m Model) Update(message tea.Msg) (Model, tea.Cmd) {
 
 		switch {
 		case controls.PlaylistsUp.Contains(keypress):
-			cmds = append(cmds, model.Cmd(model.PLAYLIST_CURSOR_UP))
+			cmds = append(cmds, model.Cmd(CURSOR_UP))
 		case controls.PlaylistsDown.Contains(keypress):
-			cmds = append(cmds, model.Cmd(model.PLAYLIST_CURSOR_DOWN))
+			cmds = append(cmds, model.Cmd(CURSOR_DOWN))
 		}
 	}
 
@@ -181,6 +196,14 @@ func (m *Model) SetItem(index int, item Item) tea.Cmd {
 
 func (m *Model) SelectedItem() Item {
 	return m.list.SelectedItem().(Item)
+}
+
+func (m *Model) Index() int {
+	return m.list.Index()
+}
+
+func (m *Model) Select(index int) {
+	m.list.Select(index)
 }
 
 func (m *Model) SetSize(w, h int) {

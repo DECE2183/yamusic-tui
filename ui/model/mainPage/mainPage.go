@@ -8,7 +8,6 @@ import (
 	"yamusic/ui/components/playlist"
 	"yamusic/ui/components/tracker"
 	"yamusic/ui/components/tracklist"
-	"yamusic/ui/helpers"
 	"yamusic/ui/model"
 	"yamusic/ui/style"
 
@@ -27,17 +26,8 @@ type Model struct {
 	tracklist tracklist.Model
 	tracker   tracker.Model
 
-	infinitePlaylist    bool
-	currentStationId    api.StationId
-	currentStationBatch string
-
-	playQueue       []api.Track
-	currentTrackIdx int
-	playlistTracks  []api.Track
-	currentPlaylist playlist.Item
-
-	likedTracksMap   map[string]bool
-	likedTracksSlice []string
+	currentPlaylistIndex int
+	likedTracksMap       map[string]bool
 }
 
 // mainpage.Model constructor.
@@ -49,8 +39,8 @@ func New() *Model {
 	m.likedTracksMap = make(map[string]bool)
 
 	m.playlist = playlist.New(m.program)
-	m.tracklist = tracklist.New(m.program)
-	m.tracker = tracker.New(m.program)
+	m.tracklist = tracklist.New(m.program, &m.likedTracksMap)
+	m.tracker = tracker.New(m.program, &m.likedTracksMap)
 
 	m.initialLoad()
 	return m
@@ -110,92 +100,62 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	// playlist control update
-	case model.PlaylistControl:
+	case playlist.PlaylistControl:
 		switch msg {
-		case model.PLAYLIST_CURSOR_UP, model.PLAYLIST_CURSOR_DOWN:
-			item := m.playlist.SelectedItem()
+		case playlist.CURSOR_UP, playlist.CURSOR_DOWN:
+			selectedPlaylist := m.playlist.SelectedItem()
+			currentPlaylist := m.playlist.Items()[m.currentPlaylistIndex]
 
-			if len(m.playQueue) > 0 && item.Kind == m.currentPlaylist.Kind {
-				m.playlistTracks = m.playQueue
-				m.tracklist.Select(m.currentTrackIdx)
-			} else if item.Kind == playlist.MYWAVE {
-				tracks, err := m.client.StationTracks(api.MyWaveId, nil)
-				if err != nil {
-					break
-				}
-				m.currentStationBatch = tracks.BatchId
-				m.playlistTracks = m.playlistTracks[:0]
-				for _, t := range tracks.Sequence {
-					m.playlistTracks = append(m.playlistTracks, t.Track)
-				}
-			} else if item.Kind == playlist.LIKES {
-				tracks, err := m.client.Tracks(m.likedTracksSlice)
-				if err != nil {
-					break
-				}
-				m.playlistTracks = tracks
-			} else {
-				tracks, err := m.client.PlaylistTracks(item.Kind, false)
-				if err != nil {
-					break
-				}
-				m.playlistTracks = tracks
+			if selectedPlaylist.Kind == currentPlaylist.Kind && len(selectedPlaylist.Tracks) > 0 {
+				selectedPlaylist.SelectedTrack = selectedPlaylist.CurrentTrack
+				m.playlist.SetItem(m.playlist.Index(), selectedPlaylist)
 			}
 
-			tracks := make([]tracklist.Item, 0, len(m.playlistTracks))
-			for _, t := range m.playlistTracks {
-				tracks = append(tracks, tracklist.Item{
-					Title:      t.Title,
-					Version:    t.Version,
-					Artists:    helpers.ArtistList(t.Artists),
-					Id:         t.Id,
-					Liked:      m.likedTracksMap[t.Id],
-					Available:  t.Available,
-					DurationMs: t.DurationMs,
-				})
+			tracks := make([]tracklist.Item, 0, len(selectedPlaylist.Tracks))
+			for i := range selectedPlaylist.Tracks {
+				track := &selectedPlaylist.Tracks[i]
+				tracks = append(tracks, tracklist.NewItem(track))
 			}
+
 			m.tracklist.SetItems(tracks)
+			m.tracklist.Select(selectedPlaylist.SelectedTrack)
+			if m.tracker.IsPlaying() {
+				m.indicateCurrentTrackPlaying(true)
+			}
 		}
 
 	// tracklist control update
-	case model.TracklistControl:
+	case tracklist.TracklistControl:
 		switch msg {
-		case model.TRACKLIST_PLAY:
+		case tracklist.PLAY:
 			playlistItem := m.playlist.SelectedItem()
 			if !playlistItem.Active {
 				break
 			}
-			if playlistItem.Kind == uint64(playlist.MYWAVE) {
-				m.infinitePlaylist = true
-				m.currentStationId = api.MyWaveId
-			} else {
-				m.infinitePlaylist = false
-				m.currentStationId = api.StationId{}
-			}
-			m.playQueue = m.playlistTracks
 			m.playCurrentQueue(m.tracklist.Index())
-			m.currentPlaylist = playlistItem
-		case model.TRACKLIST_CURSOR_UP, model.TRACKLIST_CURSOR_DOWN:
-		case model.TRACKLIST_LIKE:
+			m.currentPlaylistIndex = m.playlist.Index()
+		case tracklist.CURSOR_UP, tracklist.CURSOR_DOWN:
+			currentPlaylist := m.playlist.SelectedItem()
+			cursorIndex := m.tracklist.Index()
+			currentPlaylist.SelectedTrack = cursorIndex
+			m.playlist.SetItem(m.playlist.Index(), currentPlaylist)
+		case tracklist.LIKE:
 			cmd = m.likeSelectedTrack()
 			cmds = append(cmds, cmd)
-		case model.TRACKLIST_SHARE:
-			if len(m.playlistTracks) == 0 {
-				break
-			}
-			track := m.playlistTracks[m.tracklist.Index()]
+		case tracklist.SHARE:
+			track := m.tracklist.SelectedItem().Track
 			link := fmt.Sprintf("https://music.yandex.ru/album/%d/track/%s", track.Albums[0].Id, track.Id)
 			clipboard.Write(clipboard.FmtText, []byte(link))
 		}
 
 	// player control update
-	case model.PlayerControl:
+	case tracker.PlayerControl:
 		switch msg {
-		case model.PLAYER_NEXT:
+		case tracker.NEXT:
 			m.nextTrack()
-		case model.PLAYER_PREV:
+		case tracker.PREV:
 			m.prevTrack()
-		case model.PLAYER_LIKE:
+		case tracker.LIKE:
 			cmd = m.likePlayingTrack()
 			cmds = append(cmds, cmd)
 		}
@@ -243,87 +203,116 @@ func (m *Model) initialLoad() {
 		}
 	}
 
+	for i, station := range m.playlist.Items() {
+		switch station.Kind {
+		case playlist.MYWAVE:
+			tracks, err := m.client.StationTracks(api.MyWaveId, nil)
+			if err != nil {
+				continue
+			}
+
+			station.StationId = tracks.Id
+			station.StationBatch = tracks.BatchId
+			for _, t := range tracks.Sequence {
+				station.Tracks = append(station.Tracks, t.Track)
+			}
+			m.playlist.SetItem(i, station)
+		case playlist.LIKES:
+			likes, err := m.client.LikedTracks()
+			if err != nil {
+				continue
+			}
+
+			likedTracksId := make([]string, len(likes))
+			for l, track := range likes {
+				m.likedTracksMap[track.Id] = true
+				likedTracksId[l] = track.Id
+			}
+
+			likedTracks, err := m.client.Tracks(likedTracksId)
+			if err != nil {
+				continue
+			}
+
+			station.Tracks = likedTracks
+			m.playlist.SetItem(i, station)
+		default:
+		}
+	}
+
 	playlists, err := m.client.ListPlaylists()
 	if err == nil {
 		for _, pl := range playlists {
-			m.playlist.InsertItem(-1, playlist.Item{Name: pl.Title, Kind: pl.Kind, Active: true, Subitem: true})
-		}
-	}
+			playlistTracks, err := m.client.PlaylistTracks(pl.Kind, false)
+			if err != nil {
+				continue
+			}
 
-	likes, err := m.client.LikedTracks()
-	if err == nil {
-		m.likedTracksSlice = make([]string, 0, len(likes))
-		for _, l := range likes {
-			m.likedTracksMap[l.Id] = true
-			m.likedTracksSlice = append(m.likedTracksSlice, l.Id)
-		}
-	}
-
-	tracks, err := m.client.StationTracks(api.MyWaveId, nil)
-	if err == nil {
-		m.playlistTracks = m.playlistTracks[:0]
-		for _, t := range tracks.Sequence {
-			m.playlistTracks = append(m.playlistTracks, t.Track)
-			m.tracklist.InsertItem(-1, tracklist.Item{
-				Title:      t.Track.Title,
-				Version:    t.Track.Version,
-				Artists:    helpers.ArtistList(t.Track.Artists),
-				Id:         t.Track.Id,
-				Liked:      m.likedTracksMap[t.Track.Id],
-				DurationMs: t.Track.DurationMs,
-				Available:  t.Track.Available,
+			m.playlist.InsertItem(-1, playlist.Item{
+				Name:    pl.Title,
+				Kind:    pl.Kind,
+				Active:  true,
+				Subitem: true,
+				Tracks:  playlistTracks,
 			})
 		}
-		m.currentStationBatch = tracks.BatchId
 	}
+
+	m.playlist.Select(0)
+	m.Send(playlist.CURSOR_UP)
 }
 
 func (m *Model) prevTrack() {
-	if m.currentTrackIdx == 0 {
-		m.Send(model.PLAYER_STOP)
+	currentPlaylist := m.playlist.Items()[m.currentPlaylistIndex]
+
+	if currentPlaylist.CurrentTrack == 0 {
+		m.Send(tracker.STOP)
 		return
 	}
 
 	m.indicateCurrentTrackPlaying(false)
 
-	m.currentTrackIdx--
-	m.playTrack(&m.playQueue[m.currentTrackIdx])
+	currentPlaylist.CurrentTrack--
+	m.playlist.SetItem(m.currentPlaylistIndex, currentPlaylist)
+	m.playTrack(&currentPlaylist.Tracks[currentPlaylist.CurrentTrack])
 
 	selectedPlaylist := m.playlist.SelectedItem()
-	if m.currentPlaylist.Kind == selectedPlaylist.Kind && m.tracklist.Index() == m.currentTrackIdx+1 {
-		m.tracklist.Select(m.currentTrackIdx)
+	if currentPlaylist.Kind == selectedPlaylist.Kind && m.tracklist.Index() == currentPlaylist.CurrentTrack+1 {
+		m.tracklist.Select(currentPlaylist.CurrentTrack)
 	}
 }
 
 func (m *Model) nextTrack() {
-	if len(m.playQueue) == 0 {
+	currentPlaylist := m.playlist.Items()[m.currentPlaylistIndex]
+
+	if len(currentPlaylist.Tracks) == 0 {
 		return
 	}
 
 	m.indicateCurrentTrackPlaying(false)
 
-	if m.infinitePlaylist {
-		currTrack := m.playQueue[m.currentTrackIdx]
+	if currentPlaylist.Infinite {
+		currTrack := currentPlaylist.Tracks[currentPlaylist.CurrentTrack]
 
 		if m.tracker.Progress() == 1 {
 			go m.client.StationFeedback(
 				api.ROTOR_TRACK_FINISHED,
-				m.currentStationId,
-				m.currentStationBatch,
+				currentPlaylist.StationId,
+				currentPlaylist.StationBatch,
 				currTrack.Id,
 				currTrack.DurationMs*1000,
 			)
 		} else {
 			go m.client.StationFeedback(
 				api.ROTOR_SKIP,
-				m.currentStationId,
-				m.currentStationBatch,
+				currentPlaylist.StationId,
+				currentPlaylist.StationBatch,
 				currTrack.Id,
 				int(float64(currTrack.DurationMs*1000)*m.tracker.Progress()),
 			)
 		}
 
-		if m.currentTrackIdx+2 >= len(m.playQueue) {
+		if currentPlaylist.CurrentTrack+2 >= len(currentPlaylist.Tracks) {
 			tracks, err := m.client.StationTracks(api.MyWaveId, &currTrack)
 			if err != nil {
 				return
@@ -331,32 +320,27 @@ func (m *Model) nextTrack() {
 
 			for _, tr := range tracks.Sequence {
 				// automatic append new tracks to the track list if this playlist is selected
-				m.playQueue = append(m.playQueue, tr.Track)
-				if m.playlist.SelectedItem().Kind == m.currentPlaylist.Kind {
-					m.tracklist.InsertItem(-1, tracklist.Item{
-						Title:      tr.Track.Title,
-						Version:    tr.Track.Version,
-						Artists:    helpers.ArtistList(tr.Track.Artists),
-						Id:         tr.Track.Id,
-						Liked:      m.likedTracksMap[tr.Track.Id],
-						DurationMs: tr.Track.DurationMs,
-						Available:  tr.Track.Available,
-					})
+				currentPlaylist.Tracks = append(currentPlaylist.Tracks, tr.Track)
+				if m.playlist.SelectedItem().Kind == currentPlaylist.Kind {
+					newTrack := &currentPlaylist.Tracks[len(currentPlaylist.Tracks)-1]
+					m.tracklist.InsertItem(-1, tracklist.NewItem(newTrack))
 				}
 			}
 		}
-	} else if m.currentTrackIdx+1 >= len(m.playQueue) {
-		m.currentTrackIdx = 0
-		m.Send(model.PLAYER_STOP)
+	} else if currentPlaylist.CurrentTrack+1 >= len(currentPlaylist.Tracks) {
+		currentPlaylist.CurrentTrack = 0
+		m.playlist.SetItem(m.currentPlaylistIndex, currentPlaylist)
+		m.Send(tracker.STOP)
 		return
 	}
 
-	m.currentTrackIdx++
-	m.playTrack(&m.playQueue[m.currentTrackIdx])
+	currentPlaylist.CurrentTrack++
+	m.playlist.SetItem(m.currentPlaylistIndex, currentPlaylist)
+	m.playTrack(&currentPlaylist.Tracks[currentPlaylist.CurrentTrack])
 
 	selectedPlaylist := m.playlist.SelectedItem()
-	if m.currentPlaylist.Kind == selectedPlaylist.Kind && m.tracklist.Index() == m.currentTrackIdx-1 {
-		m.tracklist.Select(m.currentTrackIdx)
+	if currentPlaylist.Kind == selectedPlaylist.Kind && m.tracklist.Index() == currentPlaylist.CurrentTrack-1 {
+		m.tracklist.Select(currentPlaylist.CurrentTrack)
 	}
 }
 
@@ -385,11 +369,12 @@ func (m *Model) playTrack(track *api.Track) {
 	m.indicateCurrentTrackPlaying(true)
 	m.tracker.StartTrack(track, trackReader)
 
-	if m.infinitePlaylist {
+	currentPlaylist := m.playlist.Items()[m.currentPlaylistIndex]
+	if currentPlaylist.Infinite {
 		go m.client.StationFeedback(
 			api.ROTOR_TRACK_STARTED,
-			m.currentStationId,
-			m.currentStationBatch,
+			currentPlaylist.StationId,
+			currentPlaylist.StationBatch,
 			track.Id,
 			0,
 		)
@@ -399,14 +384,16 @@ func (m *Model) playTrack(track *api.Track) {
 }
 
 func (m *Model) playCurrentQueue(trackIndex int) {
-	if len(m.playQueue) == 0 {
-		m.Send(model.PLAYER_STOP)
+	currentPlaylist := m.playlist.Items()[m.currentPlaylistIndex]
+
+	if len(currentPlaylist.Tracks) == 0 {
+		m.Send(tracker.STOP)
 		return
 	}
 
 	m.indicateCurrentTrackPlaying(false)
 	selectedPlaylist := m.playlist.SelectedItem()
-	if m.currentPlaylist.Kind == selectedPlaylist.Kind && m.currentTrackIdx == trackIndex {
+	if currentPlaylist.Kind == selectedPlaylist.Kind && currentPlaylist.CurrentTrack == trackIndex {
 		if m.tracker.IsPlaying() {
 			m.tracker.Pause()
 			return
@@ -416,30 +403,30 @@ func (m *Model) playCurrentQueue(trackIndex int) {
 		}
 	}
 
-	m.currentTrackIdx = trackIndex
-	trackToPlay := &m.playQueue[m.currentTrackIdx]
+	currentPlaylist.CurrentTrack = trackIndex
+	trackToPlay := &currentPlaylist.Tracks[currentPlaylist.CurrentTrack]
 
-	if m.infinitePlaylist {
+	if currentPlaylist.Infinite {
 		if m.tracker.IsPlaying() {
 			currentTrack := m.tracker.CurrentTrack()
 			go m.client.StationFeedback(
 				api.ROTOR_SKIP,
-				m.currentStationId,
-				m.currentStationBatch,
+				currentPlaylist.StationId,
+				currentPlaylist.StationBatch,
 				currentTrack.Id,
 				int(float64(currentTrack.DurationMs*1000)*m.tracker.Progress()),
 			)
 			go m.client.StationFeedback(
 				api.ROTOR_TRACK_STARTED,
-				m.currentStationId,
-				m.currentStationBatch,
+				currentPlaylist.StationId,
+				currentPlaylist.StationBatch,
 				trackToPlay.Id,
 				0,
 			)
 		} else {
 			go m.client.StationFeedback(
 				api.ROTOR_RADIO_STARTED,
-				m.currentStationId,
+				currentPlaylist.StationId,
 				"",
 				"",
 				0,
@@ -447,59 +434,40 @@ func (m *Model) playCurrentQueue(trackIndex int) {
 		}
 	}
 
+	m.playlist.SetItem(m.currentPlaylistIndex, currentPlaylist)
 	m.playTrack(trackToPlay)
 }
 
 func (m *Model) likePlayingTrack() tea.Cmd {
 	track := m.tracker.CurrentTrack()
-	m.likeTrack(track)
-
-	m.tracker.Liked = m.likedTracksMap[track.Id]
-
-	selectedPlaylist := m.playlist.SelectedItem()
-	if m.currentPlaylist.Kind == selectedPlaylist.Kind && m.currentPlaylist.Name == selectedPlaylist.Name {
-		trackItem := m.tracklist.Items()[m.currentTrackIdx]
-		trackItem.Liked = m.likedTracksMap[track.Id]
-		return m.tracklist.SetItem(m.currentTrackIdx, trackItem)
-	}
-
-	return nil
+	return m.likeTrack(track)
 }
 
 func (m *Model) likeSelectedTrack() tea.Cmd {
-	if len(m.playlistTracks) == 0 {
+	currentPlaylist := m.playlist.Items()[m.currentPlaylistIndex]
+	if len(currentPlaylist.Tracks) == 0 {
 		return nil
 	}
 
-	index := m.tracklist.Index()
-	track := m.playlistTracks[index]
-
-	m.likeTrack(&track)
-
-	selectedPlaylist := m.playlist.SelectedItem()
-	if m.currentPlaylist.Kind == selectedPlaylist.Kind && m.currentPlaylist.Name == selectedPlaylist.Name && m.tracklist.Index() == m.currentTrackIdx {
-		m.tracker.Liked = m.likedTracksMap[track.Id]
-	}
-
-	item := m.tracklist.SelectedItem()
-	item.Liked = m.likedTracksMap[track.Id]
-	return m.tracklist.SetItem(index, item)
+	track := m.tracklist.SelectedItem().Track
+	return m.likeTrack(track)
 }
 
-func (m *Model) likeTrack(track *api.Track) {
+func (m *Model) likeTrack(track *api.Track) tea.Cmd {
 	if m.likedTracksMap[track.Id] {
 		if m.client.UnlikeTrack(track.Id) != nil {
-			return
+			return nil
 		}
 
 		delete(m.likedTracksMap, track.Id)
 
-		for i, id := range m.likedTracksSlice {
-			if id == track.Id {
-				if i+1 < len(m.likedTracksSlice) {
-					m.likedTracksSlice = append(m.likedTracksSlice[:i], m.likedTracksSlice[i+1:]...)
+		likedPlaylist := m.playlist.Items()[1]
+		for i, ltrack := range likedPlaylist.Tracks {
+			if ltrack.Id == track.Id {
+				if i+1 < len(likedPlaylist.Tracks) {
+					likedPlaylist.Tracks = append(likedPlaylist.Tracks[:i], likedPlaylist.Tracks[i+1:]...)
 				} else {
-					m.likedTracksSlice = m.likedTracksSlice[:i]
+					likedPlaylist.Tracks = likedPlaylist.Tracks[:i]
 				}
 
 				if m.playlist.SelectedItem().Kind == playlist.LIKES {
@@ -508,32 +476,25 @@ func (m *Model) likeTrack(track *api.Track) {
 				break
 			}
 		}
+
+		return m.playlist.SetItem(1, likedPlaylist)
 	} else {
 		if m.client.LikeTrack(track.Id) != nil {
-			return
+			return nil
 		}
 
 		m.likedTracksMap[track.Id] = true
-		m.likedTracksSlice = append([]string{track.Id}, m.likedTracksSlice...)
-
-		if m.playlist.SelectedItem().Kind == playlist.LIKES {
-			m.tracklist.InsertItem(0, tracklist.Item{
-				Title:      track.Title,
-				Version:    track.Version,
-				Artists:    helpers.ArtistList(track.Artists),
-				Id:         track.Id,
-				Liked:      true,
-				DurationMs: track.DurationMs,
-				Available:  track.Available,
-			})
-		}
+		likedPlaylist := m.playlist.Items()[1]
+		likedPlaylist.Tracks = append([]api.Track{*track}, likedPlaylist.Tracks...)
+		return m.playlist.SetItem(1, likedPlaylist)
 	}
 }
 
 func (m *Model) indicateCurrentTrackPlaying(playing bool) {
-	if playing || m.currentPlaylist.Kind == m.playlist.SelectedItem().Kind && m.currentTrackIdx < len(m.tracklist.Items()) {
-		track := m.tracklist.Items()[m.currentTrackIdx]
+	currentPlaylist := m.playlist.Items()[m.currentPlaylistIndex]
+	if currentPlaylist.Kind == m.playlist.SelectedItem().Kind && currentPlaylist.CurrentTrack < len(m.tracklist.Items()) {
+		track := m.tracklist.Items()[currentPlaylist.CurrentTrack]
 		track.IsPlaying = playing
-		m.tracklist.SetItem(m.currentTrackIdx, track)
+		m.tracklist.SetItem(currentPlaylist.CurrentTrack, track)
 	}
 }
