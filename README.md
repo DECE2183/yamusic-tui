@@ -63,19 +63,20 @@ buffer-size-ms: 80
 rewind-duration-s: 5
 volume: 0.5
 controls:
-    playlists-up: ctrl+up
-    playlists-down: ctrl+down
-    track-list-up: up
-    track-list-down: down
-    track-list-select: enter
-    track-list-like: l
-    track-list-share: ctrl+s
-    player-pause: space
-    player-next: right
-    player-previous: left
-    player-rewind-forward: ctrl+right
-    player-rewind-backward: ctrl+left
-    player-like: L
+   quit: ctrl+q,ctrl+c
+   apply: enter
+   playlists-up: ctrl+up
+   playlists-down: ctrl+down
+   track-list-up: up
+   track-list-down: down
+   track-list-like: l
+   track-list-share: ctrl+s
+   player-pause: space
+   player-next: right
+   player-previous: left
+   player-rewind-forward: ctrl+right
+   player-rewind-backward: ctrl+left
+   player-like: L
 ```
 
 You can list multiple keys for the same control, separated by commas.
