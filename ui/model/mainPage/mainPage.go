@@ -133,8 +133,7 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			if !playlistItem.Active {
 				break
 			}
-			m.playCurrentQueue(m.tracklist.Index())
-			m.currentPlaylistIndex = m.playlist.Index()
+			m.playSelectedPlaylist(m.tracklist.Index())
 		case tracklist.CURSOR_UP, tracklist.CURSOR_DOWN:
 			currentPlaylist := m.playlist.SelectedItem()
 			cursorIndex := m.tracklist.Index()
@@ -384,17 +383,17 @@ func (m *Model) playTrack(track *api.Track) {
 	go m.client.PlayTrack(track, false)
 }
 
-func (m *Model) playCurrentQueue(trackIndex int) {
+func (m *Model) playSelectedPlaylist(trackIndex int) {
 	currentPlaylist := m.playlist.Items()[m.currentPlaylistIndex]
+	selectedPlaylist := m.playlist.SelectedItem()
+	trackToPlay := &selectedPlaylist.Tracks[selectedPlaylist.SelectedTrack]
 
 	if len(currentPlaylist.Tracks) == 0 {
 		m.Send(tracker.STOP)
 		return
 	}
 
-	m.indicateCurrentTrackPlaying(false)
-	selectedPlaylist := m.playlist.SelectedItem()
-	if currentPlaylist.Kind == selectedPlaylist.Kind && currentPlaylist.CurrentTrack == trackIndex {
+	if currentPlaylist.Kind == selectedPlaylist.Kind && m.tracker.CurrentTrack() == trackToPlay {
 		if m.tracker.IsPlaying() {
 			m.tracker.Pause()
 			return
@@ -404,30 +403,30 @@ func (m *Model) playCurrentQueue(trackIndex int) {
 		}
 	}
 
-	currentPlaylist.CurrentTrack = trackIndex
-	trackToPlay := &currentPlaylist.Tracks[currentPlaylist.CurrentTrack]
+	m.indicateCurrentTrackPlaying(false)
+	selectedPlaylist.CurrentTrack = trackIndex
 
-	if currentPlaylist.Infinite {
+	if selectedPlaylist.Infinite {
 		if m.tracker.IsPlaying() {
 			currentTrack := m.tracker.CurrentTrack()
 			go m.client.StationFeedback(
 				api.ROTOR_SKIP,
-				currentPlaylist.StationId,
-				currentPlaylist.StationBatch,
+				selectedPlaylist.StationId,
+				selectedPlaylist.StationBatch,
 				currentTrack.Id,
 				int(float64(currentTrack.DurationMs*1000)*m.tracker.Progress()),
 			)
 			go m.client.StationFeedback(
 				api.ROTOR_TRACK_STARTED,
-				currentPlaylist.StationId,
-				currentPlaylist.StationBatch,
+				selectedPlaylist.StationId,
+				selectedPlaylist.StationBatch,
 				trackToPlay.Id,
 				0,
 			)
 		} else {
 			go m.client.StationFeedback(
 				api.ROTOR_RADIO_STARTED,
-				currentPlaylist.StationId,
+				selectedPlaylist.StationId,
 				"",
 				"",
 				0,
@@ -435,7 +434,8 @@ func (m *Model) playCurrentQueue(trackIndex int) {
 		}
 	}
 
-	m.playlist.SetItem(m.currentPlaylistIndex, currentPlaylist)
+	m.currentPlaylistIndex = m.playlist.Index()
+	m.playlist.SetItem(m.currentPlaylistIndex, selectedPlaylist)
 	m.playTrack(trackToPlay)
 }
 
