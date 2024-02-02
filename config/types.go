@@ -56,10 +56,11 @@ type Controls struct {
 	PlaylistsUp   Key `yaml:"playlists-up"`
 	PlaylistsDown Key `yaml:"playlists-down"`
 	// Track list control
-	TrackListUp    Key `yaml:"track-list-up"`
-	TrackListDown  Key `yaml:"track-list-down"`
-	TrackListLike  Key `yaml:"track-list-like"`
-	TrackListShare Key `yaml:"track-list-share"`
+	TrackListUp      Key `yaml:"track-list-up"`
+	TrackListDown    Key `yaml:"track-list-down"`
+	TrackListLike    Key `yaml:"track-list-like"`
+	TrackListShuffle Key `yaml:"track-list-shuffle"`
+	TrackListShare   Key `yaml:"track-list-share"`
 	// Player control
 	PlayerPause          Key `yaml:"player-pause"`
 	PlayerNext           Key `yaml:"player-next"`
@@ -89,6 +90,7 @@ var defaultConfig = Config{
 		TrackListUp:          "up",
 		TrackListDown:        "down",
 		TrackListLike:        "l",
+		TrackListShuffle:     "ctrl+x",
 		TrackListShare:       "ctrl+s",
 		PlayerPause:          "space",
 		PlayerNext:           "right",

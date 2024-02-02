@@ -70,6 +70,7 @@ controls:
    track-list-up: up
    track-list-down: down
    track-list-like: l
+   track-list-shuffle: ctrl+x
    track-list-share: ctrl+s
    player-pause: space
    player-next: right

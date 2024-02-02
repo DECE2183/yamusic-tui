@@ -2,6 +2,7 @@ package mainpage
 
 import (
 	"fmt"
+	"math/rand"
 	"net/url"
 
 	"github.com/dece2183/yamusic-tui/api"
@@ -24,7 +25,7 @@ type Model struct {
 	width, height int
 
 	playlist  playlist.Model
-	tracklist tracklist.Model
+	tracklist *tracklist.Model
 	tracker   tracker.Model
 
 	currentPlaylistIndex int
@@ -123,6 +124,8 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			if m.tracker.IsPlaying() {
 				m.indicateCurrentTrackPlaying(true)
 			}
+
+			m.tracklist.Shufflable = (selectedPlaylist.Kind != playlist.NONE && selectedPlaylist.Kind != playlist.MYWAVE && len(selectedPlaylist.Tracks) > 0)
 		}
 
 	// tracklist control update
@@ -142,6 +145,44 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case tracklist.LIKE:
 			cmd = m.likeSelectedTrack()
 			cmds = append(cmds, cmd)
+		case tracklist.SHUFFLE:
+			selectedPlaylist := m.playlist.SelectedItem()
+			currentPlaylist := m.playlist.Items()[m.currentPlaylistIndex]
+
+			currentTrackIndex := selectedPlaylist.CurrentTrack
+			selectedTrackIndex := selectedPlaylist.SelectedTrack
+			currentTrack := selectedPlaylist.Tracks[currentTrackIndex]
+			selectedTrack := selectedPlaylist.Tracks[selectedTrackIndex]
+
+			if selectedPlaylist.Kind == playlist.NONE || selectedPlaylist.Kind == playlist.MYWAVE || len(selectedPlaylist.Tracks) == 0 {
+				break
+			}
+
+			tracks := make([]api.Track, len(selectedPlaylist.Tracks))
+			trackList := make([]tracklist.Item, len(selectedPlaylist.Tracks))
+			perm := rand.Perm(len(tracks))
+
+			for i, v := range perm {
+				tracks[v] = selectedPlaylist.Tracks[i]
+				trackList[v] = tracklist.NewItem(&tracks[v])
+				if currentTrack.Id == tracks[v].Id {
+					currentTrackIndex = v
+				}
+				if selectedTrackIndex > 0 && selectedTrack.Id == tracks[v].Id {
+					selectedTrackIndex = v
+				}
+			}
+
+			selectedPlaylist.Tracks = tracks
+			selectedPlaylist.SelectedTrack = selectedTrackIndex
+			selectedPlaylist.CurrentTrack = currentTrackIndex
+			m.playlist.SetItem(m.playlist.Index(), selectedPlaylist)
+			m.tracklist.SetItems(trackList)
+			m.tracklist.Select(selectedTrackIndex)
+
+			if selectedPlaylist.Kind == currentPlaylist.Kind && m.tracker.IsPlaying() {
+				m.indicateCurrentTrackPlaying(true)
+			}
 		case tracklist.SHARE:
 			track := m.tracklist.SelectedItem().Track
 			link := fmt.Sprintf("https://music.yandex.ru/album/%d/track/%s", track.Albums[0].Id, track.Id)
