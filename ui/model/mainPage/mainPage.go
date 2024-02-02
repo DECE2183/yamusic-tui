@@ -24,9 +24,9 @@ type Model struct {
 	client        *api.YaMusicClient
 	width, height int
 
-	playlist  playlist.Model
+	playlist  *playlist.Model
 	tracklist *tracklist.Model
-	tracker   tracker.Model
+	tracker   *tracker.Model
 
 	currentPlaylistIndex int
 	likedTracksMap       map[string]bool

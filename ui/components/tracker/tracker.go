@@ -101,8 +101,8 @@ type Model struct {
 	likesMap *map[string]bool
 }
 
-func New(p *tea.Program, likesMap *map[string]bool) Model {
-	m := Model{
+func New(p *tea.Program, likesMap *map[string]bool) *Model {
+	m := &Model{
 		program:  p,
 		likesMap: likesMap,
 		progress: progress.New(progress.WithSolidFill(string(style.AccentColor))),
@@ -135,11 +135,11 @@ func New(p *tea.Program, likesMap *map[string]bool) Model {
 	return m
 }
 
-func (m Model) Init() tea.Cmd {
+func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m Model) View() string {
+func (m *Model) View() string {
 	var playButton string
 	if m.IsPlaying() {
 		playButton = style.ActiveButtonStyle.Padding(0, 1).Margin(0).Render(style.IconStop)
@@ -187,7 +187,7 @@ func (m Model) View() string {
 	return style.TrackBoxStyle.Width(m.width - 4).Render(tracker)
 }
 
-func (m Model) Update(message tea.Msg) (Model, tea.Cmd) {
+func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 	var (
 		cmd  tea.Cmd
 		cmds []tea.Cmd
