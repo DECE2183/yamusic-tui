@@ -79,6 +79,11 @@ type Artist struct {
 	Genres   []string `json:"genres"`
 }
 
+type ArtistTracks struct {
+	Artist Artist   `json:"artist"`
+	Tracks []string `json:"tracks"`
+}
+
 type Album struct {
 	Id          uint64 `json:"id"`
 	Title       string `json:"title"`
@@ -100,6 +105,7 @@ type Album struct {
 
 type Track struct {
 	Id              string `json:"id"`
+	RealId          string `json:"realId"`
 	Title           string `json:"title"`
 	Version         string `json:"version"`
 	Available       bool   `json:"available"`
@@ -120,9 +126,14 @@ type Track struct {
 		OutStop  float32 `json:"outStop"`
 	} `json:"fade"`
 
+	Major struct {
+		Id   int    `json:"id"`
+		Name string `json:"name"`
+	} `json:"major"`
+
 	Artists []Artist `json:"artists"`
 
-	Albums []Artist `json:"albums"`
+	Albums []Album `json:"albums"`
 
 	FileSize         int    `json:"fileSize"`
 	StorageDir       string `json:"storageDir"`
@@ -270,7 +281,69 @@ type TrackDownloadInfo struct {
 	BbitrateInKbps  int    `json:"bitrateInKbps"`
 }
 
+type SearchType string
+
+const (
+	SEARCH_ARTIST = "artist"
+	SEARCH_ALBUM  = "album"
+	SEARCH_TRACK  = "track"
+	SEARCH_ALL    = "all"
+)
+
+type SearchResult struct {
+	SearchResultId string `json:"searchResultId"`
+	Text           string `json:"text"`
+	Best           struct {
+		Type   string `json:"type"`
+		Text   string `json:"text"`
+		Result Track  `json:"result"`
+	} `json:"best"`
+
+	Albums struct {
+		Type    string  `json:"type"`
+		Total   int     `json:"total"`
+		PerPage int     `json:"perPage"`
+		Order   int     `json:"order"`
+		Results []Album `json:"results"`
+	} `json:"albums"`
+
+	Artists struct {
+		Type    string   `json:"type"`
+		Total   int      `json:"total"`
+		PerPage int      `json:"perPage"`
+		Order   int      `json:"order"`
+		Results []Artist `json:"results"`
+	} `json:"artists"`
+
+	Playlists struct {
+		Type    string     `json:"type"`
+		Total   int        `json:"total"`
+		PerPage int        `json:"perPage"`
+		Order   int        `json:"order"`
+		Results []Playlist `json:"results"`
+	} `json:"playlists"`
+
+	Tracks struct {
+		Type    string  `json:"type"`
+		Total   int     `json:"total"`
+		PerPage int     `json:"perPage"`
+		Order   int     `json:"order"`
+		Results []Track `json:"results"`
+	} `json:"tracks"`
+
+	Type              string `json:"type"`
+	Page              int    `json:"page"`
+	PerPage           int    `json:"perPage"`
+	MisspellCorrected bool   `json:"misspellCorrected"`
+	MisspellOriginal  string `json:"misspellOriginal"`
+	Nocorrect         bool   `json:"nocorrect"`
+}
+
 type SearchSuggest struct {
-	Best        interface{} `json:"best"`
-	Suggestions []string    `json:"suggestions"`
+	Best struct {
+		Type   string `json:"type"`
+		Text   string `json:"text"`
+		Result Track  `json:"result"`
+	} `json:"best"`
+	Suggestions []string `json:"suggestions"`
 }

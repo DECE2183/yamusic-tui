@@ -348,6 +348,27 @@ func (client *YaMusicClient) DownloadTrack(dowInfo TrackDownloadInfo) (track *Ht
 	return
 }
 
+func (client *YaMusicClient) ArtistTracks(artistId uint64, page, pageSize int) (tracks ArtistTracks, err error) {
+	tracks, _, err = getRequest[ArtistTracks](client.token,
+		fmt.Sprintf("/artists/%d/tracks", artistId),
+		url.Values{"page": {fmt.Sprint(page)}, "page-size": {fmt.Sprint(pageSize)}},
+	)
+	return
+}
+
+func (client *YaMusicClient) ArtistPopularTracks(artistId uint64) (tracks ArtistTracks, err error) {
+	tracks, _, err = getRequest[ArtistTracks](client.token, fmt.Sprintf("/artists/%d/track-ids-by-rating", artistId), nil)
+	return
+}
+
+func (client *YaMusicClient) Search(request string, searchType SearchType) (results SearchResult, err error) {
+	results, _, err = getRequest[SearchResult](client.token, "/search", url.Values{"text": {request}, "page": {"0"}, "type": {string(searchType)}})
+	for i := range results.Tracks.Results {
+		results.Tracks.Results[i].Id = results.Tracks.Results[i].RealId
+	}
+	return
+}
+
 func (client *YaMusicClient) SearchSuggest(part string) (suggestions SearchSuggest, err error) {
 	suggestions, _, err = getRequest[SearchSuggest](client.token, "/search/suggest", url.Values{"part": {part}})
 	return

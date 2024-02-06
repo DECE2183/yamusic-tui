@@ -30,6 +30,7 @@ type Model struct {
 	list          list.Model
 	input         textinput.Model
 	width, height int
+	value         string
 }
 
 func New() *Model {
@@ -83,8 +84,28 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 		switch {
 		case controls.Apply.Contains(keypress):
 			cmds = append(cmds, model.Cmd(SELECT))
+
+			if len(m.list.Items()) == 0 {
+				m.value = ""
+				break
+			}
+
+			suggest, ok := m.list.SelectedItem().(Item)
+			if !ok {
+				m.value = ""
+				break
+			}
+
+			m.value = string(suggest)
+			m.list.SetItems([]list.Item{})
+			m.list.Select(0)
+			m.input.Reset()
 		case controls.Cancel.Contains(keypress):
 			cmds = append(cmds, model.Cmd(CANCEL))
+			m.list.SetItems([]list.Item{})
+			m.list.Select(0)
+			m.input.Reset()
+			m.value = ""
 		case controls.CursorUp.Contains(keypress):
 			m.list, cmd = m.list.Update(msg)
 			cmds = append(cmds, cmd)
@@ -127,8 +148,15 @@ func (m *Model) SetSuggestions(best string, suggestions []string) {
 	}
 
 	m.list.SetItems(items)
+	// m.input.ShowSuggestions = len(suggestions) > 0
+	// m.input.SetSuggestions([]string{best})
+	// m.input.CompletionStyle.MaxWidth(m.width - len(m.input.Value()) - 24)
 }
 
 func (m *Model) InputValue() string {
 	return m.input.Value()
+}
+
+func (m *Model) SuggestionValue() (string, bool) {
+	return m.value, len(m.value) > 0
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/url"
+	"strings"
 
 	"github.com/dece2183/yamusic-tui/api"
 	"github.com/dece2183/yamusic-tui/config"
@@ -43,7 +44,7 @@ func New() *Model {
 	m.program = p
 	m.likedTracksMap = make(map[string]bool)
 
-	m.playlist = playlist.New(m.program)
+	m.playlist = playlist.New(m.program, "YaMusic")
 	m.tracklist = tracklist.New(m.program, &m.likedTracksMap)
 	m.tracker = tracker.New(m.program, &m.likedTracksMap)
 	m.search = search.New()
@@ -115,7 +116,7 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			selectedPlaylist := m.playlist.SelectedItem()
 			currentPlaylist := m.playlist.Items()[m.currentPlaylistIndex]
 
-			if selectedPlaylist.Kind == currentPlaylist.Kind && len(selectedPlaylist.Tracks) > 0 {
+			if selectedPlaylist.IsSame(currentPlaylist) && len(selectedPlaylist.Tracks) > 0 {
 				selectedPlaylist.SelectedTrack = selectedPlaylist.CurrentTrack
 				m.playlist.SetItem(m.playlist.Index(), selectedPlaylist)
 			}
@@ -189,7 +190,7 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			m.tracklist.SetItems(trackList)
 			m.tracklist.Select(selectedTrackIndex)
 
-			if selectedPlaylist.Kind == currentPlaylist.Kind && m.tracker.IsPlaying() {
+			if selectedPlaylist.IsSame(currentPlaylist) && m.tracker.IsPlaying() {
 				m.indicateCurrentTrackPlaying(true)
 			}
 		case tracklist.SHARE:
@@ -217,6 +218,14 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	case search.Control:
 		switch msg {
 		case search.SELECT:
+			req, ok := m.search.SuggestionValue()
+			if ok {
+				searchRes, err := m.client.Search(req, api.SEARCH_ALL)
+				if err == nil {
+					cmd = m.displaySearchResults(searchRes)
+					cmds = append(cmds, cmd)
+				}
+			}
 			m.isSearchActive = false
 		case search.CANCEL:
 			m.isSearchActive = false
@@ -225,7 +234,7 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			if err != nil {
 				break
 			}
-			m.search.SetSuggestions("", suggestions.Suggestions)
+			m.search.SetSuggestions(suggestions.Best.Text, suggestions.Suggestions)
 		}
 
 	default:
@@ -261,7 +270,7 @@ func (m *Model) View() string {
 
 func (m *Model) resize(width, height int) {
 	m.width, m.height = width, height
-	m.playlist.SetSize(style.PlaylistsSidePanelWidth, height-5)
+	m.playlist.SetSize(style.PlaylistsSidePanelWidth, height-4)
 	m.tracklist.SetSize(m.width-m.playlist.Width()-4, height-14)
 	m.tracker.SetWidth(m.width - m.playlist.Width() - 4)
 
@@ -357,7 +366,7 @@ func (m *Model) prevTrack() {
 	m.playTrack(&currentPlaylist.Tracks[currentPlaylist.CurrentTrack])
 
 	selectedPlaylist := m.playlist.SelectedItem()
-	if currentPlaylist.Kind == selectedPlaylist.Kind && m.tracklist.Index() == currentPlaylist.CurrentTrack+1 {
+	if currentPlaylist.IsSame(selectedPlaylist) && m.tracklist.Index() == currentPlaylist.CurrentTrack+1 {
 		m.tracklist.Select(currentPlaylist.CurrentTrack)
 	}
 }
@@ -401,7 +410,7 @@ func (m *Model) nextTrack() {
 			for _, tr := range tracks.Sequence {
 				// automatic append new tracks to the track list if this playlist is selected
 				currentPlaylist.Tracks = append(currentPlaylist.Tracks, tr.Track)
-				if m.playlist.SelectedItem().Kind == currentPlaylist.Kind {
+				if m.playlist.SelectedItem().IsSame(currentPlaylist) {
 					newTrack := &currentPlaylist.Tracks[len(currentPlaylist.Tracks)-1]
 					m.tracklist.InsertItem(-1, tracklist.NewItem(newTrack))
 				}
@@ -419,7 +428,7 @@ func (m *Model) nextTrack() {
 	m.playTrack(&currentPlaylist.Tracks[currentPlaylist.CurrentTrack])
 
 	selectedPlaylist := m.playlist.SelectedItem()
-	if currentPlaylist.Kind == selectedPlaylist.Kind && m.tracklist.Index() == currentPlaylist.CurrentTrack-1 {
+	if currentPlaylist.IsSame(selectedPlaylist) && m.tracklist.Index() == currentPlaylist.CurrentTrack-1 {
 		m.tracklist.Select(currentPlaylist.CurrentTrack)
 	}
 }
@@ -473,7 +482,7 @@ func (m *Model) playSelectedPlaylist(trackIndex int) {
 		return
 	}
 
-	if currentPlaylist.Kind == selectedPlaylist.Kind && m.tracker.CurrentTrack() == trackToPlay {
+	if currentPlaylist.IsSame(selectedPlaylist) && m.tracker.CurrentTrack() == trackToPlay {
 		if m.tracker.IsPlaying() {
 			m.tracker.Pause()
 			return
@@ -573,9 +582,66 @@ func (m *Model) likeTrack(track *api.Track) tea.Cmd {
 
 func (m *Model) indicateCurrentTrackPlaying(playing bool) {
 	currentPlaylist := m.playlist.Items()[m.currentPlaylistIndex]
-	if currentPlaylist.Kind == m.playlist.SelectedItem().Kind && currentPlaylist.CurrentTrack < len(m.tracklist.Items()) {
+	if currentPlaylist.IsSame(m.playlist.SelectedItem()) && currentPlaylist.CurrentTrack < len(m.tracklist.Items()) {
 		track := m.tracklist.Items()[currentPlaylist.CurrentTrack]
 		track.IsPlaying = playing
 		m.tracklist.SetItem(currentPlaylist.CurrentTrack, track)
 	}
+}
+
+func (m *Model) displaySearchResults(res api.SearchResult) tea.Cmd {
+	playlists := m.playlist.Items()
+	searchResIndex := len(playlists) + 2
+	for i, pl := range playlists {
+		if !pl.Active && !pl.Subitem && pl.Name == "search results:" {
+			playlists = playlists[:i-1]
+			searchResIndex = i + 1
+			break
+		}
+	}
+
+	playlists = append(playlists,
+		playlist.Item{Name: "", Kind: playlist.NONE, Active: false, Subitem: false},
+		playlist.Item{Name: "search results:", Kind: playlist.NONE, Active: false, Subitem: false},
+	)
+
+	if len(res.Tracks.Results) > 0 {
+		playlists = append(playlists, playlist.Item{
+			Name:    "tracks",
+			Active:  true,
+			Subitem: true,
+			Tracks:  res.Tracks.Results,
+		})
+	}
+
+	if len(res.Artists.Results) > 0 {
+		for _, artist := range res.Artists.Results {
+			if !strings.Contains(strings.ToLower(artist.Name), strings.ToLower(res.Text)) {
+				continue
+			}
+
+			artistTracks, err := m.client.ArtistPopularTracks(artist.Id)
+			if err != nil {
+				continue
+			}
+
+			tracks, err := m.client.Tracks(artistTracks.Tracks)
+			if err != nil {
+				continue
+			}
+
+			playlists = append(playlists, playlist.Item{
+				Name:    artist.Name,
+				Active:  true,
+				Subitem: true,
+				Tracks:  tracks,
+			})
+		}
+	}
+
+	cmd := m.playlist.SetItems(playlists)
+	m.playlist.Select(searchResIndex)
+	m.Send(playlist.CURSOR_DOWN)
+
+	return cmd
 }

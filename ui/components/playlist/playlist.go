@@ -31,7 +31,7 @@ type Model struct {
 	width, height int
 }
 
-func New(p *tea.Program) *Model {
+func New(p *tea.Program, title string) *Model {
 	m := &Model{
 		program: p,
 	}
@@ -47,7 +47,7 @@ func New(p *tea.Program) *Model {
 	controls := config.Current.Controls
 
 	m.list = list.New(playlistItems, ItemDelegate{programm: p}, 512, 512)
-	m.list.Title = "Playlists"
+	m.list.Title = title
 	m.list.SetShowStatusBar(false)
 	m.list.Styles.Title = m.list.Styles.Title.Foreground(style.AccentColor).UnsetBackground().Padding(0)
 	m.list.KeyMap = list.KeyMap{
@@ -109,6 +109,14 @@ func (m *Model) Items() []Item {
 		items[i] = litems[i].(Item)
 	}
 	return items
+}
+
+func (m *Model) SetItems(items []Item) tea.Cmd {
+	newItems := make([]list.Item, len(items))
+	for i := 0; i < len(items); i++ {
+		newItems[i] = items[i]
+	}
+	return m.list.SetItems(newItems)
 }
 
 func (m *Model) InsertItem(index int, item Item) tea.Cmd {

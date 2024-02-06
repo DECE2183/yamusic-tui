@@ -3,6 +3,8 @@ package playlist
 import "github.com/dece2183/yamusic-tui/api"
 
 type Item struct {
+	Uid uint64
+
 	Name         string
 	Kind         uint64
 	StationId    api.StationId
@@ -18,4 +20,8 @@ type Item struct {
 
 func (i Item) FilterValue() string {
 	return i.Name
+}
+
+func (i Item) IsSame(other Item) bool {
+	return i.Kind == other.Kind && i.Name == other.Name
 }
