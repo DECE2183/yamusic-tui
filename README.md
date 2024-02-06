@@ -48,7 +48,7 @@ The easiest way to get a token is to use this
 If you have Go installed on your PC:
 
 ```bash
-go install github.com/DECE2183/yamusic-tui@latest
+go install github.com/dece2183/yamusic-tui@latest
 ```
 
 ## Configuration
