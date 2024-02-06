@@ -12,7 +12,6 @@ import (
 	"github.com/dece2183/yamusic-tui/ui/components/search"
 	"github.com/dece2183/yamusic-tui/ui/components/tracker"
 	"github.com/dece2183/yamusic-tui/ui/components/tracklist"
-	"github.com/dece2183/yamusic-tui/ui/model"
 	"github.com/dece2183/yamusic-tui/ui/style"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -49,7 +48,6 @@ func New() *Model {
 	m.tracker = tracker.New(m.program, &m.likedTracksMap)
 	m.search = search.New()
 
-	m.initialLoad()
 	return m
 }
 
@@ -59,6 +57,11 @@ func New() *Model {
 
 func (m *Model) Run() error {
 	err := clipboard.Init()
+	if err != nil {
+		return err
+	}
+
+	err = m.initialLoad()
 	if err != nil {
 		return err
 	}
@@ -281,14 +284,18 @@ func (m *Model) resize(width, height int) {
 	m.search.SetSize(searchWidth, height-4)
 }
 
-func (m *Model) initialLoad() {
+func (m *Model) initialLoad() error {
 	var err error
+	if len(config.Current.Token) == 0 {
+		return fmt.Errorf("wrong token")
+	}
+
 	m.client, err = api.NewClient(config.Current.Token)
 	if err != nil {
 		if _, ok := err.(*url.Error); ok {
-			model.PrettyExit(fmt.Errorf("unable to connect to the Yandex server"), 14)
+			return fmt.Errorf("unable to connect to the Yandex server")
 		} else {
-			model.PrettyExit(err, 16)
+			return err
 		}
 	}
 
@@ -349,6 +356,8 @@ func (m *Model) initialLoad() {
 
 	m.playlist.Select(0)
 	m.Send(playlist.CURSOR_UP)
+
+	return nil
 }
 
 func (m *Model) prevTrack() {

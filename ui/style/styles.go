@@ -40,6 +40,8 @@ var (
 			BorderLeft(true).
 			BorderRight(true).
 			BorderBottom(true)
+	DialogHelpStyle = lipgloss.NewStyle().
+			PaddingTop(1)
 )
 
 var (

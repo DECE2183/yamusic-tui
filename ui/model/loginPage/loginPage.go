@@ -4,27 +4,31 @@ import (
 	"github.com/dece2183/yamusic-tui/config"
 	"github.com/dece2183/yamusic-tui/ui/style"
 
+	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
 type Model struct {
-	err     error
-	program *tea.Program
+	err           error
+	program       *tea.Program
+	width, height int
 
-	width, height  int
-	loginTextInput textinput.Model
+	input textinput.Model
+	help  help.Model
 }
 
 // loginpage.Model constructor.
 func New() *Model {
 	m := &Model{
-		loginTextInput: textinput.New(),
+		input: textinput.New(),
+		help:  help.New(),
 	}
 
-	m.loginTextInput.Width = 64
-	m.loginTextInput.CharLimit = 60
+	m.input.Width = 64
+	m.input.CharLimit = 60
+	m.input.Focus()
 
 	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
 	m.program = p
@@ -78,16 +82,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case controls.Quit.Contains(keypress):
 			return m, tea.Quit
 		case controls.Apply.Contains(keypress):
-			config.Current.Token = m.loginTextInput.Value()
+			config.Current.Token = m.input.Value()
 			m.err = config.Save()
 			return m, tea.Quit
 		default:
-			m.loginTextInput, cmd = m.loginTextInput.Update(msg)
+			m.input, cmd = m.input.Update(msg)
 			cmds = append(cmds, cmd)
 		}
 
 	default:
-		m.loginTextInput, cmd = m.loginTextInput.Update(msg)
+		m.input, cmd = m.input.Update(msg)
 		cmds = append(cmds, cmd)
 	}
 
@@ -96,13 +100,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *Model) View() string {
 	title := style.DialogTitleStyle.Render("Enter your token")
-	buttons := lipgloss.Place(42, 1, lipgloss.Right, lipgloss.Center, style.ActiveButtonStyle.Render("Ok"))
-	content := lipgloss.JoinVertical(lipgloss.Left, title, m.loginTextInput.View(), buttons)
+	content := lipgloss.JoinVertical(lipgloss.Left, title, m.input.View())
+	content = style.DialogBoxStyle.Render(content)
+	content = lipgloss.JoinVertical(lipgloss.Left, content, style.DialogHelpStyle.Render(m.help.View(helpMap)))
 
 	dialog := lipgloss.Place(
 		m.width, m.height,
 		lipgloss.Center, lipgloss.Center,
-		style.DialogBoxStyle.Render(content),
+		content,
 	)
 
 	return dialog
