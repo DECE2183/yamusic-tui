@@ -21,10 +21,10 @@ import (
 	"github.com/ebitengine/oto/v3"
 )
 
-type PlayerControl uint
+type Control uint
 
 const (
-	PLAY PlayerControl = iota
+	PLAY Control = iota
 	PAUSE
 	STOP
 	NEXT
@@ -177,14 +177,14 @@ func (m *Model) View() string {
 
 	trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackVersion)
 	trackTitle = lipgloss.JoinVertical(lipgloss.Left, trackTitle, trackArtist, "")
-	trackTitle = lipgloss.NewStyle().Width(m.width - 36).Render(trackTitle)
+	trackTitle = lipgloss.NewStyle().Width(m.width - lipgloss.Width(trackAddInfo) - 4).Render(trackTitle)
 	trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackAddInfo)
 
 	tracker := style.TrackProgressStyle.Render(m.progress.View())
 	tracker = lipgloss.JoinHorizontal(lipgloss.Top, playButton, tracker)
 	tracker = lipgloss.JoinVertical(lipgloss.Left, tracker, trackTitle, m.help.View(trackerHelpMap))
 
-	return style.TrackBoxStyle.Width(m.width - 4).Render(tracker)
+	return style.TrackBoxStyle.Width(m.width).Render(tracker)
 }
 
 func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
@@ -226,7 +226,7 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 		}
 
 	// player control update
-	case PlayerControl:
+	case Control:
 		switch msg {
 		case PLAY:
 			m.Play()
@@ -252,7 +252,7 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 
 func (m *Model) SetWidth(width int) {
 	m.width = width
-	m.progress.Width = width - 14
+	m.progress.Width = width - 9
 	m.help.Width = width - 8
 }
 

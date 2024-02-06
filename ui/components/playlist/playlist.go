@@ -10,10 +10,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-type PlaylistControl uint
+type Control uint
 
 const (
-	CURSOR_UP PlaylistControl = iota
+	CURSOR_UP Control = iota
 	CURSOR_DOWN
 )
 

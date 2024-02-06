@@ -10,12 +10,13 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-type TracklistControl uint
+type Control uint
 
 const (
-	PLAY TracklistControl = iota
+	PLAY Control = iota
 	CURSOR_UP
 	CURSOR_DOWN
+	SEARCH
 	SHUFFLE
 	SHARE
 	LIKE
@@ -23,8 +24,8 @@ const (
 
 var additionalKeyBindigs = []key.Binding{
 	key.NewBinding(config.Current.Controls.Apply.Binding(), config.Current.Controls.Apply.Help("play")),
-	key.NewBinding(config.Current.Controls.TrackListLike.Binding(), config.Current.Controls.TrackListLike.Help("like/unlike")),
-	key.NewBinding(config.Current.Controls.TrackListShare.Binding(), config.Current.Controls.TrackListShare.Help("share")),
+	key.NewBinding(config.Current.Controls.TracksLike.Binding(), config.Current.Controls.TracksLike.Help("like/unlike")),
+	key.NewBinding(config.Current.Controls.TracksShare.Binding(), config.Current.Controls.TracksShare.Help("share")),
 }
 
 type Model struct {
@@ -42,12 +43,12 @@ func New(p *tea.Program, likesMap *map[string]bool) *Model {
 
 	controls := config.Current.Controls
 
-	m.list = list.New([]list.Item{}, ItemDelegate{likesMap}, 512, 512)
+	m.list = list.New([]list.Item{}, ItemDelegate{likesMap: likesMap}, 512, 512)
 	m.list.Title = "Tracks"
 	m.list.Styles.Title = m.list.Styles.Title.Foreground(style.NormalTextColor).UnsetBackground().Padding(0)
 	m.list.KeyMap = list.KeyMap{
-		CursorUp:   key.NewBinding(controls.TrackListUp.Binding(), controls.TrackListUp.Help("up")),
-		CursorDown: key.NewBinding(controls.TrackListDown.Binding(), controls.TrackListDown.Help("down")),
+		CursorUp:   key.NewBinding(controls.CursorUp.Binding(), controls.CursorUp.Help("up")),
+		CursorDown: key.NewBinding(controls.CursorDown.Binding(), controls.CursorDown.Help("down")),
 	}
 	m.list.AdditionalShortHelpKeys = m.keymap
 
@@ -58,7 +59,7 @@ func (m *Model) keymap() []key.Binding {
 	controls := config.Current.Controls
 
 	if m.Shufflable {
-		return append(additionalKeyBindigs, key.NewBinding(controls.TrackListShuffle.Binding(), controls.TrackListShuffle.Help("shuffle")))
+		return append(additionalKeyBindigs, key.NewBinding(controls.TracksShuffle.Binding(), controls.TracksShuffle.Help("shuffle")))
 	}
 
 	return additionalKeyBindigs
@@ -89,15 +90,17 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 		switch {
 		case controls.Apply.Contains(keypress):
 			cmds = append(cmds, model.Cmd(PLAY))
-		case controls.TrackListUp.Contains(keypress):
+		case controls.CursorUp.Contains(keypress):
 			cmds = append(cmds, model.Cmd(CURSOR_UP))
-		case controls.TrackListDown.Contains(keypress):
+		case controls.CursorDown.Contains(keypress):
 			cmds = append(cmds, model.Cmd(CURSOR_DOWN))
-		case controls.TrackListShuffle.Contains(keypress):
+		case controls.TracksSearch.Contains(keypress):
+			cmds = append(cmds, model.Cmd(SEARCH))
+		case controls.TracksShuffle.Contains(keypress):
 			cmds = append(cmds, model.Cmd(SHUFFLE))
-		case controls.TrackListShare.Contains(keypress):
+		case controls.TracksShare.Contains(keypress):
 			cmds = append(cmds, model.Cmd(SHARE))
-		case controls.TrackListLike.Contains(keypress):
+		case controls.TracksLike.Contains(keypress):
 			cmds = append(cmds, model.Cmd(LIKE))
 		}
 	}

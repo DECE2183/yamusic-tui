@@ -8,6 +8,7 @@ import (
 	"github.com/dece2183/yamusic-tui/api"
 	"github.com/dece2183/yamusic-tui/config"
 	"github.com/dece2183/yamusic-tui/ui/components/playlist"
+	"github.com/dece2183/yamusic-tui/ui/components/search"
 	"github.com/dece2183/yamusic-tui/ui/components/tracker"
 	"github.com/dece2183/yamusic-tui/ui/components/tracklist"
 	"github.com/dece2183/yamusic-tui/ui/model"
@@ -27,7 +28,9 @@ type Model struct {
 	playlist  *playlist.Model
 	tracklist *tracklist.Model
 	tracker   *tracker.Model
+	search    *search.Model
 
+	isSearchActive       bool
 	currentPlaylistIndex int
 	likedTracksMap       map[string]bool
 }
@@ -43,6 +46,7 @@ func New() *Model {
 	m.playlist = playlist.New(m.program)
 	m.tracklist = tracklist.New(m.program, &m.likedTracksMap)
 	m.tracker = tracker.New(m.program, &m.likedTracksMap)
+	m.search = search.New()
 
 	m.initialLoad()
 	return m
@@ -92,6 +96,9 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case controls.Quit.Contains(keypress):
 			return m, tea.Quit
+		case m.isSearchActive:
+			m.search, cmd = m.search.Update(message)
+			cmds = append(cmds, cmd)
 		default:
 			m.playlist, cmd = m.playlist.Update(message)
 			cmds = append(cmds, cmd)
@@ -102,7 +109,7 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	// playlist control update
-	case playlist.PlaylistControl:
+	case playlist.Control:
 		switch msg {
 		case playlist.CURSOR_UP, playlist.CURSOR_DOWN:
 			selectedPlaylist := m.playlist.SelectedItem()
@@ -129,7 +136,7 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	// tracklist control update
-	case tracklist.TracklistControl:
+	case tracklist.Control:
 		switch msg {
 		case tracklist.PLAY:
 			playlistItem := m.playlist.SelectedItem()
@@ -145,6 +152,8 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case tracklist.LIKE:
 			cmd = m.likeSelectedTrack()
 			cmds = append(cmds, cmd)
+		case tracklist.SEARCH:
+			m.isSearchActive = true
 		case tracklist.SHUFFLE:
 			selectedPlaylist := m.playlist.SelectedItem()
 			currentPlaylist := m.playlist.Items()[m.currentPlaylistIndex]
@@ -190,7 +199,7 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	// player control update
-	case tracker.PlayerControl:
+	case tracker.Control:
 		switch msg {
 		case tracker.NEXT:
 			m.nextTrack()
@@ -204,19 +213,43 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		m.tracker, cmd = m.tracker.Update(message)
 		cmds = append(cmds, cmd)
 
+	// search control update
+	case search.Control:
+		switch msg {
+		case search.SELECT:
+			m.isSearchActive = false
+		case search.CANCEL:
+			m.isSearchActive = false
+		case search.TYPING:
+			suggestions, err := m.client.SearchSuggest(m.search.InputValue())
+			if err != nil {
+				break
+			}
+			m.search.SetSuggestions("", suggestions.Suggestions)
+		}
+
 	default:
-		m.playlist, cmd = m.playlist.Update(message)
-		cmds = append(cmds, cmd)
-		m.tracklist, cmd = m.tracklist.Update(message)
-		cmds = append(cmds, cmd)
-		m.tracker, cmd = m.tracker.Update(message)
-		cmds = append(cmds, cmd)
+		if m.isSearchActive {
+			m.search, cmd = m.search.Update(message)
+			cmds = append(cmds, cmd)
+		} else {
+			m.playlist, cmd = m.playlist.Update(message)
+			cmds = append(cmds, cmd)
+			m.tracklist, cmd = m.tracklist.Update(message)
+			cmds = append(cmds, cmd)
+			m.tracker, cmd = m.tracker.Update(message)
+			cmds = append(cmds, cmd)
+		}
 	}
 
 	return m, tea.Batch(cmds...)
 }
 
 func (m *Model) View() string {
+	if m.isSearchActive {
+		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, m.search.View())
+	}
+
 	sidePanel := style.SideBoxStyle.Render(m.playlist.View())
 	midPanel := lipgloss.JoinVertical(lipgloss.Left, style.TrackBoxStyle.Render(m.tracklist.View()), m.tracker.View())
 	return lipgloss.JoinHorizontal(lipgloss.Bottom, sidePanel, midPanel)
@@ -228,9 +261,15 @@ func (m *Model) View() string {
 
 func (m *Model) resize(width, height int) {
 	m.width, m.height = width, height
-	m.playlist.SetSize(32, height-5)
-	m.tracklist.SetSize(m.width-m.playlist.Width()-20, height-14)
-	m.tracker.SetWidth(m.width - m.playlist.Width())
+	m.playlist.SetSize(style.PlaylistsSidePanelWidth, height-5)
+	m.tracklist.SetSize(m.width-m.playlist.Width()-4, height-14)
+	m.tracker.SetWidth(m.width - m.playlist.Width() - 4)
+
+	searchWidth := style.SearchModalWidth
+	if searchWidth > width {
+		searchWidth = width - 2
+	}
+	m.search.SetSize(searchWidth, height-4)
 }
 
 func (m *Model) initialLoad() {

@@ -50,17 +50,19 @@ func (k Key) Contains(keyName string) bool {
 
 type Controls struct {
 	// Main control
-	Quit  Key `yaml:"quit"`
-	Apply Key `yaml:"apply"`
+	Quit       Key `yaml:"quit"`
+	Apply      Key `yaml:"apply"`
+	Cancel     Key `yaml:"cancel"`
+	CursorUp   Key `yaml:"cursor-up"`
+	CursorDown Key `yaml:"cursor-down"`
 	// Playlists control
 	PlaylistsUp   Key `yaml:"playlists-up"`
 	PlaylistsDown Key `yaml:"playlists-down"`
 	// Track list control
-	TrackListUp      Key `yaml:"track-list-up"`
-	TrackListDown    Key `yaml:"track-list-down"`
-	TrackListLike    Key `yaml:"track-list-like"`
-	TrackListShuffle Key `yaml:"track-list-shuffle"`
-	TrackListShare   Key `yaml:"track-list-share"`
+	TracksLike    Key `yaml:"tracks-like"`
+	TracksShare   Key `yaml:"tracks-share"`
+	TracksShuffle Key `yaml:"tracks-shuffle"`
+	TracksSearch  Key `yaml:"tracks-search"`
 	// Player control
 	PlayerPause          Key `yaml:"player-pause"`
 	PlayerNext           Key `yaml:"player-next"`
@@ -85,13 +87,15 @@ var defaultConfig = Config{
 	Controls: Controls{
 		Quit:                 "ctrl+q,ctrl+c",
 		Apply:                "enter",
+		Cancel:               "esc",
+		CursorUp:             "up",
+		CursorDown:           "down",
 		PlaylistsUp:          "ctrl+up",
 		PlaylistsDown:        "ctrl+down",
-		TrackListUp:          "up",
-		TrackListDown:        "down",
-		TrackListLike:        "l",
-		TrackListShuffle:     "ctrl+x",
-		TrackListShare:       "ctrl+s",
+		TracksLike:           "l",
+		TracksSearch:         "ctrl+f",
+		TracksShuffle:        "ctrl+x",
+		TracksShare:          "ctrl+s",
 		PlayerPause:          "space",
 		PlayerNext:           "right",
 		PlayerPrevious:       "left",

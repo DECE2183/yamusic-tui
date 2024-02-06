@@ -4,6 +4,11 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+const (
+	PlaylistsSidePanelWidth = 32
+	SearchModalWidth        = 56
+)
+
 var (
 	AccentColor       = lipgloss.Color("#FC0")
 	BackgroundColor   = lipgloss.Color("#6b6b6b")
@@ -34,8 +39,7 @@ var (
 			BorderTop(true).
 			BorderLeft(true).
 			BorderRight(true).
-			BorderBottom(true).
-			Width(46)
+			BorderBottom(true)
 )
 
 var (

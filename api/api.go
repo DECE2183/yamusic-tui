@@ -347,3 +347,8 @@ func (client *YaMusicClient) DownloadTrack(dowInfo TrackDownloadInfo) (track *Ht
 	track = newReadSeaker(trackReader, fileSize)
 	return
 }
+
+func (client *YaMusicClient) SearchSuggest(part string) (suggestions SearchSuggest, err error) {
+	suggestions, _, err = getRequest[SearchSuggest](client.token, "/search/suggest", url.Values{"part": {part}})
+	return
+}

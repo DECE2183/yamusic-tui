@@ -269,3 +269,8 @@ type TrackDownloadInfo struct {
 	Direct          bool   `json:"direct"`
 	BbitrateInKbps  int    `json:"bitrateInKbps"`
 }
+
+type SearchSuggest struct {
+	Best        interface{} `json:"best"`
+	Suggestions []string    `json:"suggestions"`
+}
