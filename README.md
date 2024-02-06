@@ -40,7 +40,7 @@ The easiest way to get a token is to use this
     - [ ] Create/remove playlist
     - [ ] Rename playlist
  - [ ] Caching
- - [ ] Search
+ - [x] Search
  - [ ] Landing
 
 ## Installation
@@ -65,13 +65,15 @@ volume: 0.5
 controls:
    quit: ctrl+q,ctrl+c
    apply: enter
+   cancel: esc
+   cursor-up: up
+   cursor-down: down
    playlists-up: ctrl+up
    playlists-down: ctrl+down
-   track-list-up: up
-   track-list-down: down
-   track-list-like: l
-   track-list-shuffle: ctrl+x
-   track-list-share: ctrl+s
+   tracks-like: l
+   tracks-share: ctrl+s
+   tracks-shuffle: ctrl+x
+   tracks-search: ctrl+f
    player-pause: space
    player-next: right
    player-previous: left
