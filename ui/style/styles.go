@@ -76,14 +76,7 @@ var (
 				BorderBottom(false)
 	SideBoxInactiveItemStyle = SideBoxItemStyle.Copy().
 					Foreground(InactiveTextColor).
-					Padding(0, 0, 0, 2).
-					MarginTop(1)
-	SideBoxSelInactiveItemStyle = SideBoxSelItemStyle.Copy().
-					BorderForeground(InactiveTextColor).
-					UnsetBackground().
-					Foreground(InactiveTextColor).
-					Padding(0, 0, 0, 1).
-					MarginTop(1)
+					Padding(0, 0, 0, 2)
 	SideBoxSubItemStyle = SideBoxItemStyle.Copy().
 				Padding(0, 0, 0, 4)
 	SideBoxSelSubItemStyle = SideBoxSelItemStyle.Copy().

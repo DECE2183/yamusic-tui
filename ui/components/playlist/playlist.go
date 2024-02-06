@@ -39,6 +39,8 @@ func New(p *tea.Program) *Model {
 	playlistItems := []list.Item{
 		Item{Name: "my wave", Kind: MYWAVE, Active: true, Subitem: false, Infinite: true},
 		Item{Name: "likes", Kind: LIKES, Active: true, Subitem: false},
+
+		Item{Name: "", Kind: NONE, Active: false, Subitem: false},
 		Item{Name: "playlists:", Kind: NONE, Active: false, Subitem: false},
 	}
 
@@ -75,13 +77,24 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 		controls := config.Current.Controls
 		keypress := msg.String()
 
-		m.list, cmd = m.list.Update(msg)
-		cmds = append(cmds, cmd)
-
 		switch {
 		case controls.PlaylistsUp.Contains(keypress):
+			m.list, cmd = m.list.Update(msg)
+
+			for len(m.list.Items()) > 0 && m.list.Index() > 0 && !m.list.SelectedItem().(Item).Active {
+				m.list.CursorUp()
+			}
+
+			cmds = append(cmds, cmd)
 			cmds = append(cmds, model.Cmd(CURSOR_UP))
 		case controls.PlaylistsDown.Contains(keypress):
+			m.list, cmd = m.list.Update(msg)
+
+			for m.list.Index() < len(m.list.Items())-1 && !m.list.SelectedItem().(Item).Active {
+				m.list.CursorDown()
+			}
+
+			cmds = append(cmds, cmd)
 			cmds = append(cmds, model.Cmd(CURSOR_DOWN))
 		}
 	}
