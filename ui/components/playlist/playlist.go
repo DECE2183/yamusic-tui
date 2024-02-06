@@ -50,7 +50,7 @@ func New(p *tea.Program) *Model {
 	m.list.Styles.Title = m.list.Styles.Title.Foreground(style.AccentColor).UnsetBackground().Padding(0)
 	m.list.KeyMap = list.KeyMap{
 		CursorUp:   key.NewBinding(controls.PlaylistsUp.Binding(), controls.PlaylistsUp.Help("up")),
-		CursorDown: key.NewBinding(controls.PlaylistsDown.Binding(), controls.PlaylistsUp.Help("down")),
+		CursorDown: key.NewBinding(controls.PlaylistsDown.Binding(), controls.PlaylistsDown.Help("down")),
 	}
 
 	return m
