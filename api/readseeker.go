@@ -10,7 +10,7 @@ import (
 
 const (
 	minBufferSize    = 256
-	bufferFrameScale = 3
+	bufferFrameScale = 1
 	readTimeout      = 100 * time.Millisecond
 )
 
@@ -48,6 +48,10 @@ func (h *HttpReadSeeker) bufferNextFrame(size int64) {
 
 	for {
 		h.mux.Lock()
+
+		if h.source == nil {
+			return
+		}
 
 		buf := make([]byte, size)
 		n, err := h.source.Read(buf)
@@ -89,6 +93,7 @@ func (h *HttpReadSeeker) Close() error {
 
 	if h.source != nil {
 		err = h.source.Close()
+		h.source = nil
 	}
 
 	return err
