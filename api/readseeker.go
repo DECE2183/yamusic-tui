@@ -9,47 +9,43 @@ import (
 )
 
 const (
-	minBufferSize    = 256
-	bufferFrameScale = 1
-	readTimeout      = 100 * time.Millisecond
+	_BUFFERING_AMOUNT = 256
+	_BUFFERING_PERIOD = 100 * time.Millisecond
 )
 
 var errOutOfSize = errors.New("position is out of data size")
 
 type HttpReadSeeker struct {
-	source       io.ReadCloser
-	bufferTimer  *time.Ticker
-	readHappened chan struct{}
-	readBuffer   []byte
-	readIndex    int64
-	totalSize    int64
-	done         bool
-	mux          sync.Mutex
+	source      io.ReadCloser
+	bufferTimer *time.Ticker
+	closed      chan bool
+	readBuffer  []byte
+	readIndex   int64
+	totalSize   int64
+	buffered    bool
+	done        bool
+	mux         sync.Mutex
 }
 
 func newReadSeaker(rc io.ReadCloser, totalSize int64) *HttpReadSeeker {
 	rs := HttpReadSeeker{
-		source:       rc,
-		totalSize:    totalSize,
-		bufferTimer:  time.NewTicker(readTimeout),
-		readHappened: make(chan struct{}),
+		source:      rc,
+		totalSize:   totalSize,
+		bufferTimer: time.NewTicker(_BUFFERING_PERIOD),
+		closed:      make(chan bool),
 	}
+
+	go rs.bufferFrames(_BUFFERING_AMOUNT)
 	return &rs
 }
 
-func (h *HttpReadSeeker) bufferNextFrame(size int64) {
-	if h.totalSize == int64(len(h.readBuffer)) {
-		return
-	}
-
-	if size < minBufferSize {
-		size = minBufferSize
-	}
-
+func (h *HttpReadSeeker) bufferFrames(size int64) {
 	for {
 		h.mux.Lock()
 
-		if h.source == nil {
+		if h.buffered || h.totalSize <= int64(len(h.readBuffer)) {
+			h.buffered = true
+			h.mux.Unlock()
 			return
 		}
 
@@ -58,6 +54,7 @@ func (h *HttpReadSeeker) bufferNextFrame(size int64) {
 		if err == nil || err == io.EOF {
 			h.readBuffer = append(h.readBuffer, buf[:n]...)
 			if err == io.EOF {
+				h.buffered = true
 				h.mux.Unlock()
 				return
 			}
@@ -68,12 +65,8 @@ func (h *HttpReadSeeker) bufferNextFrame(size int64) {
 		// await next Read call or timer expiration
 		select {
 		case <-h.bufferTimer.C:
-			size += minBufferSize
-			if size > h.totalSize-int64(len(h.readBuffer)) {
-				size = h.totalSize - int64(len(h.readBuffer))
-			}
 			continue
-		case <-h.readHappened:
+		case <-h.closed:
 			return
 		}
 	}
@@ -86,14 +79,15 @@ func (h *HttpReadSeeker) Close() error {
 	defer h.mux.Unlock()
 
 	h.readBuffer = nil
-	if h.totalSize > int64(len(h.readBuffer)) {
+	if !h.buffered {
 		h.bufferTimer.Stop()
-		close(h.readHappened)
+		h.buffered = true
+		close(h.closed)
 	}
 
-	if h.source != nil {
+	if !h.done {
 		err = h.source.Close()
-		h.source = nil
+		h.done = true
 	}
 
 	return err
@@ -108,12 +102,6 @@ func (h *HttpReadSeeker) Read(dest []byte) (n int, err error) {
 
 	readBufLen := int64(len(h.readBuffer))
 	destLen := int64(len(dest))
-
-	if readBufLen < h.totalSize && h.source != nil {
-		// indicate buffering goroutine that Read was called
-		h.bufferTimer.Stop()
-		close(h.readHappened)
-	}
 
 	if h.readIndex >= readBufLen {
 		newFrame := make([]byte, (h.readIndex-readBufLen)+destLen)
@@ -153,17 +141,13 @@ func (h *HttpReadSeeker) Read(dest []byte) (n int, err error) {
 	}
 
 	if err != nil {
-		if err == io.EOF {
+		if err == io.EOF && !h.done {
 			h.source.Close()
-			h.source = nil
+			h.buffered = true
 			h.done = true
 		} else if err == http.ErrBodyReadAfterClose {
 			err = io.EOF
 		}
-	} else if h.totalSize > int64(len(h.readBuffer)) {
-		h.readHappened = make(chan struct{})
-		h.bufferTimer.Reset(readTimeout)
-		go h.bufferNextFrame(destLen * bufferFrameScale)
 	}
 
 	h.mux.Unlock()

@@ -30,6 +30,7 @@ const (
 	NEXT
 	PREV
 	LIKE
+	_UNEXPECTED_STOP
 )
 
 type ProgressControl float64
@@ -234,6 +235,8 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 			m.Pause()
 		case STOP:
 			m.Stop()
+		case _UNEXPECTED_STOP:
+			m.restartTrack()
 		}
 
 	// track progress update
@@ -293,7 +296,6 @@ func (m *Model) StartTrack(track *api.Track, reader *api.HttpReadSeeker) {
 	m.trackWrapper.trackReader = reader
 	m.trackWrapper.decoder = decoder
 	m.trackWrapper.trackDurationMs = track.DurationMs
-	m.trackWrapper.trackStartTime = time.Now()
 
 	m.player = m.playerContext.NewPlayer(m.trackWrapper)
 	m.player.SetVolume(m.volume)
@@ -314,7 +316,6 @@ func (m *Model) Stop() {
 
 	if m.trackWrapper.trackReader != nil {
 		m.trackWrapper.trackReader.Close()
-		m.trackWrapper.trackReader = nil
 	}
 }
 
@@ -352,13 +353,19 @@ func (m *Model) rewind(amount time.Duration) {
 		return
 	}
 
+	m.player.Pause()
+
 	amountMs := amount.Milliseconds()
 	currentPos := int64(float64(m.trackWrapper.trackReader.Length()) * m.trackWrapper.trackReader.Progress())
 	byteOffset := int64(math.Round((float64(m.trackWrapper.trackReader.Length()) / float64(m.trackWrapper.trackDurationMs)) * float64(amountMs)))
 
 	// align position by 4 bytes
 	currentPos += byteOffset
-	currentPos -= currentPos % 4
+	if byteOffset > 0 {
+		currentPos -= currentPos % 4
+	} else {
+		currentPos += currentPos % 4
+	}
 
 	if currentPos <= 0 {
 		m.player.Seek(0, io.SeekStart)
@@ -367,4 +374,24 @@ func (m *Model) rewind(amount time.Duration) {
 	} else {
 		m.player.Seek(currentPos, io.SeekStart)
 	}
+
+	m.player.Play()
+}
+
+func (m *Model) restartTrack() {
+	m.player.Close()
+
+	decoder, err := mp3.NewDecoder(m.trackWrapper.trackReader)
+	if err != nil {
+		return
+	}
+
+	m.trackWrapper.decoder = decoder
+
+	m.player = m.playerContext.NewPlayer(m.trackWrapper)
+	m.player.SetVolume(m.volume)
+
+	progress := m.trackWrapper.trackReader.Progress()
+	m.trackWrapper.trackReader.Seek(0, io.SeekStart)
+	m.rewind(time.Duration(float64(m.trackWrapper.trackDurationMs)*progress) * time.Millisecond)
 }
