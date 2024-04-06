@@ -232,7 +232,7 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			m.isSearchActive = false
 		case search.CANCEL:
 			m.isSearchActive = false
-		case search.TYPING:
+		case search.UPDATE_SUGGESTIONS:
 			suggestions, err := m.client.SearchSuggest(m.search.InputValue())
 			if err != nil {
 				break

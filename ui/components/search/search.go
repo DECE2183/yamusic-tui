@@ -1,6 +1,8 @@
 package search
 
 import (
+	"time"
+
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -19,6 +21,11 @@ const (
 	CURSOR_UP
 	CURSOR_DOWN
 	TYPING
+	UPDATE_SUGGESTIONS
+)
+
+const (
+	_UPDATE_SUGGESTIONS_PERIOD = time.Millisecond * 10
 )
 
 var additionalKeyBindigs = []key.Binding{
@@ -27,10 +34,12 @@ var additionalKeyBindigs = []key.Binding{
 }
 
 type Model struct {
-	list          list.Model
-	input         textinput.Model
-	width, height int
-	value         string
+	list           list.Model
+	input          textinput.Model
+	width, height  int
+	value          string
+	updated        bool
+	lastUpdateTime time.Time
 }
 
 func New() *Model {
@@ -118,12 +127,18 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 			m.input, cmd = m.input.Update(msg)
 			cmds = append(cmds, cmd)
 			cmds = append(cmds, model.Cmd(TYPING))
+			m.lastUpdateTime = time.Now()
+			m.updated = false
 		}
 
 	default:
 		m.input, cmd = m.input.Update(msg)
 		cmds = append(cmds, cmd)
-		cmds = append(cmds, model.Cmd(TYPING))
+
+		if !m.updated && time.Now().After(m.lastUpdateTime.Add(_UPDATE_SUGGESTIONS_PERIOD)) {
+			cmds = append(cmds, model.Cmd(UPDATE_SUGGESTIONS))
+			m.updated = true
+		}
 	}
 
 	return m, tea.Batch(cmds...)
