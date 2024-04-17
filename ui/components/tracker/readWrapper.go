@@ -31,6 +31,7 @@ func (w *readWrapper) Read(dest []byte) (n int, err error) {
 	}
 
 	if w.trackReader.IsDone() {
+		w.decoder.Seek(0, io.SeekStart)
 		w.trackReader.Close()
 		go w.program.Send(NEXT)
 	} else if time.Since(w.lastUpdateTime) > time.Millisecond*33 {

@@ -311,12 +311,16 @@ func (m *Model) Stop() {
 		m.player.Pause()
 	}
 
-	m.player.Close()
-	m.player = nil
+	if m.trackWrapper.decoder != nil {
+		m.trackWrapper.decoder.Seek(0, io.SeekStart)
+	}
 
 	if m.trackWrapper.trackReader != nil {
 		m.trackWrapper.trackReader.Close()
 	}
+
+	m.player.Close()
+	m.player = nil
 }
 
 func (m *Model) IsPlaying() bool {
@@ -353,19 +357,13 @@ func (m *Model) rewind(amount time.Duration) {
 		return
 	}
 
-	m.player.Pause()
-
 	amountMs := amount.Milliseconds()
 	currentPos := int64(float64(m.trackWrapper.trackReader.Length()) * m.trackWrapper.trackReader.Progress())
 	byteOffset := int64(math.Round((float64(m.trackWrapper.trackReader.Length()) / float64(m.trackWrapper.trackDurationMs)) * float64(amountMs)))
 
 	// align position by 4 bytes
 	currentPos += byteOffset
-	if byteOffset > 0 {
-		currentPos -= currentPos % 4
-	} else {
-		currentPos += currentPos % 4
-	}
+	currentPos += currentPos % 4
 
 	if currentPos <= 0 {
 		m.player.Seek(0, io.SeekStart)
@@ -374,8 +372,6 @@ func (m *Model) rewind(amount time.Duration) {
 	} else {
 		m.player.Seek(currentPos, io.SeekStart)
 	}
-
-	m.player.Play()
 }
 
 func (m *Model) restartTrack() {
