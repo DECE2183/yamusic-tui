@@ -81,8 +81,8 @@ controls:
    player-rewind-forward: ctrl+right
    player-rewind-backward: ctrl+left
    player-like: L
-   player-lov-up: +,=
-   player-lov-donw: '-'
+   player-vol-up: +,=
+   player-vol-donw: '-'
 ```
 
 You can list multiple keys for the same control, separated by commas.

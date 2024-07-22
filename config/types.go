@@ -70,8 +70,8 @@ type Controls struct {
 	PlayerRewindForward  Key `yaml:"player-rewind-forward"`
 	PlayerRewindBackward Key `yaml:"player-rewind-backward"`
 	PlayerLike           Key `yaml:"player-like"`
-	PlayerVolUp          Key `yaml:"player-lov-up"`
-	PlayerVolDown        Key `yaml:"player-lov-donw"`
+	PlayerVolUp          Key `yaml:"player-vol-up"`
+	PlayerVolDown        Key `yaml:"player-vol-donw"`
 }
 
 type Config struct {
