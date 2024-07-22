@@ -62,6 +62,7 @@ token: <your yandex music token>
 buffer-size-ms: 80
 rewind-duration-s: 5
 volume: 0.5
+volume-step: 0.05
 controls:
    quit: ctrl+q,ctrl+c
    apply: enter
@@ -80,6 +81,8 @@ controls:
    player-rewind-forward: ctrl+right
    player-rewind-backward: ctrl+left
    player-like: L
+   player-lov-up: +,=
+   player-lov-donw: '-'
 ```
 
 You can list multiple keys for the same control, separated by commas.

@@ -73,6 +73,10 @@ func load() (Config, error) {
 		newConfig.Controls.Quit = defaultConfig.Controls.Quit
 	}
 
+	if newConfig.VolumeStep == 0 {
+		newConfig.VolumeStep = defaultConfig.VolumeStep
+	}
+
 	return newConfig, nil
 }
 

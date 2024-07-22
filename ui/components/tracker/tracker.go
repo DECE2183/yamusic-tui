@@ -46,6 +46,8 @@ type trackerHelpKeyMap struct {
 	LikeUnlike key.Binding
 	Forward    key.Binding
 	Backward   key.Binding
+	VolUp      key.Binding
+	VolDown    key.Binding
 }
 
 var trackerHelpMap = trackerHelpKeyMap{
@@ -73,15 +75,23 @@ var trackerHelpMap = trackerHelpKeyMap{
 		config.Current.Controls.PlayerRewindForward.Binding(),
 		config.Current.Controls.PlayerRewindForward.Help(fmt.Sprintf("+%d sec", int(config.Current.RewindDuration))),
 	),
+	VolUp: key.NewBinding(
+		config.Current.Controls.PlayerVolUp.Binding(),
+		config.Current.Controls.PlayerVolUp.Help("vol up"),
+	),
+	VolDown: key.NewBinding(
+		config.Current.Controls.PlayerVolDown.Binding(),
+		config.Current.Controls.PlayerVolDown.Help("vol down"),
+	),
 }
 
 func (k trackerHelpKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.PlayPause, k.NextTrack, k.PrevTrack, k.Forward, k.Backward, k.LikeUnlike}
+	return []key.Binding{k.PlayPause, k.NextTrack, k.PrevTrack, k.Forward, k.Backward, k.LikeUnlike, k.VolUp, k.VolDown}
 }
 
 func (k trackerHelpKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.PlayPause, k.NextTrack, k.PrevTrack, k.Forward, k.Backward, k.LikeUnlike},
+		{k.PlayPause, k.NextTrack, k.PrevTrack, k.Forward, k.Backward, k.LikeUnlike, k.VolUp, k.VolDown},
 	}
 }
 
@@ -224,6 +234,17 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 
 		case controls.PlayerLike.Contains(keypress):
 			cmds = append(cmds, model.Cmd(LIKE))
+
+		case controls.PlayerVolUp.Contains(keypress):
+			m.SetVolume(m.volume + config.Current.VolumeStep)
+			config.Current.Volume = m.volume
+			config.Save()
+
+		case controls.PlayerVolDown.Contains(keypress):
+			m.SetVolume(m.volume - config.Current.VolumeStep)
+			config.Current.Volume = m.volume
+			config.Save()
+
 		}
 
 	// player control update
@@ -273,6 +294,13 @@ func (m *Model) Progress() float64 {
 
 func (m *Model) SetVolume(v float64) {
 	m.volume = v
+
+	if m.volume < 0 {
+		m.volume = 0
+	} else if m.volume > 1 {
+		m.volume = 1
+	}
+
 	if m.player != nil {
 		m.player.SetVolume(v)
 	}

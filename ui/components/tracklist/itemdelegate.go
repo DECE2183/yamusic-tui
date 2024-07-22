@@ -53,12 +53,12 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 
 	var trackLike string
 	if (*d.likesMap)[item.Track.Id] {
-		trackLike = style.IconLiked + " "
+		trackLike = style.IconLiked
 	} else {
-		trackLike = style.IconNotLiked + " "
+		trackLike = style.IconNotLiked
 	}
 
-	trackAddInfo := style.TrackAddInfoStyle.Render(trackLike + trackTime)
+	trackAddInfo := style.TrackAddInfoStyle.Render(trackLike + " " + trackTime)
 
 	trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackVersion)
 	trackTitle = lipgloss.JoinVertical(lipgloss.Left, trackTitle, trackArtist)

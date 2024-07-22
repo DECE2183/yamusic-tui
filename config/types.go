@@ -70,6 +70,8 @@ type Controls struct {
 	PlayerRewindForward  Key `yaml:"player-rewind-forward"`
 	PlayerRewindBackward Key `yaml:"player-rewind-backward"`
 	PlayerLike           Key `yaml:"player-like"`
+	PlayerVolUp          Key `yaml:"player-lov-up"`
+	PlayerVolDown        Key `yaml:"player-lov-donw"`
 }
 
 type Config struct {
@@ -77,6 +79,7 @@ type Config struct {
 	BufferSize     float64  `yaml:"buffer-size-ms"`
 	RewindDuration float64  `yaml:"rewind-duration-s"`
 	Volume         float64  `yaml:"volume"`
+	VolumeStep     float64  `yaml:"volume-step"`
 	Controls       Controls `yaml:"controls"`
 }
 
@@ -84,6 +87,7 @@ var defaultConfig = Config{
 	BufferSize:     80,
 	RewindDuration: 5,
 	Volume:         0.5,
+	VolumeStep:     0.05,
 	Controls: Controls{
 		Quit:                 "ctrl+q,ctrl+c",
 		Apply:                "enter",
@@ -102,6 +106,8 @@ var defaultConfig = Config{
 		PlayerRewindForward:  "ctrl+right",
 		PlayerRewindBackward: "ctrl+left",
 		PlayerLike:           "L",
+		PlayerVolUp:          "+,=",
+		PlayerVolDown:        "-",
 	},
 }
 
