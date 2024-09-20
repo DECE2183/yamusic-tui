@@ -9,7 +9,7 @@ const (
 
 // Yandex Music service information
 const (
-	YaMusicServerURL = "https://api.music.yandex.net:443/"
+	YaMusicServerURL = "https://api.music.yandex.net/"
 )
 
 // Rotor feedback types
