@@ -62,14 +62,14 @@ func load() (Config, error) {
 	newControls := reflect.ValueOf(&newConfig.Controls).Elem()
 	defaultControls := reflect.ValueOf(defaultConfig.Controls)
 	for i := 0; i < newControls.NumField(); i++ {
-		newField := newControls.Field(i)
-		defaultField := defaultControls.Field(i)
-		if newField.Len() == 0 {
-			newField.SetString(defaultField.String())
+		newField := newControls.Field(i).Interface().(*Key)
+		defaultField := defaultControls.Field(i).Interface().(*Key)
+		if newField.IsEmpty() {
+			newField.Set(defaultField)
 		}
 	}
 
-	if newConfig.Controls.Quit == "" {
+	if newConfig.Controls.Quit.IsEmpty() {
 		newConfig.Controls.Quit = defaultConfig.Controls.Quit
 	}
 
