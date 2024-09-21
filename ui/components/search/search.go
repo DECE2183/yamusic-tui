@@ -25,31 +25,35 @@ const (
 )
 
 const (
-	_UPDATE_SUGGESTIONS_PERIOD = time.Millisecond * 10
+	_UPDATE_SUGGESTIONS_PERIOD = time.Millisecond * 4
 )
 
-var additionalKeyBindigs = []key.Binding{
-	key.NewBinding(config.Current.Controls.Apply.Binding(), config.Current.Controls.Apply.Help("search")),
-	key.NewBinding(config.Current.Controls.Cancel.Binding(), config.Current.Controls.Cancel.Help("cancel")),
-}
-
 type Model struct {
-	list           list.Model
-	input          textinput.Model
-	width, height  int
-	value          string
-	updated        bool
-	lastUpdateTime time.Time
+	header               string
+	actionHelp           string
+	list                 list.Model
+	input                textinput.Model
+	width, height        int
+	value                string
+	updated              bool
+	lastUpdateTime       time.Time
+	additionalKeyBindigs []key.Binding
 }
 
-func New() *Model {
-	m := &Model{}
+func New(header, action string) *Model {
+	m := &Model{
+		header:     header,
+		actionHelp: action,
+		additionalKeyBindigs: []key.Binding{
+			key.NewBinding(config.Current.Controls.Apply.Binding(), config.Current.Controls.Apply.Help(action)),
+			key.NewBinding(config.Current.Controls.Cancel.Binding(), config.Current.Controls.Cancel.Help("cancel")),
+		},
+	}
 
 	controls := config.Current.Controls
 
 	m.list = list.New([]list.Item{}, ItemDelegate{}, 512, 512)
-	m.list.Title = ""
-	m.list.Styles.Title = lipgloss.NewStyle().Height(0)
+	m.list.SetShowTitle(false)
 	m.list.DisableQuitKeybindings()
 	m.list.KeyMap = list.KeyMap{
 		CursorUp:   key.NewBinding(controls.CursorUp.Binding(), controls.CursorUp.Help("up")),
@@ -64,7 +68,7 @@ func New() *Model {
 }
 
 func (m *Model) keymap() []key.Binding {
-	return additionalKeyBindigs
+	return m.additionalKeyBindigs
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -74,6 +78,7 @@ func (m *Model) Init() tea.Cmd {
 func (m *Model) View() string {
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
+		style.AccentTextStyle.MarginBottom(1).Render(m.header),
 		style.DialogBoxStyle.MaxWidth(m.width).Render(m.input.View()),
 		m.list.View(),
 	)
@@ -148,10 +153,10 @@ func (m *Model) SetSize(w, h int) {
 	m.width = w
 	m.height = h
 	m.input.Width = w - 9
-	m.list.SetSize(m.width, m.height-3)
+	m.list.SetSize(m.width, m.height-6)
 }
 
-func (m *Model) SetSuggestions(best string, suggestions []string) {
+func (m *Model) SetSuggestions(suggestions []string) {
 	items := make([]list.Item, 0, len(suggestions)+1)
 
 	if len(m.input.Value()) > 0 {
@@ -163,9 +168,6 @@ func (m *Model) SetSuggestions(best string, suggestions []string) {
 	}
 
 	m.list.SetItems(items)
-	// m.input.ShowSuggestions = len(suggestions) > 0
-	// m.input.SetSuggestions([]string{best})
-	// m.input.CompletionStyle.MaxWidth(m.width - len(m.input.Value()) - 24)
 }
 
 func (m *Model) InputValue() string {

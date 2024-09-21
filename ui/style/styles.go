@@ -50,7 +50,7 @@ var (
 			Background(InactiveTextColor).
 			Padding(0, 3).
 			MarginTop(1)
-	ActiveButtonStyle = ButtonStyle.Copy().
+	ActiveButtonStyle = ButtonStyle.
 				Foreground(InactiveTextColor).
 				Background(AccentColor)
 )
@@ -66,7 +66,7 @@ var (
 				PaddingLeft(2).
 				Width(32).
 				MaxWidth(32)
-	SideBoxSelItemStyle = SideBoxItemStyle.Copy().
+	SideBoxSelItemStyle = SideBoxItemStyle.
 				Foreground(ActiveTextColor).
 				Background(lipgloss.Color("#4a3c00")).
 				PaddingLeft(1).
@@ -76,12 +76,12 @@ var (
 				BorderLeft(true).
 				BorderRight(false).
 				BorderBottom(false)
-	SideBoxInactiveItemStyle = SideBoxItemStyle.Copy().
+	SideBoxInactiveItemStyle = SideBoxItemStyle.
 					Foreground(InactiveTextColor).
 					Padding(0, 0, 0, 2)
-	SideBoxSubItemStyle = SideBoxItemStyle.Copy().
+	SideBoxSubItemStyle = SideBoxItemStyle.
 				Padding(0, 0, 0, 4)
-	SideBoxSelSubItemStyle = SideBoxSelItemStyle.Copy().
+	SideBoxSelSubItemStyle = SideBoxSelItemStyle.
 				Padding(0, 0, 0, 3)
 )
 

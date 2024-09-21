@@ -25,12 +25,6 @@ func (k *Key) IsEmpty() bool {
 	return k == nil || len(k.keyNames) == 0
 }
 
-func (k *Key) Set(key *Key) {
-	k.displayName = key.displayName
-	k.keyNames = make([]string, len(key.keyNames))
-	copy(k.keyNames, key.keyNames)
-}
-
 func (k *Key) Binding() key.BindingOpt {
 	return key.WithKeys(k.keyNames...)
 }

@@ -20,11 +20,13 @@ const (
 	SHUFFLE
 	SHARE
 	LIKE
+	ADD_TO_PLAYLIST
 )
 
 var additionalKeyBindigs = []key.Binding{
 	key.NewBinding(config.Current.Controls.Apply.Binding(), config.Current.Controls.Apply.Help("play")),
 	key.NewBinding(config.Current.Controls.TracksLike.Binding(), config.Current.Controls.TracksLike.Help("like/unlike")),
+	key.NewBinding(config.Current.Controls.TracksAddToPlaylist.Binding(), config.Current.Controls.TracksAddToPlaylist.Help("to playlist")),
 	key.NewBinding(config.Current.Controls.TracksSearch.Binding(), config.Current.Controls.TracksSearch.Help("search")),
 	key.NewBinding(config.Current.Controls.TracksShare.Binding(), config.Current.Controls.TracksShare.Help("share")),
 }
@@ -103,6 +105,8 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 			cmds = append(cmds, model.Cmd(SHARE))
 		case controls.TracksLike.Contains(keypress):
 			cmds = append(cmds, model.Cmd(LIKE))
+		case controls.TracksAddToPlaylist.Contains(keypress):
+			cmds = append(cmds, model.Cmd(ADD_TO_PLAYLIST))
 		}
 	}
 

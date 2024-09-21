@@ -7,6 +7,7 @@ type Item struct {
 
 	Name         string
 	Kind         uint64
+	Revision     int
 	StationId    api.StationId
 	StationBatch string
 	Active       bool

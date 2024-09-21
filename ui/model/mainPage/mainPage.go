@@ -25,12 +25,15 @@ type Model struct {
 	client        *api.YaMusicClient
 	width, height int
 
-	playlists *playlist.Model
-	tracklist *tracklist.Model
-	tracker   *tracker.Model
-	search    *search.Model
+	playlists   *playlist.Model
+	tracklist   *tracklist.Model
+	tracker     *tracker.Model
+	search      *search.Model
+	addPlaylist *search.Model
 
-	isSearchActive       bool
+	isSearchActive      bool
+	isAddPlaylistActive bool
+
 	currentPlaylistIndex int
 	likedTracksMap       map[string]bool
 }
@@ -46,7 +49,8 @@ func New() *Model {
 	m.playlists = playlist.New(m.program, "YaMusic")
 	m.tracklist = tracklist.New(m.program, &m.likedTracksMap)
 	m.tracker = tracker.New(m.program, &m.likedTracksMap)
-	m.search = search.New()
+	m.search = search.New("Search", "search")
+	m.addPlaylist = search.New("Add to playlist", "add")
 
 	return m
 }
@@ -103,6 +107,9 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case m.isSearchActive:
 			m.search, cmd = m.search.Update(message)
 			cmds = append(cmds, cmd)
+		case m.isAddPlaylistActive:
+			m.addPlaylist, cmd = m.addPlaylist.Update(message)
+			cmds = append(cmds, cmd)
 		default:
 			m.playlists, cmd = m.playlists.Update(message)
 			cmds = append(cmds, cmd)
@@ -156,8 +163,12 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case tracklist.LIKE:
 			cmd = m.likeSelectedTrack()
 			cmds = append(cmds, cmd)
+		case tracklist.ADD_TO_PLAYLIST:
+			m.isAddPlaylistActive = true
+			m.Send(search.UPDATE_SUGGESTIONS)
 		case tracklist.SEARCH:
 			m.isSearchActive = true
+			m.Send(search.UPDATE_SUGGESTIONS)
 		case tracklist.SHUFFLE:
 			selectedPlaylist := m.playlists.SelectedItem()
 			currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
@@ -219,30 +230,20 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 
 	// search control update
 	case search.Control:
-		switch msg {
-		case search.SELECT:
-			req, ok := m.search.SuggestionValue()
-			if ok {
-				searchRes, err := m.client.Search(req, api.SEARCH_ALL)
-				if err == nil {
-					cmd = m.displaySearchResults(searchRes)
-					cmds = append(cmds, cmd)
-				}
-			}
-			m.isSearchActive = false
-		case search.CANCEL:
-			m.isSearchActive = false
-		case search.UPDATE_SUGGESTIONS:
-			suggestions, err := m.client.SearchSuggest(m.search.InputValue())
-			if err != nil {
-				break
-			}
-			m.search.SetSuggestions(suggestions.Best.Text, suggestions.Suggestions)
+		if m.isSearchActive {
+			cmd = m.searchControl(msg)
+			cmds = append(cmds, cmd)
+		} else if m.isAddPlaylistActive {
+			cmd = m.addPlaylistControl(msg)
+			cmds = append(cmds, cmd)
 		}
 
 	default:
 		if m.isSearchActive {
 			m.search, cmd = m.search.Update(message)
+			cmds = append(cmds, cmd)
+		} else if m.isAddPlaylistActive {
+			m.addPlaylist, cmd = m.addPlaylist.Update(message)
 			cmds = append(cmds, cmd)
 		} else {
 			m.playlists, cmd = m.playlists.Update(message)
@@ -260,6 +261,8 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 func (m *Model) View() string {
 	if m.isSearchActive {
 		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, m.search.View())
+	} else if m.isAddPlaylistActive {
+		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, m.addPlaylist.View())
 	}
 
 	sidePanel := style.SideBoxStyle.Render(m.playlists.View())
@@ -281,7 +284,9 @@ func (m *Model) resize(width, height int) {
 	if searchWidth > width {
 		searchWidth = width - 2
 	}
+
 	m.search.SetSize(searchWidth, height-4)
+	m.addPlaylist.SetSize(searchWidth, height-4)
 }
 
 func (m *Model) initialLoad() error {
@@ -345,11 +350,12 @@ func (m *Model) initialLoad() error {
 			}
 
 			m.playlists.InsertItem(-1, playlist.Item{
-				Name:    pl.Title,
-				Kind:    pl.Kind,
-				Active:  true,
-				Subitem: true,
-				Tracks:  playlistTracks,
+				Name:     pl.Title,
+				Kind:     pl.Kind,
+				Revision: pl.Revision,
+				Active:   true,
+				Subitem:  true,
+				Tracks:   playlistTracks,
 			})
 		}
 	}
@@ -358,6 +364,115 @@ func (m *Model) initialLoad() error {
 	m.Send(playlist.CURSOR_UP)
 
 	return nil
+}
+
+func (m *Model) searchControl(msg search.Control) tea.Cmd {
+	var cmd tea.Cmd
+
+	switch msg {
+	case search.SELECT:
+		m.isSearchActive = false
+
+		req, ok := m.search.SuggestionValue()
+		if !ok {
+			return nil
+		}
+
+		searchRes, err := m.client.Search(req, api.SEARCH_ALL)
+		if err != nil {
+			return nil
+		}
+
+		cmd = m.displaySearchResults(searchRes)
+	case search.CANCEL:
+		m.isSearchActive = false
+	case search.UPDATE_SUGGESTIONS:
+		suggestions, err := m.client.SearchSuggest(m.search.InputValue())
+		if err != nil {
+			return nil
+		}
+		m.search.SetSuggestions(suggestions.Suggestions)
+	}
+
+	return cmd
+}
+
+func (m *Model) addPlaylistControl(msg search.Control) tea.Cmd {
+	var cmd tea.Cmd
+
+	switch msg {
+	case search.SELECT:
+		m.isAddPlaylistActive = false
+
+		selectedPlaylist := m.playlists.SelectedItem()
+		if len(selectedPlaylist.Tracks) == 0 {
+			return nil
+		}
+
+		playlists := m.playlists.Items()
+		inputVal, ok := m.addPlaylist.SuggestionValue()
+		if !ok {
+			return nil
+		}
+
+		foundPlaylistIndex := -1
+		var foundPlaylist *playlist.Item
+		for i := range playlists {
+			if playlists[i].Active && playlists[i].Kind >= playlist.USER && strings.EqualFold(playlists[i].Name, inputVal) {
+				foundPlaylist = &playlists[i]
+				foundPlaylistIndex = i
+				break
+			}
+		}
+
+		if foundPlaylist == nil {
+			pl, err := m.client.CreatePlaylist(inputVal, true)
+			if err != nil {
+				return nil
+			}
+
+			foundPlaylistIndex = len(playlists)
+			foundPlaylist = &playlist.Item{
+				Name:     pl.Title,
+				Kind:     pl.Kind,
+				Revision: pl.Revision,
+				Active:   true,
+				Subitem:  true,
+			}
+
+			m.playlists.InsertItem(foundPlaylistIndex, *foundPlaylist)
+		}
+
+		if selectedPlaylist.Kind == foundPlaylist.Kind {
+			return nil
+		}
+
+		selectedTrack := &selectedPlaylist.Tracks[selectedPlaylist.SelectedTrack]
+		_, err := m.client.AddToPlaylist(foundPlaylist.Kind, foundPlaylist.Revision, len(foundPlaylist.Tracks), selectedTrack.Id)
+		if err != nil {
+			return nil
+		}
+
+		foundPlaylist.Tracks = append(foundPlaylist.Tracks, *selectedTrack)
+		cmd = m.playlists.SetItem(foundPlaylistIndex, *foundPlaylist)
+
+		m.isAddPlaylistActive = false
+	case search.CANCEL:
+		m.isAddPlaylistActive = false
+	case search.UPDATE_SUGGESTIONS:
+		inputVal := strings.ToLower(m.addPlaylist.InputValue())
+		playlists := m.playlists.Items()
+		suggestions := make([]string, 0, len(playlists))
+		for _, pl := range playlists {
+			if !pl.Active || pl.Kind < playlist.USER || (len(inputVal) > 0 && !strings.Contains(strings.ToLower(pl.Name), inputVal)) {
+				continue
+			}
+			suggestions = append(suggestions, pl.Name)
+		}
+		m.addPlaylist.SetSuggestions(suggestions)
+	}
+
+	return cmd
 }
 
 func (m *Model) prevTrack() {

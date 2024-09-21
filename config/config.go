@@ -63,9 +63,9 @@ func load() (Config, error) {
 	defaultControls := reflect.ValueOf(defaultConfig.Controls)
 	for i := 0; i < newControls.NumField(); i++ {
 		newField := newControls.Field(i).Interface().(*Key)
-		defaultField := defaultControls.Field(i).Interface().(*Key)
+		defaultField := defaultControls.Field(i)
 		if newField.IsEmpty() {
-			newField.Set(defaultField)
+			newControls.Field(i).Set(defaultField)
 		}
 	}
 

@@ -147,6 +147,26 @@ func postRequestJson[RetT any](token, reqPath string, params url.Values, body an
 	return proccessRequest[RetT](req)
 }
 
+func postRequestUrlEnc[RetT any](token, reqPath string, params url.Values, body url.Values) (result RetT, invInfo InvocInfo, err error) {
+	reqUrl, err := url.JoinPath(YaMusicServerURL, reqPath)
+	if err != nil {
+		return
+	}
+	if params != nil {
+		reqUrl += "?" + params.Encode()
+	}
+	req, err := http.NewRequest(http.MethodPost, reqUrl, strings.NewReader(body.Encode()))
+	if err != nil {
+		return
+	}
+
+	req.Header.Set("accept", "application/json")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Authorization", "OAuth "+token)
+
+	return proccessRequest[RetT](req)
+}
+
 func downloadRequest(token, reqUrl, mimeType string) (body io.ReadCloser, contentLen int64, err error) {
 	req, err := http.NewRequest(http.MethodGet, reqUrl, nil)
 	if err != nil {
@@ -231,6 +251,30 @@ func NewClient(token string) (client *YaMusicClient, err error) {
 func (client *YaMusicClient) Tracks(trackIds []string) (tracks []Track, err error) {
 	tracks, _, err = postRequest[[]Track](client.token, "/tracks", url.Values{"track-ids": trackIds, "with-positions": {"false"}})
 	return
+}
+
+func (client *YaMusicClient) CreatePlaylist(name string, public bool) (playlist Playlist, err error) {
+	var visibility string
+	if public {
+		visibility = "public"
+	} else {
+		visibility = "private"
+	}
+	body := url.Values{
+		"title":      {name},
+		"visibility": {visibility},
+	}
+	playlist, _, err = postRequestUrlEnc[Playlist](client.token, fmt.Sprintf("/users/%d/playlists/create", client.userid), nil, body)
+	return
+}
+
+func (client *YaMusicClient) AddToPlaylist(kind uint64, revision, pos int, trackId string) (playlist Playlist, err error) {
+	body := url.Values{
+		"diff":     {fmt.Sprintf(`{"diff":{"op":"insert","at":%d,"tracks":[{"id":"%s"}]}}`, pos, trackId)},
+		"revision": {fmt.Sprint(revision)},
+	}
+	playlist, _, err = postRequestUrlEnc[Playlist](client.token, fmt.Sprintf("/users/%d/playlists/%d/change-relative", client.userid, kind), nil, body)
+	return playlist, err
 }
 
 func (client *YaMusicClient) ListPlaylists() (playlists []Playlist, err error) {

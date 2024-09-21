@@ -23,7 +23,11 @@ const (
 	NONE PlaylistType = iota
 	MYWAVE
 	LIKES
+	// Should be the last to detect downloaded user playlists
+	USER
 )
+
+var additionalKeyBindigs = []key.Binding{}
 
 type Model struct {
 	program       *tea.Program
@@ -54,8 +58,13 @@ func New(p *tea.Program, title string) *Model {
 		CursorUp:   key.NewBinding(controls.PlaylistsUp.Binding(), controls.PlaylistsUp.Help("up")),
 		CursorDown: key.NewBinding(controls.PlaylistsDown.Binding(), controls.PlaylistsDown.Help("down")),
 	}
+	m.list.AdditionalShortHelpKeys = m.keymap
 
 	return m
+}
+
+func (m *Model) keymap() []key.Binding {
+	return additionalKeyBindigs
 }
 
 func (m *Model) Init() tea.Cmd {

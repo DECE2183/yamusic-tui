@@ -3,9 +3,11 @@ package search
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/dece2183/yamusic-tui/ui/style"
 )
 
@@ -29,9 +31,22 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 		return
 	}
 
+	maxWidth := m.Width() - 3
 	if index == m.Index() {
-		fmt.Fprint(w, style.TrackListActiveStyle.Copy().Width(m.Width()-2).MaxWidth(m.Width()).Render(string(item)))
+		maxWidth -= 1
+	}
+
+	text := string(item)
+	textLen, _ := lipgloss.Size(text)
+	if textLen > maxWidth {
+		text = text[:maxWidth-3] + "..."
+	} else if textLen < maxWidth {
+		text += strings.Repeat(" ", maxWidth-textLen)
+	}
+
+	if index == m.Index() {
+		fmt.Fprint(w, style.TrackListActiveStyle.Render(text))
 	} else {
-		fmt.Fprint(w, style.TrackListStyle.MaxWidth(m.Width()-2).Render(string(item)))
+		fmt.Fprint(w, style.TrackListStyle.Render(text))
 	}
 }

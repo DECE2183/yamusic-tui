@@ -154,6 +154,7 @@ type Playlist struct {
 	Modified             string `json:"modified"`
 	Visibility           string `json:"visibility"`
 	LikesCount           int    `json:"likesCount"`
+	Revision             int    `json:"revision"`
 
 	Tags    []Tag  `json:"tags"`
 	Owner   Owner  `json:"owner"`
