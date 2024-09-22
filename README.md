@@ -74,6 +74,7 @@ controls:
    playlists-down: ctrl+down
    tracks-like: l
    tracks-add-to-playlist: a
+   tracks-remove-from-playlist: ctrl+a
    tracks-share: ctrl+s
    tracks-shuffle: ctrl+x
    tracks-search: ctrl+f
