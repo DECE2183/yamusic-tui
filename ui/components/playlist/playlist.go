@@ -139,6 +139,10 @@ func (m *Model) SetItem(index int, item Item) tea.Cmd {
 	return m.list.SetItem(index, item)
 }
 
+func (m *Model) RemoveItem(index int) {
+	m.list.RemoveItem(index)
+}
+
 func (m *Model) SelectedItem() Item {
 	return m.list.SelectedItem().(Item)
 }

@@ -248,9 +248,22 @@ func (client *YaMusicClient) CreatePlaylist(name string, public bool) (playlist 
 	return
 }
 
+func (client *YaMusicClient) RemovePlaylist(kind uint64) error {
+	_, _, err := postRequest[string](client.token, fmt.Sprintf("/users/%d/playlists/%d/delete", client.userid, kind), nil)
+	return err
+}
+
 func (client *YaMusicClient) AddToPlaylist(kind uint64, revision, pos int, trackId string) (playlist Playlist, err error) {
 	playlist, _, err = postRequest[Playlist](client.token, fmt.Sprintf("/users/%d/playlists/%d/change-relative", client.userid, kind), url.Values{
 		"diff":     {fmt.Sprintf(`{"diff":{"op":"insert","at":%d,"tracks":[{"id":"%s"}]}}`, pos, trackId)},
+		"revision": {fmt.Sprint(revision)},
+	})
+	return playlist, err
+}
+
+func (client *YaMusicClient) RemoveFromPlaylist(kind uint64, revision, pos int) (playlist Playlist, err error) {
+	playlist, _, err = postRequest[Playlist](client.token, fmt.Sprintf("/users/%d/playlists/%d/change-relative", client.userid, kind), url.Values{
+		"diff":     {fmt.Sprintf(`{"diff":{"op":"delete","from":%d,"to":%d}}`, pos, pos+1)},
 		"revision": {fmt.Sprint(revision)},
 	})
 	return playlist, err

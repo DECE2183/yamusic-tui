@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/dece2183/yamusic-tui/api"
@@ -131,14 +132,8 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				m.playlists.SetItem(m.playlists.Index(), selectedPlaylist)
 			}
 
-			tracks := make([]tracklist.Item, 0, len(selectedPlaylist.Tracks))
-			for i := range selectedPlaylist.Tracks {
-				track := &selectedPlaylist.Tracks[i]
-				tracks = append(tracks, tracklist.NewItem(track))
-			}
+			m.displayPlaylist(selectedPlaylist)
 
-			m.tracklist.SetItems(tracks)
-			m.tracklist.Select(selectedPlaylist.SelectedTrack)
 			if m.tracker.IsPlaying() {
 				m.indicateCurrentTrackPlaying(true)
 			}
@@ -166,21 +161,59 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case tracklist.ADD_TO_PLAYLIST:
 			m.isAddPlaylistActive = true
 			m.Send(search.UPDATE_SUGGESTIONS)
+		case tracklist.REMOVE_FROM_PLAYLIST:
+			selectedPlaylist := m.playlists.SelectedItem()
+			if selectedPlaylist.Kind == playlist.NONE || selectedPlaylist.Kind == playlist.MYWAVE {
+				break
+			}
+
+			selectedTrackIndex := selectedPlaylist.SelectedTrack
+			if selectedPlaylist.Kind == playlist.LIKES {
+				selectedTrack := selectedPlaylist.Tracks[selectedTrackIndex]
+				cmd = m.likeTrack(&selectedTrack)
+				cmds = append(cmds, cmd)
+				break
+			}
+
+			if len(selectedPlaylist.Tracks) < 2 {
+				err := m.client.RemovePlaylist(selectedPlaylist.Kind)
+				if err != nil {
+					break
+				}
+				m.playlists.RemoveItem(m.playlists.Index())
+				m.playlists.Select(0)
+				m.displayPlaylist(m.playlists.SelectedItem())
+				break
+			}
+
+			_, err := m.client.RemoveFromPlaylist(selectedPlaylist.Kind, selectedPlaylist.Revision, selectedTrackIndex)
+			if err != nil {
+				break
+			}
+
+			selectedPlaylist.Revision++
+			selectedPlaylist.Tracks = slices.Delete(selectedPlaylist.Tracks, selectedTrackIndex, selectedTrackIndex+1)
+			selectedPlaylist.SelectedTrack = selectedTrackIndex
+			m.playlists.SetItem(m.playlists.Index(), selectedPlaylist)
+			m.displayPlaylist(selectedPlaylist)
+
+			currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
+			if selectedPlaylist.IsSame(currentPlaylist) && m.tracker.IsPlaying() {
+				m.indicateCurrentTrackPlaying(true)
+			}
 		case tracklist.SEARCH:
 			m.isSearchActive = true
 			m.Send(search.UPDATE_SUGGESTIONS)
 		case tracklist.SHUFFLE:
 			selectedPlaylist := m.playlists.SelectedItem()
-			currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
+			if selectedPlaylist.Kind == playlist.NONE || selectedPlaylist.Kind == playlist.MYWAVE || len(selectedPlaylist.Tracks) == 0 {
+				break
+			}
 
 			currentTrackIndex := selectedPlaylist.CurrentTrack
 			selectedTrackIndex := selectedPlaylist.SelectedTrack
 			currentTrack := selectedPlaylist.Tracks[currentTrackIndex]
 			selectedTrack := selectedPlaylist.Tracks[selectedTrackIndex]
-
-			if selectedPlaylist.Kind == playlist.NONE || selectedPlaylist.Kind == playlist.MYWAVE || len(selectedPlaylist.Tracks) == 0 {
-				break
-			}
 
 			tracks := make([]api.Track, len(selectedPlaylist.Tracks))
 			trackList := make([]tracklist.Item, len(selectedPlaylist.Tracks))
@@ -204,6 +237,7 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			m.tracklist.SetItems(trackList)
 			m.tracklist.Select(selectedTrackIndex)
 
+			currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
 			if selectedPlaylist.IsSame(currentPlaylist) && m.tracker.IsPlaying() {
 				m.indicateCurrentTrackPlaying(true)
 			}
@@ -366,6 +400,15 @@ func (m *Model) initialLoad() error {
 	return nil
 }
 
+func (m *Model) displayPlaylist(pl playlist.Item) {
+	trackList := make([]tracklist.Item, len(pl.Tracks))
+	for i := range pl.Tracks {
+		trackList[i] = tracklist.NewItem(&pl.Tracks[i])
+	}
+	m.tracklist.SetItems(trackList)
+	m.tracklist.Select(pl.SelectedTrack)
+}
+
 func (m *Model) searchControl(msg search.Control) tea.Cmd {
 	var cmd tea.Cmd
 
@@ -453,6 +496,7 @@ func (m *Model) addPlaylistControl(msg search.Control) tea.Cmd {
 			return nil
 		}
 
+		foundPlaylist.Revision++
 		foundPlaylist.Tracks = append(foundPlaylist.Tracks, *selectedTrack)
 		cmd = m.playlists.SetItem(foundPlaylistIndex, *foundPlaylist)
 

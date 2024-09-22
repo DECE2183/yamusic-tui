@@ -12,11 +12,12 @@ type Controls struct {
 	PlaylistsUp   *Key `yaml:"playlists-up"`
 	PlaylistsDown *Key `yaml:"playlists-down"`
 	// Track list control
-	TracksLike          *Key `yaml:"tracks-like"`
-	TracksAddToPlaylist *Key `yaml:"tracks-add-to-playlist"`
-	TracksShare         *Key `yaml:"tracks-share"`
-	TracksShuffle       *Key `yaml:"tracks-shuffle"`
-	TracksSearch        *Key `yaml:"tracks-search"`
+	TracksLike               *Key `yaml:"tracks-like"`
+	TracksAddToPlaylist      *Key `yaml:"tracks-add-to-playlist"`
+	TracksRemoveFromPlaylist *Key `yaml:"tracks-remove-from-playlist"`
+	TracksShare              *Key `yaml:"tracks-share"`
+	TracksShuffle            *Key `yaml:"tracks-shuffle"`
+	TracksSearch             *Key `yaml:"tracks-search"`
 	// Player control
 	PlayerPause          *Key `yaml:"player-pause"`
 	PlayerNext           *Key `yaml:"player-next"`
@@ -43,27 +44,28 @@ var defaultConfig = Config{
 	Volume:         0.5,
 	VolumeStep:     0.05,
 	Controls: Controls{
-		Quit:                 NewKey("ctrl+q,ctrl+c"),
-		Apply:                NewKey("enter"),
-		Cancel:               NewKey("esc"),
-		CursorUp:             NewKey("up"),
-		CursorDown:           NewKey("down"),
-		ShowAllKeys:          NewKey("?"),
-		PlaylistsUp:          NewKey("ctrl+up"),
-		PlaylistsDown:        NewKey("ctrl+down"),
-		TracksLike:           NewKey("l"),
-		TracksAddToPlaylist:  NewKey("a"),
-		TracksSearch:         NewKey("ctrl+f"),
-		TracksShuffle:        NewKey("ctrl+x"),
-		TracksShare:          NewKey("ctrl+s"),
-		PlayerPause:          NewKey("space"),
-		PlayerNext:           NewKey("right"),
-		PlayerPrevious:       NewKey("left"),
-		PlayerRewindForward:  NewKey("ctrl+right"),
-		PlayerRewindBackward: NewKey("ctrl+left"),
-		PlayerLike:           NewKey("L"),
-		PlayerVolUp:          NewKey("+,="),
-		PlayerVolDown:        NewKey("-"),
+		Quit:                     NewKey("ctrl+q,ctrl+c"),
+		Apply:                    NewKey("enter"),
+		Cancel:                   NewKey("esc"),
+		CursorUp:                 NewKey("up"),
+		CursorDown:               NewKey("down"),
+		ShowAllKeys:              NewKey("?"),
+		PlaylistsUp:              NewKey("ctrl+up"),
+		PlaylistsDown:            NewKey("ctrl+down"),
+		TracksLike:               NewKey("l"),
+		TracksAddToPlaylist:      NewKey("a"),
+		TracksRemoveFromPlaylist: NewKey("ctrl+a"),
+		TracksSearch:             NewKey("ctrl+f"),
+		TracksShuffle:            NewKey("ctrl+x"),
+		TracksShare:              NewKey("ctrl+s"),
+		PlayerPause:              NewKey("space"),
+		PlayerNext:               NewKey("right"),
+		PlayerPrevious:           NewKey("left"),
+		PlayerRewindForward:      NewKey("ctrl+right"),
+		PlayerRewindBackward:     NewKey("ctrl+left"),
+		PlayerLike:               NewKey("L"),
+		PlayerVolUp:              NewKey("+,="),
+		PlayerVolDown:            NewKey("-"),
 	},
 }
 

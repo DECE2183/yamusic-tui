@@ -36,8 +36,8 @@ The easiest way to get a token is to use this
  - [ ] Playlists
     - [x] Display user playlists
     - [x] Play from playlist
-    - [ ] Add/remove track to playlist
-    - [ ] Create/remove playlist
+    - [x] Add/remove track to playlist
+    - [x] Create/remove playlist
     - [ ] Rename playlist
  - [ ] Caching
  - [x] Search
