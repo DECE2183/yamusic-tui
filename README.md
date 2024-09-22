@@ -69,6 +69,7 @@ controls:
    cancel: esc
    cursor-up: up
    cursor-down: down
+   show-all-keys: ?
    playlists-up: ctrl+up
    playlists-down: ctrl+down
    tracks-like: l

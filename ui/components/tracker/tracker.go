@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/dece2183/yamusic-tui/api"
@@ -39,7 +40,7 @@ func (p ProgressControl) Value() float64 {
 	return float64(p)
 }
 
-type trackerHelpKeyMap struct {
+type helpKeyMap struct {
 	PlayPause  key.Binding
 	PrevTrack  key.Binding
 	NextTrack  key.Binding
@@ -48,9 +49,11 @@ type trackerHelpKeyMap struct {
 	Backward   key.Binding
 	VolUp      key.Binding
 	VolDown    key.Binding
+	ShowHelp   key.Binding
+	CloseHelp  key.Binding
 }
 
-var trackerHelpMap = trackerHelpKeyMap{
+var helpMap = helpKeyMap{
 	PlayPause: key.NewBinding(
 		config.Current.Controls.PlayerPause.Binding(),
 		config.Current.Controls.PlayerPause.Help("play/pause"),
@@ -83,15 +86,27 @@ var trackerHelpMap = trackerHelpKeyMap{
 		config.Current.Controls.PlayerVolDown.Binding(),
 		config.Current.Controls.PlayerVolDown.Help("vol down"),
 	),
+	ShowHelp: key.NewBinding(
+		config.Current.Controls.ShowAllKeys.Binding(),
+		config.Current.Controls.ShowAllKeys.Help("show keys"),
+	),
+	CloseHelp: key.NewBinding(
+		config.Current.Controls.ShowAllKeys.Binding(),
+		config.Current.Controls.ShowAllKeys.Help("hide"),
+	),
 }
 
-func (k trackerHelpKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.PlayPause, k.NextTrack, k.PrevTrack, k.Forward, k.Backward, k.LikeUnlike, k.VolUp, k.VolDown}
+func (k helpKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.PlayPause, k.NextTrack, k.PrevTrack, k.LikeUnlike, k.ShowHelp}
 }
 
-func (k trackerHelpKeyMap) FullHelp() [][]key.Binding {
+func (k helpKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.PlayPause, k.NextTrack, k.PrevTrack, k.Forward, k.Backward, k.LikeUnlike, k.VolUp, k.VolDown},
+		{k.PlayPause, k.LikeUnlike},
+		{k.NextTrack, k.PrevTrack},
+		{k.Forward, k.Backward},
+		{k.VolUp, k.VolDown},
+		{k.CloseHelp},
 	}
 }
 
@@ -162,10 +177,11 @@ func (m *Model) View() string {
 	if m.track.Available {
 		trackTitle = style.TrackTitleStyle.Render(m.track.Title)
 	} else {
-		trackTitle = style.TrackTitleStyle.Copy().Strikethrough(true).Render(m.track.Title)
+		trackTitle = style.TrackTitleStyle.Strikethrough(true).Render(m.track.Title)
 	}
 
 	trackVersion := style.TrackVersionStyle.Render(" " + m.track.Version)
+	trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackVersion)
 	trackArtist := style.TrackArtistStyle.Render(helpers.ArtistList(m.track.Artists))
 
 	durTotal := time.Millisecond * time.Duration(m.track.DurationMs)
@@ -185,15 +201,36 @@ func (m *Model) View() string {
 	}
 
 	trackAddInfo := style.TrackAddInfoStyle.Render(trackLike + trackTime)
+	addInfoLen, _ := lipgloss.Size(trackAddInfo)
+	maxLen := m.Width() - addInfoLen - 4
+	stl := lipgloss.NewStyle().MaxWidth(maxLen - 3)
 
-	trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackVersion)
-	trackTitle = lipgloss.JoinVertical(lipgloss.Left, trackTitle, trackArtist, "")
+	trackTitleLen, _ := lipgloss.Size(trackTitle)
+	if trackTitleLen > maxLen {
+		trackTitle = stl.Render(trackTitle) + "..."
+	} else if trackTitleLen < maxLen {
+		trackTitle += strings.Repeat(" ", maxLen-trackTitleLen)
+	}
+
+	trackArtistLen, _ := lipgloss.Size(trackArtist)
+	if trackArtistLen > maxLen {
+		trackArtist = stl.Render(trackArtist) + "..."
+	} else if trackArtistLen < maxLen {
+		trackArtist += strings.Repeat(" ", maxLen-trackArtistLen)
+	}
+
+	if m.help.ShowAll {
+		trackTitle = lipgloss.JoinVertical(lipgloss.Left, trackTitle, "")
+	} else {
+		trackTitle = lipgloss.JoinVertical(lipgloss.Left, trackTitle, trackArtist, "")
+	}
+
 	trackTitle = lipgloss.NewStyle().Width(m.width - lipgloss.Width(trackAddInfo) - 4).Render(trackTitle)
 	trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackAddInfo)
 
 	tracker := style.TrackProgressStyle.Render(m.progress.View())
 	tracker = lipgloss.JoinHorizontal(lipgloss.Top, playButton, tracker)
-	tracker = lipgloss.JoinVertical(lipgloss.Left, tracker, trackTitle, m.help.View(trackerHelpMap))
+	tracker = lipgloss.JoinVertical(lipgloss.Left, tracker, trackTitle, m.help.View(helpMap))
 
 	return style.TrackBoxStyle.Width(m.width).Render(tracker)
 }
@@ -210,6 +247,9 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 		keypress := msg.String()
 
 		switch {
+		case controls.ShowAllKeys.Contains(keypress):
+			m.help.ShowAll = !m.help.ShowAll
+
 		case controls.PlayerPause.Contains(keypress):
 			if m.player == nil {
 				break

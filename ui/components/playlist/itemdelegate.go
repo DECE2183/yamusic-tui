@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/dece2183/yamusic-tui/ui/style"
 )
 
@@ -47,8 +48,10 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	}
 
 	name := item.Name
-	if len(name) > 27 {
-		name = name[:24] + "..."
+	nameLen, _ := lipgloss.Size(name)
+	maxLen := m.Width() - 5
+	if nameLen > maxLen {
+		name = lipgloss.NewStyle().MaxWidth(maxLen-3).Render(name) + "..."
 	}
 
 	if !item.Active {

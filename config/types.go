@@ -2,11 +2,12 @@ package config
 
 type Controls struct {
 	// Main control
-	Quit       *Key `yaml:"quit"`
-	Apply      *Key `yaml:"apply"`
-	Cancel     *Key `yaml:"cancel"`
-	CursorUp   *Key `yaml:"cursor-up"`
-	CursorDown *Key `yaml:"cursor-down"`
+	Quit        *Key `yaml:"quit"`
+	Apply       *Key `yaml:"apply"`
+	Cancel      *Key `yaml:"cancel"`
+	CursorUp    *Key `yaml:"cursor-up"`
+	CursorDown  *Key `yaml:"cursor-down"`
+	ShowAllKeys *Key `yaml:"show-all-kyes"`
 	// Playlists control
 	PlaylistsUp   *Key `yaml:"playlists-up"`
 	PlaylistsDown *Key `yaml:"playlists-down"`
@@ -47,6 +48,7 @@ var defaultConfig = Config{
 		Cancel:               NewKey("esc"),
 		CursorUp:             NewKey("up"),
 		CursorDown:           NewKey("down"),
+		ShowAllKeys:          NewKey("?"),
 		PlaylistsUp:          NewKey("ctrl+up"),
 		PlaylistsDown:        NewKey("ctrl+down"),
 		TracksLike:           NewKey("l"),

@@ -104,8 +104,7 @@ var (
 				PaddingBottom(1)
 
 	TrackAddInfoStyle = lipgloss.NewStyle().
-				Align(lipgloss.Right).
-				Width(26)
+				Align(lipgloss.Right)
 )
 
 var (

@@ -5,9 +5,11 @@ import (
 	"github.com/dece2183/yamusic-tui/ui/model"
 	"github.com/dece2183/yamusic-tui/ui/style"
 
+	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type Control uint
@@ -23,17 +25,60 @@ const (
 	ADD_TO_PLAYLIST
 )
 
-var additionalKeyBindigs = []key.Binding{
-	key.NewBinding(config.Current.Controls.Apply.Binding(), config.Current.Controls.Apply.Help("play")),
-	key.NewBinding(config.Current.Controls.TracksLike.Binding(), config.Current.Controls.TracksLike.Help("like/unlike")),
-	key.NewBinding(config.Current.Controls.TracksAddToPlaylist.Binding(), config.Current.Controls.TracksAddToPlaylist.Help("to playlist")),
-	key.NewBinding(config.Current.Controls.TracksSearch.Binding(), config.Current.Controls.TracksSearch.Help("search")),
-	key.NewBinding(config.Current.Controls.TracksShare.Binding(), config.Current.Controls.TracksShare.Help("share")),
+type helpKeyMap struct {
+	CursorUp      key.Binding
+	CursorDown    key.Binding
+	Play          key.Binding
+	LikeUnlike    key.Binding
+	AddToPlaylist key.Binding
+	Search        key.Binding
+	Share         key.Binding
+	Shuffle       key.Binding
+	ShowHelp      key.Binding
+	CloseHelp     key.Binding
+
+	Shafflable bool
+}
+
+func (k helpKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.CursorUp, k.CursorDown, k.Play, k.LikeUnlike, k.ShowHelp}
+}
+
+func (k helpKeyMap) FullHelp() [][]key.Binding {
+	if k.Shafflable {
+		return [][]key.Binding{
+			{k.CursorUp, k.CursorDown},
+			{k.Play, k.LikeUnlike, k.AddToPlaylist},
+			{k.Search, k.Share, k.Shuffle},
+			{k.CloseHelp},
+		}
+	} else {
+		return [][]key.Binding{
+			{k.CursorUp, k.CursorDown},
+			{k.Play, k.LikeUnlike, k.AddToPlaylist},
+			{k.Search, k.Share},
+			{k.CloseHelp},
+		}
+	}
+}
+
+var helpMap = helpKeyMap{
+	CursorUp:      key.NewBinding(config.Current.Controls.CursorUp.Binding(), config.Current.Controls.CursorUp.Help("up")),
+	CursorDown:    key.NewBinding(config.Current.Controls.CursorDown.Binding(), config.Current.Controls.CursorDown.Help("down")),
+	Play:          key.NewBinding(config.Current.Controls.Apply.Binding(), config.Current.Controls.Apply.Help("play")),
+	LikeUnlike:    key.NewBinding(config.Current.Controls.TracksLike.Binding(), config.Current.Controls.TracksLike.Help("like/unlike")),
+	AddToPlaylist: key.NewBinding(config.Current.Controls.TracksAddToPlaylist.Binding(), config.Current.Controls.TracksAddToPlaylist.Help("to playlist")),
+	Search:        key.NewBinding(config.Current.Controls.TracksSearch.Binding(), config.Current.Controls.TracksSearch.Help("search")),
+	Share:         key.NewBinding(config.Current.Controls.TracksShare.Binding(), config.Current.Controls.TracksShare.Help("share")),
+	Shuffle:       key.NewBinding(config.Current.Controls.TracksShuffle.Binding(), config.Current.Controls.TracksShuffle.Help("shuffle")),
+	ShowHelp:      key.NewBinding(config.Current.Controls.ShowAllKeys.Binding(), config.Current.Controls.ShowAllKeys.Help("show keys")),
+	CloseHelp:     key.NewBinding(config.Current.Controls.ShowAllKeys.Binding(), config.Current.Controls.ShowAllKeys.Help("hide")),
 }
 
 type Model struct {
 	program       *tea.Program
 	list          list.Model
+	help          help.Model
 	width, height int
 
 	Shufflable bool
@@ -42,30 +87,15 @@ type Model struct {
 func New(p *tea.Program, likesMap *map[string]bool) *Model {
 	m := &Model{
 		program: p,
+		help:    help.New(),
 	}
-
-	controls := config.Current.Controls
 
 	m.list = list.New([]list.Item{}, ItemDelegate{likesMap: likesMap}, 512, 512)
 	m.list.Title = "Tracks"
 	m.list.Styles.Title = m.list.Styles.Title.Foreground(style.NormalTextColor).UnsetBackground().Padding(0)
-	m.list.KeyMap = list.KeyMap{
-		CursorUp:   key.NewBinding(controls.CursorUp.Binding(), controls.CursorUp.Help("up")),
-		CursorDown: key.NewBinding(controls.CursorDown.Binding(), controls.CursorDown.Help("down")),
-	}
-	m.list.AdditionalShortHelpKeys = m.keymap
+	m.list.SetShowHelp(false)
 
 	return m
-}
-
-func (m *Model) keymap() []key.Binding {
-	controls := config.Current.Controls
-
-	if m.Shufflable {
-		return append(additionalKeyBindigs, key.NewBinding(controls.TracksShuffle.Binding(), controls.TracksShuffle.Help("shuffle")))
-	}
-
-	return additionalKeyBindigs
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -73,7 +103,13 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) View() string {
-	return m.list.View()
+	helpMap.Shafflable = m.Shufflable
+	if m.help.ShowAll {
+		m.list.SetHeight(m.height - 4)
+	} else {
+		m.list.SetHeight(m.height - 2)
+	}
+	return lipgloss.JoinVertical(lipgloss.Left, m.list.View(), "", m.help.View(helpMap))
 }
 
 func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
@@ -91,6 +127,8 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 
 		switch {
+		case controls.ShowAllKeys.Contains(keypress):
+			m.help.ShowAll = !m.help.ShowAll
 		case controls.Apply.Contains(keypress):
 			cmds = append(cmds, model.Cmd(PLAY))
 		case controls.CursorUp.Contains(keypress):
@@ -160,12 +198,12 @@ func (m *Model) Select(index int) {
 func (m *Model) SetSize(w, h int) {
 	m.width = w
 	m.height = h
-	m.list.SetSize(m.width, m.height)
+	m.list.SetSize(m.width, m.height-3)
 }
 
 func (m *Model) SetWidth(w int) {
 	m.width = w
-	m.list.SetSize(m.width, m.height)
+	m.list.SetWidth(m.width)
 }
 
 func (m *Model) Width() int {
@@ -174,7 +212,7 @@ func (m *Model) Width() int {
 
 func (m *Model) SetHeight(h int) {
 	m.height = h
-	m.list.SetSize(m.width, m.height)
+	m.list.SetHeight(m.height - 3)
 }
 
 func (m *Model) Height() int {

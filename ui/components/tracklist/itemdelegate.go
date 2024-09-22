@@ -3,6 +3,7 @@ package tracklist
 import (
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/list"
@@ -40,9 +41,11 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	if item.Track.Available {
 		trackTitle += style.TrackTitleStyle.Render(item.Track.Title)
 	} else {
-		trackTitle += style.TrackTitleStyle.Copy().Strikethrough(true).Render(item.Track.Title)
+		trackTitle += style.TrackTitleStyle.Strikethrough(true).Render(item.Track.Title)
 	}
+
 	trackVersion := style.TrackVersionStyle.Render(" " + item.Track.Version)
+	trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackVersion)
 	trackArtist := style.TrackVersionStyle.Render(item.Artists)
 
 	durTotal := time.Millisecond * time.Duration(item.Track.DurationMs)
@@ -59,10 +62,25 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	}
 
 	trackAddInfo := style.TrackAddInfoStyle.Render(trackLike + " " + trackTime)
+	addInfoLen, _ := lipgloss.Size(trackAddInfo)
+	maxLen := m.Width() - addInfoLen - 8
+	stl := lipgloss.NewStyle().MaxWidth(maxLen - 3)
 
-	trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackVersion)
+	trackTitleLen, _ := lipgloss.Size(trackTitle)
+	if trackTitleLen > maxLen {
+		trackTitle = stl.Render(trackTitle) + "..."
+	} else if trackTitleLen < maxLen {
+		trackTitle += strings.Repeat(" ", maxLen-trackTitleLen)
+	}
+
+	trackArtistLen, _ := lipgloss.Size(trackArtist)
+	if trackArtistLen > maxLen {
+		trackArtist = stl.Render(trackArtist) + "..."
+	} else if trackArtistLen < maxLen {
+		trackArtist += strings.Repeat(" ", maxLen-trackArtistLen)
+	}
+
 	trackTitle = lipgloss.JoinVertical(lipgloss.Left, trackTitle, trackArtist)
-	trackTitle = lipgloss.NewStyle().Width(m.Width() - lipgloss.Width(trackAddInfo) - 8).Render(trackTitle)
 	trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackAddInfo)
 
 	if index == m.Index() {

@@ -27,7 +27,7 @@ func New() *Model {
 	}
 
 	m.input.Width = 64
-	m.input.CharLimit = 60
+	m.input.CharLimit = 64
 	m.input.Focus()
 
 	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
