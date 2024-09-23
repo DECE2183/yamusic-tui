@@ -279,14 +279,14 @@ func (client *YaMusicClient) Playlist(kind uint64) (playlist Playlist, err error
 	return
 }
 
-func (client *YaMusicClient) PlaylistTracks(kind uint64, mixed bool) (tracks []Track, err error) {
+func (client *YaMusicClient) PlaylistTracks(kind uint64, userId uint64, mixed bool) (tracks []Track, err error) {
 	params := url.Values{
 		"kinds":       {fmt.Sprint(kind)},
 		"mixed":       {fmt.Sprint(mixed)},
 		"rich-tracks": {"true"},
 	}
 
-	playlists, _, err := getRequest[[]Playlist](client.token, fmt.Sprintf("/users/%d/playlists", client.userid), params)
+	playlists, _, err := getRequest[[]Playlist](client.token, fmt.Sprintf("/users/%d/playlists", userId), params)
 	if err != nil {
 		return
 	}
@@ -422,6 +422,15 @@ func (client *YaMusicClient) ArtistTracks(artistId uint64, page, pageSize int) (
 
 func (client *YaMusicClient) ArtistPopularTracks(artistId uint64) (tracks ArtistTracks, err error) {
 	tracks, _, err = getRequest[ArtistTracks](client.token, fmt.Sprintf("/artists/%d/track-ids-by-rating", artistId), nil)
+	return
+}
+
+func (client *YaMusicClient) Album(albumId uint64, withTracks bool) (album Album, err error) {
+	path := fmt.Sprintf("/albums/%d", albumId)
+	if withTracks {
+		path += "/with-tracks"
+	}
+	album, _, err = getRequest[Album](client.token, path, nil)
 	return
 }
 

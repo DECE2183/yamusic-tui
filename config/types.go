@@ -29,13 +29,20 @@ type Controls struct {
 	PlayerVolDown        *Key `yaml:"player-vol-donw"`
 }
 
+type Search struct {
+	Artists   bool `yaml:"artists"`
+	Albums    bool `yaml:"albums"`
+	Playlists bool `yaml:"playlists"`
+}
+
 type Config struct {
-	Token          string   `yaml:"token"`
-	BufferSize     float64  `yaml:"buffer-size-ms"`
-	RewindDuration float64  `yaml:"rewind-duration-s"`
-	Volume         float64  `yaml:"volume"`
-	VolumeStep     float64  `yaml:"volume-step"`
-	Controls       Controls `yaml:"controls"`
+	Token          string    `yaml:"token"`
+	BufferSize     float64   `yaml:"buffer-size-ms"`
+	RewindDuration float64   `yaml:"rewind-duration-s"`
+	Volume         float64   `yaml:"volume"`
+	VolumeStep     float64   `yaml:"volume-step"`
+	Search         *Search   `yaml:"search"`
+	Controls       *Controls `yaml:"controls"`
 }
 
 var defaultConfig = Config{
@@ -43,7 +50,12 @@ var defaultConfig = Config{
 	RewindDuration: 5,
 	Volume:         0.5,
 	VolumeStep:     0.05,
-	Controls: Controls{
+	Search: &Search{
+		Artists:   true,
+		Albums:    false,
+		Playlists: false,
+	},
+	Controls: &Controls{
 		Quit:                     NewKey("ctrl+q,ctrl+c"),
 		Apply:                    NewKey("enter"),
 		Cancel:                   NewKey("esc"),

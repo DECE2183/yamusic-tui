@@ -98,7 +98,7 @@ func New(p *tea.Program, likesMap *map[string]bool) *Model {
 	controls := config.Current.Controls
 
 	m.list = list.New([]list.Item{}, ItemDelegate{likesMap: likesMap}, 512, 512)
-	m.list.Styles.Title = m.list.Styles.Title.Foreground(style.NormalTextColor).UnsetBackground().Padding(0)
+	m.list.Styles.Title = style.TrackListTitleStyle
 	m.list.KeyMap = list.KeyMap{
 		CursorUp:   key.NewBinding(controls.CursorUp.Binding(), controls.CursorUp.Help("up")),
 		CursorDown: key.NewBinding(controls.CursorDown.Binding(), controls.CursorDown.Help("down")),
@@ -113,14 +113,21 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) View() string {
-	m.list.Title = m.Title
+	titleLen, _ := lipgloss.Size(m.Title)
+	if titleLen > m.width-8 {
+		m.list.Title = lipgloss.NewStyle().MaxWidth(m.width-9).Render(m.Title) + "…"
+	} else {
+		m.list.Title = m.Title
+	}
+
 	helpMap.Shafflable = m.Shufflable
 	if m.help.ShowAll {
 		m.list.SetHeight(m.height - 4)
 	} else {
 		m.list.SetHeight(m.height - 2)
 	}
-	return lipgloss.JoinVertical(lipgloss.Left, m.list.View(), "", m.help.View(helpMap))
+
+	return style.TrackBoxStyle.Render(lipgloss.JoinVertical(lipgloss.Left, m.list.View(), "", m.help.View(helpMap)))
 }
 
 func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {

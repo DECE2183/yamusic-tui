@@ -85,22 +85,21 @@ type ArtistTracks struct {
 }
 
 type Album struct {
-	Id          uint64 `json:"id"`
-	Title       string `json:"title"`
-	Available   bool   `json:"available"`
-	Type        string `json:"type"`
-	MetaType    string `json:"metaType"`
-	Year        int    `json:"year"`
-	ReleaseDate string `json:"releaseDate"`
-	CoverUri    string `json:"coverUri"`
-	OgImage     string `json:"ogImage"`
-	Genre       string `json:"genre"`
-	TrackCount  int    `json:"trackCount"`
-	Recent      bool   `json:"recent"`
-
-	Artists []Artist `json:"artists"`
-
-	Labels []Label `json:"labels"`
+	Id          uint64    `json:"id"`
+	Title       string    `json:"title"`
+	Available   bool      `json:"available"`
+	Type        string    `json:"type"`
+	MetaType    string    `json:"metaType"`
+	Year        int       `json:"year"`
+	ReleaseDate string    `json:"releaseDate"`
+	CoverUri    string    `json:"coverUri"`
+	OgImage     string    `json:"ogImage"`
+	Genre       string    `json:"genre"`
+	Recent      bool      `json:"recent"`
+	TrackCount  int       `json:"trackCount"`
+	Volumes     [][]Track `json:"volumes"`
+	Artists     []Artist  `json:"artists"`
+	Labels      []Label   `json:"labels"`
 }
 
 type Track struct {

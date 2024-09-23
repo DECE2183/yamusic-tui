@@ -108,6 +108,9 @@ var (
 )
 
 var (
+	TrackListTitleStyle = lipgloss.NewStyle().
+				Foreground(NormalTextColor).
+				UnsetBackground()
 	TrackListStyle = lipgloss.NewStyle().
 			Padding(1, 2).
 			MarginTop(-2)

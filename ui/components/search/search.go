@@ -78,9 +78,9 @@ func (m *Model) Init() tea.Cmd {
 func (m *Model) View() string {
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
-		style.AccentTextStyle.MarginBottom(1).Render(m.header),
+		style.AccentTextStyle.MaxWidth(m.width).MarginBottom(1).Render(m.header),
 		style.DialogBoxStyle.MaxWidth(m.width).Render(m.input.View()),
-		m.list.View(),
+		lipgloss.NewStyle().MaxWidth(m.width).Render(m.list.View()),
 	)
 }
 

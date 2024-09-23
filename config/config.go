@@ -59,22 +59,31 @@ func load() (Config, error) {
 		return defaultConfig, err
 	}
 
-	newControls := reflect.ValueOf(&newConfig.Controls).Elem()
-	defaultControls := reflect.ValueOf(defaultConfig.Controls)
-	for i := 0; i < newControls.NumField(); i++ {
-		newField := newControls.Field(i).Interface().(*Key)
-		defaultField := defaultControls.Field(i)
-		if newField.IsEmpty() {
-			newControls.Field(i).Set(defaultField)
-		}
-	}
-
-	if newConfig.Controls.Quit.IsEmpty() {
-		newConfig.Controls.Quit = defaultConfig.Controls.Quit
-	}
-
 	if newConfig.VolumeStep == 0 {
 		newConfig.VolumeStep = defaultConfig.VolumeStep
+	}
+
+	if newConfig.Search == nil {
+		search := *defaultConfig.Search
+		newConfig.Search = &search
+	}
+
+	if newConfig.Controls == nil {
+		controls := *defaultConfig.Controls
+		newConfig.Controls = &controls
+	} else {
+		newControls := reflect.ValueOf(newConfig.Controls).Elem()
+		defaultControls := reflect.ValueOf(defaultConfig.Controls).Elem()
+		for i := 0; i < newControls.NumField(); i++ {
+			newField := newControls.Field(i).Interface().(*Key)
+			defaultField := defaultControls.Field(i)
+			if newField.IsEmpty() {
+				newControls.Field(i).Set(defaultField)
+			}
+		}
+		if newConfig.Controls.Quit.IsEmpty() {
+			newConfig.Controls.Quit = defaultConfig.Controls.Quit
+		}
 	}
 
 	return newConfig, nil

@@ -13,6 +13,7 @@ import (
 	"github.com/dece2183/yamusic-tui/ui/components/search"
 	"github.com/dece2183/yamusic-tui/ui/components/tracker"
 	"github.com/dece2183/yamusic-tui/ui/components/tracklist"
+	"github.com/dece2183/yamusic-tui/ui/helpers"
 	"github.com/dece2183/yamusic-tui/ui/style"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -165,7 +166,7 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			m.Send(search.UPDATE_SUGGESTIONS)
 		case tracklist.REMOVE_FROM_PLAYLIST:
 			selectedPlaylist := m.playlists.SelectedItem()
-			if selectedPlaylist.Kind == playlist.NONE || selectedPlaylist.Kind == playlist.MYWAVE {
+			if selectedPlaylist.Kind <= playlist.USER && selectedPlaylist.Kind != playlist.LIKES {
 				break
 			}
 
@@ -318,7 +319,7 @@ func (m *Model) View() string {
 	if m.playlists.Width() > 0 {
 		sidePanel = style.SideBoxStyle.Render(m.playlists.View())
 	}
-	midPanel := lipgloss.JoinVertical(lipgloss.Left, style.TrackBoxStyle.Render(m.tracklist.View()), m.tracker.View())
+	midPanel := lipgloss.JoinVertical(lipgloss.Left, m.tracklist.View(), m.tracker.View())
 	return lipgloss.JoinHorizontal(lipgloss.Bottom, sidePanel, midPanel)
 }
 
@@ -400,7 +401,7 @@ func (m *Model) initialLoad() error {
 	playlists, err := m.client.ListPlaylists()
 	if err == nil {
 		for _, pl := range playlists {
-			playlistTracks, err := m.client.PlaylistTracks(pl.Kind, false)
+			playlistTracks, err := m.client.PlaylistTracks(pl.Kind, pl.Owner.Uid, false)
 			if err != nil {
 				continue
 			}
@@ -829,14 +830,15 @@ func (m *Model) displaySearchResults(res api.SearchResult) tea.Cmd {
 
 	if len(res.Tracks.Results) > 0 {
 		playlists = append(playlists, playlist.Item{
-			Name:    "tracks",
+			Name:    "search \"" + res.Text + "\"",
 			Active:  true,
 			Subitem: true,
 			Tracks:  res.Tracks.Results,
 		})
 	}
 
-	if len(res.Artists.Results) > 0 {
+	if config.Current.Search.Artists && len(res.Artists.Results) > 0 {
+		// playlists = append(playlists, playlist.Item{Name: "", Kind: playlist.NONE, Active: false, Subitem: false})
 		for _, artist := range res.Artists.Results {
 			if !strings.Contains(strings.ToLower(artist.Name), strings.ToLower(res.Text)) {
 				continue
@@ -857,6 +859,60 @@ func (m *Model) displaySearchResults(res api.SearchResult) tea.Cmd {
 				Active:  true,
 				Subitem: true,
 				Tracks:  tracks,
+			})
+		}
+	}
+
+	if config.Current.Search.Albums && len(res.Albums.Results) > 0 {
+		// playlists = append(playlists, playlist.Item{Name: "", Kind: playlist.NONE, Active: false, Subitem: false})
+		for _, album := range res.Albums.Results {
+			if !strings.Contains(strings.ToLower(album.Title), strings.ToLower(res.Text)) {
+				continue
+			}
+
+			albumWithTracks, err := m.client.Album(album.Id, true)
+			if err != nil {
+				continue
+			}
+
+			albumArtists := helpers.ArtistList(albumWithTracks.Artists)
+			if len(albumWithTracks.Volumes) > 1 {
+				for i := range albumWithTracks.Volumes {
+					playlists = append(playlists, playlist.Item{
+						Name:    fmt.Sprintf("%s vol.%d (%s)", albumWithTracks.Title, i, albumArtists),
+						Active:  true,
+						Subitem: true,
+						Tracks:  albumWithTracks.Volumes[i],
+					})
+				}
+			} else {
+				playlists = append(playlists, playlist.Item{
+					Name:    fmt.Sprintf("%s (%s)", albumWithTracks.Title, albumArtists),
+					Active:  true,
+					Subitem: true,
+					Tracks:  albumWithTracks.Volumes[0],
+				})
+			}
+		}
+	}
+
+	if config.Current.Search.Playlists && len(res.Playlists.Results) > 0 {
+		// playlists = append(playlists, playlist.Item{Name: "", Kind: playlist.NONE, Active: false, Subitem: false})
+		for _, pl := range res.Playlists.Results {
+			if !strings.Contains(strings.ToLower(pl.Title), strings.ToLower(res.Text)) {
+				continue
+			}
+
+			playlistTracks, err := m.client.PlaylistTracks(pl.Kind, pl.Owner.Uid, false)
+			if err != nil {
+				continue
+			}
+
+			playlists = append(playlists, playlist.Item{
+				Name:    pl.Title + " by " + pl.Owner.Name,
+				Active:  true,
+				Subitem: true,
+				Tracks:  playlistTracks,
 			})
 		}
 	}

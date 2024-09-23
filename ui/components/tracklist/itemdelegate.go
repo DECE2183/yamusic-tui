@@ -84,8 +84,8 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackAddInfo)
 
 	if index == m.Index() {
-		fmt.Fprint(w, style.TrackListActiveStyle.MaxWidth(m.Width()).Render(trackTitle))
+		fmt.Fprint(w, style.TrackListActiveStyle.Render(trackTitle))
 	} else {
-		fmt.Fprint(w, style.TrackListStyle.MaxWidth(m.Width()).Render(trackTitle))
+		fmt.Fprint(w, style.TrackListStyle.Render(trackTitle))
 	}
 }

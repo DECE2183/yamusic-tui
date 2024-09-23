@@ -63,6 +63,10 @@ buffer-size-ms: 80
 rewind-duration-s: 5
 volume: 0.5
 volume-step: 0.05
+search:
+    artists: true
+    albums: false
+    playlists: false
 controls:
    quit: ctrl+q,ctrl+c
    apply: enter
