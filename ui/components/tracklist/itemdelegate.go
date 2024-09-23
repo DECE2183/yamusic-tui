@@ -64,18 +64,18 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	trackAddInfo := style.TrackAddInfoStyle.Render(trackLike + " " + trackTime)
 	addInfoLen, _ := lipgloss.Size(trackAddInfo)
 	maxLen := m.Width() - addInfoLen - 8
-	stl := lipgloss.NewStyle().MaxWidth(maxLen - 3)
+	stl := lipgloss.NewStyle().MaxWidth(maxLen - 1)
 
 	trackTitleLen, _ := lipgloss.Size(trackTitle)
 	if trackTitleLen > maxLen {
-		trackTitle = stl.Render(trackTitle) + "..."
+		trackTitle = stl.Render(trackTitle) + "…"
 	} else if trackTitleLen < maxLen {
 		trackTitle += strings.Repeat(" ", maxLen-trackTitleLen)
 	}
 
 	trackArtistLen, _ := lipgloss.Size(trackArtist)
 	if trackArtistLen > maxLen {
-		trackArtist = stl.Render(trackArtist) + "..."
+		trackArtist = stl.Render(trackArtist) + "…"
 	} else if trackArtistLen < maxLen {
 		trackArtist += strings.Repeat(" ", maxLen-trackArtistLen)
 	}

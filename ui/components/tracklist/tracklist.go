@@ -84,6 +84,7 @@ type Model struct {
 	help          help.Model
 	width, height int
 
+	Title      string
 	Shufflable bool
 }
 
@@ -91,12 +92,12 @@ func New(p *tea.Program, likesMap *map[string]bool) *Model {
 	m := &Model{
 		program: p,
 		help:    help.New(),
+		Title:   "Tracks",
 	}
 
 	controls := config.Current.Controls
 
 	m.list = list.New([]list.Item{}, ItemDelegate{likesMap: likesMap}, 512, 512)
-	m.list.Title = "Tracks"
 	m.list.Styles.Title = m.list.Styles.Title.Foreground(style.NormalTextColor).UnsetBackground().Padding(0)
 	m.list.KeyMap = list.KeyMap{
 		CursorUp:   key.NewBinding(controls.CursorUp.Binding(), controls.CursorUp.Help("up")),
@@ -112,6 +113,7 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) View() string {
+	m.list.Title = m.Title
 	helpMap.Shafflable = m.Shufflable
 	if m.help.ShowAll {
 		m.list.SetHeight(m.height - 4)

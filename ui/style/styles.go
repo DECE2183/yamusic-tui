@@ -59,13 +59,13 @@ var (
 	SideBoxStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("#444")).
-			Width(32).
+			Width(PlaylistsSidePanelWidth).
 			Padding(1, 0)
 	SideBoxItemStyle = lipgloss.NewStyle().
 				Foreground(NormalTextColor).
 				PaddingLeft(2).
-				Width(32).
-				MaxWidth(32)
+				Width(PlaylistsSidePanelWidth).
+				MaxWidth(PlaylistsSidePanelWidth)
 	SideBoxSelItemStyle = SideBoxItemStyle.
 				Foreground(ActiveTextColor).
 				Background(lipgloss.Color("#4a3c00")).

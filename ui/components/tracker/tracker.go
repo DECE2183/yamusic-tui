@@ -114,7 +114,7 @@ var rewindAmount = time.Duration(config.Current.RewindDuration) * time.Second
 
 type Model struct {
 	width    int
-	track    *api.Track
+	track    api.Track
 	progress progress.Model
 	help     help.Model
 
@@ -133,7 +133,6 @@ func New(p *tea.Program, likesMap *map[string]bool) *Model {
 		likesMap: likesMap,
 		progress: progress.New(progress.WithSolidFill(string(style.AccentColor))),
 		help:     help.New(),
-		track:    &api.Track{},
 		volume:   config.Current.Volume,
 	}
 
@@ -203,18 +202,18 @@ func (m *Model) View() string {
 	trackAddInfo := style.TrackAddInfoStyle.Render(trackLike + trackTime)
 	addInfoLen, _ := lipgloss.Size(trackAddInfo)
 	maxLen := m.Width() - addInfoLen - 4
-	stl := lipgloss.NewStyle().MaxWidth(maxLen - 3)
+	stl := lipgloss.NewStyle().MaxWidth(maxLen - 1)
 
 	trackTitleLen, _ := lipgloss.Size(trackTitle)
 	if trackTitleLen > maxLen {
-		trackTitle = stl.Render(trackTitle) + "..."
+		trackTitle = stl.Render(trackTitle) + "…"
 	} else if trackTitleLen < maxLen {
 		trackTitle += strings.Repeat(" ", maxLen-trackTitleLen)
 	}
 
 	trackArtistLen, _ := lipgloss.Size(trackArtist)
 	if trackArtistLen > maxLen {
-		trackArtist = stl.Render(trackArtist) + "..."
+		trackArtist = stl.Render(trackArtist) + "…"
 	} else if trackArtistLen < maxLen {
 		trackArtist += strings.Repeat(" ", maxLen-trackArtistLen)
 	}
@@ -355,7 +354,7 @@ func (m *Model) StartTrack(track *api.Track, reader *api.HttpReadSeeker) {
 		m.Stop()
 	}
 
-	m.track = track
+	m.track = *track
 	decoder, err := mp3.NewDecoder(reader)
 	if err != nil {
 		return
@@ -396,7 +395,7 @@ func (m *Model) IsPlaying() bool {
 }
 
 func (m *Model) CurrentTrack() *api.Track {
-	return m.track
+	return &m.track
 }
 
 func (m *Model) Play() {

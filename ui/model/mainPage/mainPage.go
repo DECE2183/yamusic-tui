@@ -125,11 +125,13 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg {
 		case playlist.CURSOR_UP, playlist.CURSOR_DOWN:
 			selectedPlaylist := m.playlists.SelectedItem()
-			currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
 
-			if selectedPlaylist.IsSame(currentPlaylist) && len(selectedPlaylist.Tracks) > 0 {
-				selectedPlaylist.SelectedTrack = selectedPlaylist.CurrentTrack
-				m.playlists.SetItem(m.playlists.Index(), selectedPlaylist)
+			if m.currentPlaylistIndex >= 0 {
+				currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
+				if selectedPlaylist.IsSame(currentPlaylist) && len(selectedPlaylist.Tracks) > 0 {
+					selectedPlaylist.SelectedTrack = selectedPlaylist.CurrentTrack
+					m.playlists.SetItem(m.playlists.Index(), selectedPlaylist)
+				}
 			}
 
 			m.displayPlaylist(selectedPlaylist)
@@ -180,8 +182,17 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				if err != nil {
 					break
 				}
+				playlists := m.playlists.Items()
+				if m.currentPlaylistIndex >= 0 {
+					currentPlaylist := playlists[m.currentPlaylistIndex]
+					if selectedPlaylist.IsSame(currentPlaylist) && m.tracker.IsPlaying() {
+						m.currentPlaylistIndex = -1
+					}
+				}
 				m.playlists.RemoveItem(m.playlists.Index())
-				m.playlists.Select(0)
+				if len(playlists) <= 1 {
+					m.playlists.Select(0)
+				}
 				m.displayPlaylist(m.playlists.SelectedItem())
 				break
 			}
@@ -197,9 +208,11 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			m.playlists.SetItem(m.playlists.Index(), selectedPlaylist)
 			m.displayPlaylist(selectedPlaylist)
 
-			currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
-			if selectedPlaylist.IsSame(currentPlaylist) && m.tracker.IsPlaying() {
-				m.indicateCurrentTrackPlaying(true)
+			if m.currentPlaylistIndex >= 0 {
+				currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
+				if selectedPlaylist.IsSame(currentPlaylist) && m.tracker.IsPlaying() {
+					m.indicateCurrentTrackPlaying(true)
+				}
 			}
 		case tracklist.SEARCH:
 			m.isSearchActive = true
@@ -237,9 +250,11 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			m.tracklist.SetItems(trackList)
 			m.tracklist.Select(selectedTrackIndex)
 
-			currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
-			if selectedPlaylist.IsSame(currentPlaylist) && m.tracker.IsPlaying() {
-				m.indicateCurrentTrackPlaying(true)
+			if m.currentPlaylistIndex >= 0 {
+				currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
+				if selectedPlaylist.IsSame(currentPlaylist) && m.tracker.IsPlaying() {
+					m.indicateCurrentTrackPlaying(true)
+				}
 			}
 		case tracklist.SHARE:
 			track := m.tracklist.SelectedItem().Track
@@ -299,7 +314,10 @@ func (m *Model) View() string {
 		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, m.addPlaylist.View())
 	}
 
-	sidePanel := style.SideBoxStyle.Render(m.playlists.View())
+	var sidePanel string
+	if m.playlists.Width() > 0 {
+		sidePanel = style.SideBoxStyle.Render(m.playlists.View())
+	}
 	midPanel := lipgloss.JoinVertical(lipgloss.Left, style.TrackBoxStyle.Render(m.tracklist.View()), m.tracker.View())
 	return lipgloss.JoinHorizontal(lipgloss.Bottom, sidePanel, midPanel)
 }
@@ -310,7 +328,11 @@ func (m *Model) View() string {
 
 func (m *Model) resize(width, height int) {
 	m.width, m.height = width, height
-	m.playlists.SetSize(style.PlaylistsSidePanelWidth, height-4)
+	if m.width > style.PlaylistsSidePanelWidth*3 {
+		m.playlists.SetSize(style.PlaylistsSidePanelWidth, height-4)
+	} else {
+		m.playlists.SetSize(0, height-4)
+	}
 	m.tracklist.SetSize(m.width-m.playlists.Width()-4, height-14)
 	m.tracker.SetWidth(m.width - m.playlists.Width() - 4)
 
@@ -407,6 +429,14 @@ func (m *Model) displayPlaylist(pl playlist.Item) {
 	}
 	m.tracklist.SetItems(trackList)
 	m.tracklist.Select(pl.SelectedTrack)
+	switch pl.Kind {
+	case playlist.MYWAVE:
+		m.tracklist.Title = "My wave"
+	case playlist.LIKES:
+		m.tracklist.Title = "Liked tracks"
+	default:
+		m.tracklist.Title = "Tracks from " + pl.Name
+	}
 }
 
 func (m *Model) searchControl(msg search.Control) tea.Cmd {
@@ -461,10 +491,14 @@ func (m *Model) addPlaylistControl(msg search.Control) tea.Cmd {
 		foundPlaylistIndex := -1
 		var foundPlaylist *playlist.Item
 		for i := range playlists {
-			if playlists[i].Active && playlists[i].Kind >= playlist.USER && strings.EqualFold(playlists[i].Name, inputVal) {
-				foundPlaylist = &playlists[i]
-				foundPlaylistIndex = i
-				break
+			if playlists[i].Active && playlists[i].Kind >= playlist.USER {
+				if strings.EqualFold(playlists[i].Name, inputVal) {
+					foundPlaylist = &playlists[i]
+					foundPlaylistIndex = i
+					break
+				} else if foundPlaylistIndex < 0 {
+					foundPlaylistIndex = i
+				}
 			}
 		}
 
@@ -474,7 +508,6 @@ func (m *Model) addPlaylistControl(msg search.Control) tea.Cmd {
 				return nil
 			}
 
-			foundPlaylistIndex = len(playlists)
 			foundPlaylist = &playlist.Item{
 				Name:     pl.Title,
 				Kind:     pl.Kind,
@@ -484,6 +517,9 @@ func (m *Model) addPlaylistControl(msg search.Control) tea.Cmd {
 			}
 
 			m.playlists.InsertItem(foundPlaylistIndex, *foundPlaylist)
+			if foundPlaylistIndex < m.playlists.Index() {
+				m.playlists.Select(m.playlists.Index() + 1)
+			}
 		}
 
 		if selectedPlaylist.Kind == foundPlaylist.Kind {
@@ -520,8 +556,11 @@ func (m *Model) addPlaylistControl(msg search.Control) tea.Cmd {
 }
 
 func (m *Model) prevTrack() {
-	currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
+	if m.currentPlaylistIndex < 0 {
+		return
+	}
 
+	currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
 	if len(currentPlaylist.Tracks) == 0 || currentPlaylist.CurrentTrack == 0 {
 		m.Send(tracker.STOP)
 		return
@@ -540,8 +579,11 @@ func (m *Model) prevTrack() {
 }
 
 func (m *Model) nextTrack() {
-	currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
+	if m.currentPlaylistIndex < 0 {
+		return
+	}
 
+	currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
 	if len(currentPlaylist.Tracks) == 0 {
 		m.Send(tracker.STOP)
 		return
@@ -627,37 +669,41 @@ func (m *Model) playTrack(track *api.Track) {
 	m.indicateCurrentTrackPlaying(true)
 	m.tracker.StartTrack(track, trackReader)
 
-	currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
-	if currentPlaylist.Infinite {
-		go m.client.StationFeedback(
-			api.ROTOR_TRACK_STARTED,
-			currentPlaylist.StationId,
-			currentPlaylist.StationBatch,
-			track.Id,
-			0,
-		)
+	if m.currentPlaylistIndex >= 0 {
+		currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
+		if currentPlaylist.Infinite {
+			go m.client.StationFeedback(
+				api.ROTOR_TRACK_STARTED,
+				currentPlaylist.StationId,
+				currentPlaylist.StationBatch,
+				track.Id,
+				0,
+			)
+		}
 	}
 
 	go m.client.PlayTrack(track, false)
 }
 
 func (m *Model) playSelectedPlaylist(trackIndex int) {
-	currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
 	selectedPlaylist := m.playlists.SelectedItem()
-
 	if len(selectedPlaylist.Tracks) == 0 {
 		m.Send(tracker.STOP)
 		return
 	}
+
 	trackToPlay := &selectedPlaylist.Tracks[selectedPlaylist.SelectedTrack]
 
-	if currentPlaylist.IsSame(selectedPlaylist) && m.tracker.CurrentTrack() == trackToPlay {
-		if m.tracker.IsPlaying() {
-			m.tracker.Pause()
-			return
-		} else {
-			m.tracker.Play()
-			return
+	if m.currentPlaylistIndex >= 0 {
+		currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
+		if currentPlaylist.IsSame(selectedPlaylist) && m.tracker.CurrentTrack().Id == trackToPlay.Id {
+			if m.tracker.IsPlaying() {
+				m.tracker.Pause()
+				return
+			} else {
+				m.tracker.Play()
+				return
+			}
 		}
 	}
 
@@ -703,6 +749,10 @@ func (m *Model) likePlayingTrack() tea.Cmd {
 }
 
 func (m *Model) likeSelectedTrack() tea.Cmd {
+	if m.currentPlaylistIndex < 0 {
+		return nil
+	}
+
 	currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
 	if len(currentPlaylist.Tracks) == 0 {
 		return nil
@@ -750,6 +800,9 @@ func (m *Model) likeTrack(track *api.Track) tea.Cmd {
 }
 
 func (m *Model) indicateCurrentTrackPlaying(playing bool) {
+	if m.currentPlaylistIndex < 0 {
+		return
+	}
 	currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
 	if currentPlaylist.IsSame(m.playlists.SelectedItem()) && currentPlaylist.CurrentTrack < len(m.tracklist.Items()) {
 		track := m.tracklist.Items()[currentPlaylist.CurrentTrack]
