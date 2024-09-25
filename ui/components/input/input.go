@@ -1,6 +1,8 @@
 package input
 
 import (
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -12,19 +14,50 @@ import (
 type Control uint
 
 const (
-	SELECT Control = iota
+	APPLY Control = iota
 	CANCEL
 )
 
+type helpKeyMap struct {
+	apply  key.Binding
+	cancel key.Binding
+}
+
+func (k helpKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.apply, k.cancel}
+}
+
+func (k helpKeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		k.ShortHelp(),
+	}
+}
+
+var helpMap = helpKeyMap{
+	apply: key.NewBinding(
+		config.Current.Controls.Apply.Binding(),
+		config.Current.Controls.Apply.Help("apply"),
+	),
+	cancel: key.NewBinding(
+		config.Current.Controls.Cancel.Binding(),
+		config.Current.Controls.Cancel.Help("cancel"),
+	),
+}
+
 type Model struct {
-	input         textinput.Model
-	width, height int
-	value         string
+	input textinput.Model
+	help  help.Model
+	width int
+	value string
+
+	Title string
 }
 
 func New() *Model {
-	m := &Model{}
-	m.input = textinput.New()
+	m := &Model{
+		input: textinput.New(),
+		help:  help.New(),
+	}
 	m.input.Focus()
 	return m
 }
@@ -34,9 +67,12 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) View() string {
+	title := style.DialogTitleStyle.Render(m.Title)
+	content := lipgloss.JoinVertical(lipgloss.Left, title, m.input.View())
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
-		style.DialogBoxStyle.MaxWidth(m.width).Render(m.input.View()),
+		style.DialogBoxStyle.Render(content),
+		style.DialogHelpStyle.Render(m.help.View(helpMap)),
 	)
 }
 
@@ -53,7 +89,7 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 
 		switch {
 		case controls.Apply.Contains(keypress):
-			cmds = append(cmds, model.Cmd(SELECT))
+			cmds = append(cmds, model.Cmd(APPLY))
 			m.value = m.input.Value()
 			m.input.Reset()
 		case controls.Cancel.Contains(keypress):
@@ -72,12 +108,15 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m *Model) SetSize(w, h int) {
+func (m *Model) SetWidth(w int) {
 	m.width = w
-	m.height = h
 	m.input.Width = w - 9
 }
 
 func (m *Model) Value() string {
 	return m.value
+}
+
+func (m *Model) SetValue(val string) {
+	m.input.SetValue(val)
 }

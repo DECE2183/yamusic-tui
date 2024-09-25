@@ -33,12 +33,12 @@ The easiest way to get a token is to use this
     - [ ] Liked playlists
     - [ ] Liked artists
     - [ ] Liked albums
- - [ ] Playlists
+ - [x] Playlists
     - [x] Display user playlists
     - [x] Play from playlist
     - [x] Add/remove track to playlist
     - [x] Create/remove playlist
-    - [ ] Rename playlist
+    - [x] Rename playlist
  - [ ] Caching
  - [x] Search
  - [ ] Landing
@@ -76,6 +76,7 @@ controls:
    show-all-keys: ?
    playlists-up: ctrl+up
    playlists-down: ctrl+down
+   playlists-rename: ctrl+r
    tracks-like: l
    tracks-add-to-playlist: a
    tracks-remove-from-playlist: ctrl+a

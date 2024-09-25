@@ -248,6 +248,13 @@ func (client *YaMusicClient) CreatePlaylist(name string, public bool) (playlist 
 	return
 }
 
+func (client *YaMusicClient) RenamePlaylist(kind uint64, newName string) (playlist Playlist, err error) {
+	playlist, _, err = postRequest[Playlist](client.token, fmt.Sprintf("/users/%d/playlists/%d/name", client.userid, kind), url.Values{
+		"value": {newName},
+	})
+	return
+}
+
 func (client *YaMusicClient) RemovePlaylist(kind uint64) error {
 	_, _, err := postRequest[string](client.token, fmt.Sprintf("/users/%d/playlists/%d/delete", client.userid, kind), nil)
 	return err

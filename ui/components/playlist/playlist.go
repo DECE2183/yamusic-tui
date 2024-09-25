@@ -5,9 +5,11 @@ import (
 	"github.com/dece2183/yamusic-tui/ui/model"
 	"github.com/dece2183/yamusic-tui/ui/style"
 
+	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type Control uint
@@ -15,6 +17,7 @@ type Control uint
 const (
 	CURSOR_UP Control = iota
 	CURSOR_DOWN
+	RENAME
 )
 
 type PlaylistType = uint64
@@ -27,17 +30,47 @@ const (
 	USER
 )
 
-var additionalKeyBindigs = []key.Binding{}
+type helpKeyMap struct {
+	CursorUp   key.Binding
+	CursorDown key.Binding
+	Rename     key.Binding
+	Renamable  bool
+}
+
+func (k helpKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.CursorUp, k.CursorDown}
+}
+
+func (k helpKeyMap) FullHelp() [][]key.Binding {
+	if k.Renamable {
+		return [][]key.Binding{
+			k.ShortHelp(),
+			{k.Rename},
+		}
+	} else {
+		return [][]key.Binding{
+			k.ShortHelp(),
+		}
+	}
+}
+
+var helpMap = helpKeyMap{
+	CursorUp:   key.NewBinding(config.Current.Controls.PlaylistsUp.Binding(), config.Current.Controls.PlaylistsUp.Help("up")),
+	CursorDown: key.NewBinding(config.Current.Controls.PlaylistsDown.Binding(), config.Current.Controls.PlaylistsDown.Help("down")),
+	Rename:     key.NewBinding(config.Current.Controls.PlaylistsRename.Binding(), config.Current.Controls.PlaylistsRename.Help("rename")),
+}
 
 type Model struct {
 	program       *tea.Program
 	list          list.Model
+	help          help.Model
 	width, height int
 }
 
 func New(p *tea.Program, title string) *Model {
 	m := &Model{
 		program: p,
+		help:    help.New(),
 	}
 
 	playlistItems := []list.Item{
@@ -58,13 +91,9 @@ func New(p *tea.Program, title string) *Model {
 		CursorUp:   key.NewBinding(controls.PlaylistsUp.Binding(), controls.PlaylistsUp.Help("up")),
 		CursorDown: key.NewBinding(controls.PlaylistsDown.Binding(), controls.PlaylistsDown.Help("down")),
 	}
-	m.list.AdditionalShortHelpKeys = m.keymap
+	m.list.SetShowHelp(false)
 
 	return m
-}
-
-func (m *Model) keymap() []key.Binding {
-	return additionalKeyBindigs
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -72,7 +101,14 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) View() string {
-	return m.list.View()
+	helpMap.Renamable = m.SelectedItem().Kind >= USER
+	if m.help.ShowAll {
+		m.list.SetHeight(m.height - 3)
+	} else {
+		m.list.SetHeight(m.height - 2)
+	}
+	hp := lipgloss.NewStyle().PaddingLeft(2).MaxWidth(m.width - 2).Render(m.help.View(helpMap))
+	return style.SideBoxStyle.Render(lipgloss.JoinVertical(lipgloss.Left, m.list.View(), "", hp))
 }
 
 func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
@@ -87,6 +123,8 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 		keypress := msg.String()
 
 		switch {
+		case controls.ShowAllKeys.Contains(keypress):
+			m.help.ShowAll = !m.help.ShowAll
 		case controls.PlaylistsUp.Contains(keypress):
 			m.list, cmd = m.list.Update(msg)
 
@@ -105,6 +143,8 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 
 			cmds = append(cmds, cmd)
 			cmds = append(cmds, model.Cmd(CURSOR_DOWN))
+		case controls.PlaylistsRename.Contains(keypress):
+			cmds = append(cmds, model.Cmd(RENAME))
 		}
 	}
 

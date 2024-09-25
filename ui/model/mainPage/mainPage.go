@@ -9,6 +9,7 @@ import (
 
 	"github.com/dece2183/yamusic-tui/api"
 	"github.com/dece2183/yamusic-tui/config"
+	"github.com/dece2183/yamusic-tui/ui/components/input"
 	"github.com/dece2183/yamusic-tui/ui/components/playlist"
 	"github.com/dece2183/yamusic-tui/ui/components/search"
 	"github.com/dece2183/yamusic-tui/ui/components/tracker"
@@ -27,14 +28,16 @@ type Model struct {
 	client        *api.YaMusicClient
 	width, height int
 
-	playlists   *playlist.Model
-	tracklist   *tracklist.Model
-	tracker     *tracker.Model
-	search      *search.Model
-	addPlaylist *search.Model
+	playlists      *playlist.Model
+	tracklist      *tracklist.Model
+	tracker        *tracker.Model
+	search         *search.Model
+	addPlaylist    *search.Model
+	renamePlaylist *input.Model
 
-	isSearchActive      bool
-	isAddPlaylistActive bool
+	isSearchActive         bool
+	isAddPlaylistActive    bool
+	isRenamePlaylistActive bool
 
 	currentPlaylistIndex int
 	likedTracksMap       map[string]bool
@@ -53,6 +56,7 @@ func New() *Model {
 	m.tracker = tracker.New(m.program, &m.likedTracksMap)
 	m.search = search.New("Search", "search")
 	m.addPlaylist = search.New("Add to playlist", "add")
+	m.renamePlaylist = input.New()
 
 	return m
 }
@@ -112,6 +116,9 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case m.isAddPlaylistActive:
 			m.addPlaylist, cmd = m.addPlaylist.Update(message)
 			cmds = append(cmds, cmd)
+		case m.isRenamePlaylistActive:
+			m.renamePlaylist, cmd = m.renamePlaylist.Update(message)
+			cmds = append(cmds, cmd)
 		default:
 			m.playlists, cmd = m.playlists.Update(message)
 			cmds = append(cmds, cmd)
@@ -142,6 +149,14 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			m.tracklist.Shufflable = (selectedPlaylist.Kind != playlist.NONE && selectedPlaylist.Kind != playlist.MYWAVE && len(selectedPlaylist.Tracks) > 0)
+		case playlist.RENAME:
+			selectedPlaylist := m.playlists.SelectedItem()
+			if selectedPlaylist.Kind < playlist.USER {
+				break
+			}
+			m.renamePlaylist.Title = "Rename playlist " + selectedPlaylist.Name
+			m.renamePlaylist.SetValue(selectedPlaylist.Name)
+			m.isRenamePlaylistActive = true
 		}
 
 	// tracklist control update
@@ -288,12 +303,21 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, cmd)
 		}
 
+	// input dialog control update
+	case input.Control:
+		m.isRenamePlaylistActive = false
+		cmd = m.renamePlaylistControl(msg)
+		cmds = append(cmds, cmd)
+
 	default:
 		if m.isSearchActive {
 			m.search, cmd = m.search.Update(message)
 			cmds = append(cmds, cmd)
 		} else if m.isAddPlaylistActive {
 			m.addPlaylist, cmd = m.addPlaylist.Update(message)
+			cmds = append(cmds, cmd)
+		} else if m.isRenamePlaylistActive {
+			m.renamePlaylist, cmd = m.renamePlaylist.Update(message)
 			cmds = append(cmds, cmd)
 		} else {
 			m.playlists, cmd = m.playlists.Update(message)
@@ -313,11 +337,13 @@ func (m *Model) View() string {
 		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, m.search.View())
 	} else if m.isAddPlaylistActive {
 		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, m.addPlaylist.View())
+	} else if m.isRenamePlaylistActive {
+		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, m.renamePlaylist.View())
 	}
 
 	var sidePanel string
 	if m.playlists.Width() > 0 {
-		sidePanel = style.SideBoxStyle.Render(m.playlists.View())
+		sidePanel = m.playlists.View()
 	}
 	midPanel := lipgloss.JoinVertical(lipgloss.Left, m.tracklist.View(), m.tracker.View())
 	return lipgloss.JoinHorizontal(lipgloss.Bottom, sidePanel, midPanel)
@@ -344,6 +370,7 @@ func (m *Model) resize(width, height int) {
 
 	m.search.SetSize(searchWidth, height-4)
 	m.addPlaylist.SetSize(searchWidth, height-4)
+	m.renamePlaylist.SetWidth(searchWidth)
 }
 
 func (m *Model) initialLoad() error {
@@ -552,6 +579,31 @@ func (m *Model) addPlaylistControl(msg search.Control) tea.Cmd {
 		}
 		m.addPlaylist.SetSuggestions(suggestions)
 	}
+
+	return cmd
+}
+
+func (m *Model) renamePlaylistControl(msg input.Control) tea.Cmd {
+	var cmd tea.Cmd
+
+	if msg != input.APPLY {
+		return nil
+	}
+
+	newName := m.renamePlaylist.Value()
+	if len(strings.ReplaceAll(newName, " ", "")) == 0 {
+		return nil
+	}
+
+	selectedPlaylist := m.playlists.SelectedItem()
+	_, err := m.client.RenamePlaylist(selectedPlaylist.Kind, newName)
+	if err != nil {
+		return nil
+	}
+
+	selectedPlaylist.Name = newName
+	selectedPlaylist.Revision++
+	m.playlists.SetItem(m.playlists.Index(), selectedPlaylist)
 
 	return cmd
 }

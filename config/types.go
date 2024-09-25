@@ -9,8 +9,9 @@ type Controls struct {
 	CursorDown  *Key `yaml:"cursor-down"`
 	ShowAllKeys *Key `yaml:"show-all-kyes"`
 	// Playlists control
-	PlaylistsUp   *Key `yaml:"playlists-up"`
-	PlaylistsDown *Key `yaml:"playlists-down"`
+	PlaylistsUp     *Key `yaml:"playlists-up"`
+	PlaylistsDown   *Key `yaml:"playlists-down"`
+	PlaylistsRename *Key `yaml:"playlists-rename"`
 	// Track list control
 	TracksLike               *Key `yaml:"tracks-like"`
 	TracksAddToPlaylist      *Key `yaml:"tracks-add-to-playlist"`
@@ -64,6 +65,7 @@ var defaultConfig = Config{
 		ShowAllKeys:              NewKey("?"),
 		PlaylistsUp:              NewKey("ctrl+up"),
 		PlaylistsDown:            NewKey("ctrl+down"),
+		PlaylistsRename:          NewKey("ctrl+r"),
 		TracksLike:               NewKey("l"),
 		TracksAddToPlaylist:      NewKey("a"),
 		TracksRemoveFromPlaylist: NewKey("ctrl+a"),

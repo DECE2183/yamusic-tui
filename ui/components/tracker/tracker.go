@@ -49,8 +49,6 @@ type helpKeyMap struct {
 	Backward   key.Binding
 	VolUp      key.Binding
 	VolDown    key.Binding
-	ShowHelp   key.Binding
-	CloseHelp  key.Binding
 }
 
 var helpMap = helpKeyMap{
@@ -86,18 +84,10 @@ var helpMap = helpKeyMap{
 		config.Current.Controls.PlayerVolDown.Binding(),
 		config.Current.Controls.PlayerVolDown.Help("vol down"),
 	),
-	ShowHelp: key.NewBinding(
-		config.Current.Controls.ShowAllKeys.Binding(),
-		config.Current.Controls.ShowAllKeys.Help("show keys"),
-	),
-	CloseHelp: key.NewBinding(
-		config.Current.Controls.ShowAllKeys.Binding(),
-		config.Current.Controls.ShowAllKeys.Help("hide"),
-	),
 }
 
 func (k helpKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.PlayPause, k.NextTrack, k.PrevTrack, k.LikeUnlike, k.ShowHelp}
+	return []key.Binding{k.PlayPause, k.NextTrack, k.PrevTrack, k.LikeUnlike}
 }
 
 func (k helpKeyMap) FullHelp() [][]key.Binding {
@@ -106,7 +96,6 @@ func (k helpKeyMap) FullHelp() [][]key.Binding {
 		{k.NextTrack, k.PrevTrack},
 		{k.Forward, k.Backward},
 		{k.VolUp, k.VolDown},
-		{k.CloseHelp},
 	}
 }
 
@@ -167,9 +156,9 @@ func (m *Model) Init() tea.Cmd {
 func (m *Model) View() string {
 	var playButton string
 	if m.IsPlaying() {
-		playButton = style.ActiveButtonStyle.Padding(0, 1).Margin(0).Render(style.IconStop)
-	} else {
 		playButton = style.ActiveButtonStyle.Padding(0, 1).Margin(0).Render(style.IconPlay)
+	} else {
+		playButton = style.ActiveButtonStyle.Padding(0, 1).Margin(0).Render(style.IconStop)
 	}
 
 	var trackTitle string
