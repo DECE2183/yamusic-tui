@@ -2,7 +2,6 @@ package input
 
 import (
 	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -18,45 +17,23 @@ const (
 	CANCEL
 )
 
-type helpKeyMap struct {
-	apply  key.Binding
-	cancel key.Binding
-}
-
-func (k helpKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.apply, k.cancel}
-}
-
-func (k helpKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		k.ShortHelp(),
-	}
-}
-
-var helpMap = helpKeyMap{
-	apply: key.NewBinding(
-		config.Current.Controls.Apply.Binding(),
-		config.Current.Controls.Apply.Help("apply"),
-	),
-	cancel: key.NewBinding(
-		config.Current.Controls.Cancel.Binding(),
-		config.Current.Controls.Cancel.Help("cancel"),
-	),
-}
-
 type Model struct {
-	input textinput.Model
-	help  help.Model
-	width int
-	value string
+	input    textinput.Model
+	help     help.Model
+	helpKeys *helpKeyMap
+	width    int
+	value    string
 
-	Title string
+	Title  string
+	Action string
 }
 
 func New() *Model {
 	m := &Model{
-		input: textinput.New(),
-		help:  help.New(),
+		input:    textinput.New(),
+		help:     help.New(),
+		helpKeys: newHelpMap(),
+		Action:   "apply",
 	}
 	m.input.Focus()
 	return m
@@ -67,12 +44,13 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) View() string {
+	m.helpKeys.Action = m.Action
 	title := style.DialogTitleStyle.Render(m.Title)
 	content := lipgloss.JoinVertical(lipgloss.Left, title, m.input.View())
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
 		style.DialogBoxStyle.Render(content),
-		style.DialogHelpStyle.Render(m.help.View(helpMap)),
+		style.DialogHelpStyle.Render(m.help.View(m.helpKeys)),
 	)
 }
 

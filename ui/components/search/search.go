@@ -29,8 +29,6 @@ const (
 )
 
 type Model struct {
-	header               string
-	actionHelp           string
 	list                 list.Model
 	input                textinput.Model
 	width, height        int
@@ -38,16 +36,19 @@ type Model struct {
 	updated              bool
 	lastUpdateTime       time.Time
 	additionalKeyBindigs []key.Binding
+
+	Title  string
+	Action string
 }
 
-func New(header, action string) *Model {
+func New() *Model {
 	m := &Model{
-		header:     header,
-		actionHelp: action,
 		additionalKeyBindigs: []key.Binding{
-			key.NewBinding(config.Current.Controls.Apply.Binding(), config.Current.Controls.Apply.Help(action)),
+			key.NewBinding(config.Current.Controls.Apply.Binding(), config.Current.Controls.Apply.Help("search")),
 			key.NewBinding(config.Current.Controls.Cancel.Binding(), config.Current.Controls.Cancel.Help("cancel")),
 		},
+		Title:  "Search",
+		Action: "search",
 	}
 
 	controls := config.Current.Controls
@@ -76,9 +77,10 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) View() string {
+	m.additionalKeyBindigs[0].SetHelp(m.additionalKeyBindigs[0].Help().Key, m.Action)
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
-		style.AccentTextStyle.MaxWidth(m.width).MarginBottom(1).Render(m.header),
+		style.AccentTextStyle.MaxWidth(m.width).MarginBottom(1).Render(m.Title),
 		style.DialogBoxStyle.MaxWidth(m.width).Render(m.input.View()),
 		lipgloss.NewStyle().MaxWidth(m.width).Render(m.list.View()),
 	)
