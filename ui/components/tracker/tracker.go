@@ -30,6 +30,8 @@ const (
 	NEXT
 	PREV
 	LIKE
+	REWIND
+	VOLUME
 	_UNEXPECTED_STOP
 )
 
@@ -184,15 +186,19 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 			}
 			if m.player.IsPlaying() {
 				m.Pause()
+				cmds = append(cmds, model.Cmd(PAUSE))
 			} else {
 				m.Play()
+				cmds = append(cmds, model.Cmd(PLAY))
 			}
 
 		case controls.PlayerRewindForward.Contains(keypress):
-			m.rewind(rewindAmount)
+			m.Rewind(rewindAmount)
+			cmds = append(cmds, model.Cmd(REWIND))
 
 		case controls.PlayerRewindBackward.Contains(keypress):
-			m.rewind(-rewindAmount)
+			m.Rewind(-rewindAmount)
+			cmds = append(cmds, model.Cmd(REWIND))
 
 		case controls.PlayerNext.Contains(keypress):
 			cmds = append(cmds, model.Cmd(NEXT))
@@ -207,11 +213,13 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 			m.SetVolume(m.volume + config.Current.VolumeStep)
 			config.Current.Volume = m.volume
 			config.Save()
+			cmds = append(cmds, model.Cmd(VOLUME))
 
 		case controls.PlayerVolDown.Contains(keypress):
 			m.SetVolume(m.volume - config.Current.VolumeStep)
 			config.Current.Volume = m.volume
 			config.Save()
+			cmds = append(cmds, model.Cmd(VOLUME))
 
 		}
 
@@ -252,12 +260,12 @@ func (m *Model) Width() int {
 	return m.width
 }
 
-func (m *Model) SetProgress(p float64) tea.Cmd {
-	return m.progress.SetPercent(p)
-}
-
 func (m *Model) Progress() float64 {
 	return m.progress.Percent()
+}
+
+func (m *Model) Position() time.Duration {
+	return time.Duration(float64(m.trackWrapper.trackDurationMs)*m.trackWrapper.trackReader.Progress()) * time.Millisecond
 }
 
 func (m *Model) SetVolume(v float64) {
@@ -323,6 +331,10 @@ func (m *Model) IsPlaying() bool {
 	return m.player != nil && m.trackWrapper.trackReader != nil && m.player.IsPlaying()
 }
 
+func (m *Model) IsStoped() bool {
+	return m.player == nil || m.trackWrapper.trackReader == nil
+}
+
 func (m *Model) CurrentTrack() *api.Track {
 	return &m.track
 }
@@ -347,7 +359,7 @@ func (m *Model) Pause() {
 	m.player.Pause()
 }
 
-func (m *Model) rewind(amount time.Duration) {
+func (m *Model) Rewind(amount time.Duration) {
 	if m.player == nil || m.trackWrapper == nil {
 		go m.program.Send(STOP)
 		return
@@ -370,6 +382,20 @@ func (m *Model) rewind(amount time.Duration) {
 	}
 }
 
+func (m *Model) SetPos(pos time.Duration) {
+	if m.player == nil || m.trackWrapper == nil {
+		go m.program.Send(STOP)
+		return
+	}
+
+	posMs := pos.Milliseconds()
+	byteOffset := int64(math.Round((float64(m.trackWrapper.trackReader.Length()) / float64(m.trackWrapper.trackDurationMs)) * float64(posMs)))
+
+	// align position by 4 bytes
+	byteOffset += byteOffset % 4
+	m.player.Seek(byteOffset, io.SeekStart)
+}
+
 func (m *Model) restartTrack() {
 	m.player.Close()
 
@@ -385,5 +411,5 @@ func (m *Model) restartTrack() {
 
 	progress := m.trackWrapper.trackReader.Progress()
 	m.trackWrapper.trackReader.Seek(0, io.SeekStart)
-	m.rewind(time.Duration(float64(m.trackWrapper.trackDurationMs)*progress) * time.Millisecond)
+	m.Rewind(time.Duration(float64(m.trackWrapper.trackDurationMs)*progress) * time.Millisecond)
 }

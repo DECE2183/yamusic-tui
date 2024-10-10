@@ -3,9 +3,14 @@ package mainpage
 import (
 	"fmt"
 	"net/url"
+	"os"
+	"path/filepath"
+	"time"
 
 	"github.com/dece2183/yamusic-tui/api"
 	"github.com/dece2183/yamusic-tui/config"
+	"github.com/dece2183/yamusic-tui/media"
+	"github.com/dece2183/yamusic-tui/media/handler"
 	"github.com/dece2183/yamusic-tui/ui/components/input"
 	"github.com/dece2183/yamusic-tui/ui/components/playlist"
 	"github.com/dece2183/yamusic-tui/ui/components/search"
@@ -22,6 +27,7 @@ import (
 type Model struct {
 	program       *tea.Program
 	client        *api.YaMusicClient
+	mediaHandler  handler.MediaHandler
 	width, height int
 
 	playlists    *playlist.Model
@@ -44,6 +50,7 @@ func New() *Model {
 
 	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
 	m.program = p
+	m.mediaHandler = media.NewHandler(config.ConfigPath, "Yandex music terminal client")
 	m.likedTracksMap = make(map[string]bool)
 
 	m.playlists = playlist.New(m.program, "YaMusic")
@@ -69,6 +76,10 @@ func (m *Model) Run() error {
 	if err != nil {
 		return err
 	}
+
+	m.mediaHandler.Enable()
+	defer m.mediaHandler.Disable()
+	go m.mediaHandle()
 
 	_, err = m.program.Run()
 	return err
@@ -187,8 +198,7 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			cmd = m.shufflePlaylist(m.playlists.SelectedItem())
 			cmds = append(cmds, cmd)
 		case tracklist.SHARE:
-			track := m.tracklist.SelectedItem().Track
-			link := fmt.Sprintf("https://music.yandex.ru/album/%d/track/%s", track.Albums[0].Id, track.Id)
+			link := api.ShareTrackLink(m.tracklist.SelectedItem().Track)
 			clipboard.Write(clipboard.FmtText, []byte(link))
 		}
 
@@ -202,6 +212,14 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case tracker.LIKE:
 			cmd = m.likePlayingTrack()
 			cmds = append(cmds, cmd)
+		case tracker.PLAY, tracker.PAUSE:
+			m.mediaHandler.OnPlayPause()
+		case tracker.STOP:
+			m.mediaHandler.OnEnded()
+		case tracker.REWIND:
+			m.mediaHandler.OnSeek(m.tracker.Position())
+		case tracker.VOLUME:
+			m.mediaHandler.OnVolume()
 		}
 
 		m.tracker, cmd = m.tracker.Update(message)
@@ -356,4 +374,109 @@ func (m *Model) initialLoad() error {
 	m.Send(playlist.CURSOR_UP)
 
 	return nil
+}
+
+func (m *Model) mediaHandle() {
+	for msg := range m.mediaHandler.Message() {
+		switch msg.Type {
+		case handler.MSG_NEXT:
+			m.Send(tracker.NEXT)
+		case handler.MSG_PREVIOUS:
+			m.Send(tracker.PREV)
+		case handler.MSG_PLAY:
+			m.tracker.Play()
+			m.Send(tracker.PLAY)
+		case handler.MSG_PAUSE:
+			m.tracker.Pause()
+			m.Send(tracker.PAUSE)
+		case handler.MSG_PLAYPAUSE:
+			if m.tracker.IsPlaying() {
+				m.tracker.Pause()
+				m.Send(tracker.PAUSE)
+			} else {
+				m.tracker.Play()
+				m.Send(tracker.PLAY)
+			}
+		case handler.MSG_STOP:
+			m.Send(tracker.STOP)
+		case handler.MSG_SEEK:
+			offset, ok := msg.Arg.(time.Duration)
+			if ok {
+				m.tracker.Rewind(offset)
+			}
+		case handler.MSG_SETPOS:
+			pos, ok := msg.Arg.(time.Duration)
+			if ok {
+				m.tracker.SetPos(pos)
+			}
+
+		case handler.MSG_SET_SHUFFLE:
+			val, ok := msg.Arg.(bool)
+			if !ok || !val {
+				break
+			}
+			currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
+			if len(currentPlaylist.Tracks) == 0 {
+				break
+			}
+			if currentPlaylist.Kind >= playlist.LIKES {
+				cmd := m.shufflePlaylist(currentPlaylist)
+				m.Send(func() tea.Cmd {
+					return cmd
+				})
+			}
+		case handler.MSG_SET_VOLUME:
+			vol, ok := msg.Arg.(float64)
+			if ok {
+				m.tracker.SetVolume(vol)
+			}
+
+		case handler.MSG_GET_PLAYBACKSTATUS:
+			var state handler.PlaybackState
+			if m.tracker.IsPlaying() {
+				state = handler.STATE_PLAYING
+			} else {
+				if m.tracker.IsStoped() {
+					state = handler.STATE_STOPED
+				} else {
+					state = handler.STATE_PAUSED
+				}
+			}
+			m.mediaHandler.SendAnswer(state)
+		case handler.MSG_GET_SHUFFLE:
+			m.mediaHandler.SendAnswer(false)
+		case handler.MSG_GET_METADATA:
+			if m.tracker.IsStoped() {
+				m.mediaHandler.SendAnswer(handler.TrackMetadata{})
+				break
+			}
+			track := m.tracker.CurrentTrack()
+			artists := make([]string, 0, len(track.Artists))
+			albumArtists := make([]string, 0, len(track.Albums[0].Artists))
+			md := handler.TrackMetadata{
+				TrackId:      track.Id,
+				Length:       time.Duration(track.DurationMs) * time.Millisecond,
+				CoverUrl:     m.coverFilePath(track),
+				AlbumName:    track.Albums[0].Title,
+				AlbumArtists: albumArtists,
+				Artists:      artists,
+				Genre:        []string{track.Albums[0].Genre},
+				Title:        track.Title,
+				Url:          api.ShareTrackLink(track),
+			}
+			m.mediaHandler.SendAnswer(md)
+		case handler.MSG_GET_VOLUME:
+			m.mediaHandler.SendAnswer(m.tracker.Volume())
+		case handler.MSG_GET_POSITION:
+			m.mediaHandler.SendAnswer(m.tracker.Position())
+		}
+	}
+}
+
+func (m *Model) coverFilePath(track *api.Track) string {
+	tempDir := filepath.Join(os.TempDir(), config.ConfigPath)
+	if os.MkdirAll(tempDir, 0755) != nil {
+		return ""
+	}
+	return filepath.Join(tempDir, track.Id+".jpg")
 }

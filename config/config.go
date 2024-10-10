@@ -33,7 +33,7 @@ func getDir() (string, error) {
 		return "", err
 	}
 
-	configDir := filepath.Join(userDir, ".config", configPath)
+	configDir := filepath.Join(userDir, ".config", ConfigPath)
 	err = os.MkdirAll(configDir, 0755)
 	if err != nil {
 		return "", err

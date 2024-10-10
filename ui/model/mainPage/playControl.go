@@ -1,6 +1,8 @@
 package mainpage
 
 import (
+	"os"
+
 	"github.com/dece2183/yamusic-tui/api"
 	"github.com/dece2183/yamusic-tui/ui/components/tracker"
 	"github.com/dece2183/yamusic-tui/ui/components/tracklist"
@@ -112,6 +114,28 @@ func (m *Model) playTrack(track *api.Track) {
 		}
 	}
 
+	var (
+		coverFile *os.File
+		coverStat os.FileInfo
+	)
+
+	coverPath := m.coverFilePath(track)
+	coverFile, err = os.OpenFile(coverPath, os.O_CREATE|os.O_WRONLY, 0755)
+	if err != nil {
+		goto skipcover
+	}
+
+	defer coverFile.Close()
+
+	coverStat, err = coverFile.Stat()
+	if err != nil || coverStat.Size() == 0 {
+		err = api.DownloadTrackCover(coverFile, track, 200)
+		if err != nil {
+			goto skipcover
+		}
+	}
+
+skipcover:
 	trackReader, _, err := m.client.DownloadTrack(bestTrackInfo)
 	if err != nil {
 		return
@@ -133,6 +157,7 @@ func (m *Model) playTrack(track *api.Track) {
 		}
 	}
 
+	m.mediaHandler.OnPlayback()
 	go m.client.PlayTrack(track, false)
 }
 

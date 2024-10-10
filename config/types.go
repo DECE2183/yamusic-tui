@@ -83,4 +83,4 @@ var defaultConfig = Config{
 	},
 }
 
-const configPath = "yamusic-tui"
+const ConfigPath = "yamusic-tui"

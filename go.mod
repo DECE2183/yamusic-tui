@@ -8,6 +8,8 @@ require (
 	github.com/charmbracelet/lipgloss v0.12.1
 	github.com/dece2183/go-stream-mp3 v1.0.0
 	github.com/ebitengine/oto/v3 v3.1.0
+	github.com/godbus/dbus/v5 v5.1.0
+	github.com/quarckster/go-mpris-server v1.0.3
 	golang.design/x/clipboard v0.7.0
 	gopkg.in/yaml.v3 v3.0.1
 )

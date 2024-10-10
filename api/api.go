@@ -218,6 +218,26 @@ func Token(username, password string) (token string, err error) {
 	return
 }
 
+func ShareTrackLink(track *Track) string {
+	return fmt.Sprintf("https://music.yandex.ru/album/%d/track/%s", track.Albums[0].Id, track.Id)
+}
+
+func TrackCoverLink(track *Track, size int) string {
+	return fmt.Sprintf("https://%s%dx%d", track.CoverUri[:len(track.CoverUri)-2], size, size)
+}
+
+func DownloadTrackCover(dst io.Writer, track *Track, size int) error {
+	url := TrackCoverLink(track, size)
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+	_, err = io.Copy(dst, resp.Body)
+	return err
+}
+
 func NewClient(token string) (client *YaMusicClient, err error) {
 	client = &YaMusicClient{
 		token: token,

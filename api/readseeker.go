@@ -183,13 +183,22 @@ func (h *HttpReadSeeker) Seek(offset int64, whence int) (pos int64, err error) {
 }
 
 func (h *HttpReadSeeker) IsDone() bool {
+	if h == nil {
+		return false
+	}
 	return h.done
 }
 
 func (h *HttpReadSeeker) Progress() float64 {
+	if h == nil {
+		return 0
+	}
 	return float64(h.readIndex) / float64(h.totalSize)
 }
 
 func (h *HttpReadSeeker) BufferingProgress() float64 {
+	if h == nil {
+		return 0
+	}
 	return float64(len(h.readBuffer)) / float64(h.totalSize)
 }
