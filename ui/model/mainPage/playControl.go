@@ -1,11 +1,18 @@
 package mainpage
 
 import (
+	"fmt"
+	"io"
 	"os"
 
+	"github.com/bogem/id3v2"
 	"github.com/dece2183/yamusic-tui/api"
+	"github.com/dece2183/yamusic-tui/cache"
+	"github.com/dece2183/yamusic-tui/config"
+	"github.com/dece2183/yamusic-tui/stream"
 	"github.com/dece2183/yamusic-tui/ui/components/tracker"
 	"github.com/dece2183/yamusic-tui/ui/components/tracklist"
+	"github.com/dece2183/yamusic-tui/ui/helpers"
 )
 
 func (m *Model) prevTrack() {
@@ -119,8 +126,9 @@ func (m *Model) playTrack(track *api.Track) {
 		coverStat os.FileInfo
 	)
 
+	var coverBytes []byte
 	coverPath := m.coverFilePath(track)
-	coverFile, err = os.OpenFile(coverPath, os.O_CREATE|os.O_WRONLY, 0755)
+	coverFile, err = os.OpenFile(coverPath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0755)
 	if err != nil {
 		goto skipcover
 	}
@@ -133,16 +141,60 @@ func (m *Model) playTrack(track *api.Track) {
 		if err != nil {
 			goto skipcover
 		}
+		coverFile.Sync()
+		stat, _ := coverFile.Stat()
+		coverBytes = make([]byte, stat.Size())
+		coverFile.Seek(0, io.SeekStart)
+		coverFile.Read(coverBytes)
 	}
 
 skipcover:
-	trackReader, _, err := m.client.DownloadTrack(bestTrackInfo)
-	if err != nil {
-		return
+	tag := id3v2.NewEmptyTag()
+	tag.SetTitle(track.Title)
+	tag.SetAlbum(track.Albums[0].Title)
+	tag.SetGenre(track.Albums[0].Genre)
+	tag.SetArtist(helpers.ArtistList(track.Artists))
+	tag.SetYear(fmt.Sprint(track.Albums[0].Year))
+	tag.AddAttachedPicture(id3v2.PictureFrame{
+		MimeType:    "image/jpeg",
+		PictureType: id3v2.PTFrontCover,
+		Picture:     coverBytes,
+	})
+
+	var cacheFile *os.File
+	var cacheWriters = make([]io.WriteCloser, 0, 1)
+
+	cacheFile, err = os.OpenFile(m.currentTrackFilePath(), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0755)
+	if err == nil {
+		cacheWriters = append(cacheWriters, cacheFile)
+		tag.WriteTo(cacheFile)
+		cacheFile.Sync()
 	}
 
+	var trackReader io.ReadCloser
+	var trackSize int64
+
+	trackReader, trackSize, err = cache.Read(track.Id)
+	if err != nil {
+		trackReader, trackSize, err = m.client.DownloadTrack(bestTrackInfo)
+		if err != nil {
+			return
+		}
+		cacheMode := config.Current.CacheTracks
+		if cacheMode == config.CACHE_ALL || (cacheMode == config.CACHE_LIKED_ONLY && m.likedTracksMap[track.Id]) {
+			cacheFile, err = cache.Write(track.Id)
+			if err == nil {
+				cacheWriters = append(cacheWriters, cacheFile)
+				tag.WriteTo(cacheFile)
+				cacheFile.Sync()
+			}
+		}
+	}
+
+	tag.Close()
+
 	m.indicateCurrentTrackPlaying(true)
-	m.tracker.StartTrack(track, trackReader)
+	m.tracker.StartTrack(track, stream.NewBufferedStream(trackReader, trackSize, cacheWriters...))
 
 	if m.currentPlaylistIndex >= 0 {
 		currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]

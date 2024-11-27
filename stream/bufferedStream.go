@@ -1,4 +1,4 @@
-package api
+package stream
 
 import (
 	"errors"
@@ -9,14 +9,15 @@ import (
 )
 
 const (
-	_BUFFERING_AMOUNT = 256
+	_BUFFERING_AMOUNT = 32 * 512
 	_BUFFERING_PERIOD = 100 * time.Millisecond
 )
 
 var errOutOfSize = errors.New("position is out of data size")
 
-type HttpReadSeeker struct {
+type BufferedStream struct {
 	source      io.ReadCloser
+	cacheTo     []io.WriteCloser
 	bufferTimer *time.Ticker
 	closed      chan bool
 	readBuffer  []byte
@@ -27,9 +28,10 @@ type HttpReadSeeker struct {
 	mux         sync.Mutex
 }
 
-func newReadSeaker(rc io.ReadCloser, totalSize int64) *HttpReadSeeker {
-	rs := HttpReadSeeker{
-		source:      rc,
+func NewBufferedStream(source io.ReadCloser, totalSize int64, cacheTo ...io.WriteCloser) *BufferedStream {
+	rs := BufferedStream{
+		source:      source,
+		cacheTo:     cacheTo,
 		totalSize:   totalSize,
 		bufferTimer: time.NewTicker(_BUFFERING_PERIOD),
 		closed:      make(chan bool),
@@ -39,40 +41,11 @@ func newReadSeaker(rc io.ReadCloser, totalSize int64) *HttpReadSeeker {
 	return &rs
 }
 
-func (h *HttpReadSeeker) bufferFrames(size int64) {
-	for {
-		h.mux.Lock()
-
-		if h.buffered || h.totalSize <= int64(len(h.readBuffer)) {
-			h.buffered = true
-			h.mux.Unlock()
-			return
-		}
-
-		buf := make([]byte, size)
-		n, err := h.source.Read(buf)
-		if err == nil || err == io.EOF {
-			h.readBuffer = append(h.readBuffer, buf[:n]...)
-			if err == io.EOF {
-				h.buffered = true
-				h.mux.Unlock()
-				return
-			}
-		}
-
-		h.mux.Unlock()
-
-		// await next Read call or timer expiration
-		select {
-		case <-h.bufferTimer.C:
-			continue
-		case <-h.closed:
-			return
-		}
-	}
+func (h *BufferedStream) Length() int64 {
+	return int64(h.totalSize)
 }
 
-func (h *HttpReadSeeker) Close() error {
+func (h *BufferedStream) Close() error {
 	var err error
 
 	h.mux.Lock()
@@ -86,6 +59,9 @@ func (h *HttpReadSeeker) Close() error {
 	}
 
 	if !h.done {
+		for _, c := range h.cacheTo {
+			c.Close()
+		}
 		err = h.source.Close()
 		h.done = true
 	}
@@ -93,11 +69,7 @@ func (h *HttpReadSeeker) Close() error {
 	return err
 }
 
-func (h *HttpReadSeeker) Length() int64 {
-	return int64(h.totalSize)
-}
-
-func (h *HttpReadSeeker) Read(dest []byte) (n int, err error) {
+func (h *BufferedStream) Read(dest []byte) (n int, err error) {
 	h.mux.Lock()
 
 	readBufLen := int64(len(h.readBuffer))
@@ -107,6 +79,7 @@ func (h *HttpReadSeeker) Read(dest []byte) (n int, err error) {
 		newFrame := make([]byte, (h.readIndex-readBufLen)+destLen)
 		n, err = io.ReadFull(h.source, newFrame)
 		h.readBuffer = append(h.readBuffer, newFrame[:n]...)
+		go h.cacheFrame(newFrame[:n])
 		if h.readIndex < int64(len(h.readBuffer)) {
 			copy(dest, h.readBuffer[h.readIndex:])
 		} else {
@@ -129,6 +102,7 @@ func (h *HttpReadSeeker) Read(dest []byte) (n int, err error) {
 			copy(dest, append(bufferedPart, unbufferedPart...))
 			n = len(bufferedPart) + unbufferedLen
 			h.readBuffer = append(h.readBuffer, unbufferedPart...)
+			go h.cacheFrame(unbufferedPart)
 		} else {
 			copy(dest, bufferedPart)
 			n = len(bufferedPart)
@@ -142,6 +116,9 @@ func (h *HttpReadSeeker) Read(dest []byte) (n int, err error) {
 
 	if err != nil {
 		if err == io.EOF && !h.done {
+			for _, c := range h.cacheTo {
+				c.Close()
+			}
 			h.source.Close()
 			h.buffered = true
 			h.done = true
@@ -154,7 +131,7 @@ func (h *HttpReadSeeker) Read(dest []byte) (n int, err error) {
 	return
 }
 
-func (h *HttpReadSeeker) Seek(offset int64, whence int) (pos int64, err error) {
+func (h *BufferedStream) Seek(offset int64, whence int) (pos int64, err error) {
 	h.mux.Lock()
 
 	switch whence {
@@ -182,23 +159,63 @@ func (h *HttpReadSeeker) Seek(offset int64, whence int) (pos int64, err error) {
 	return
 }
 
-func (h *HttpReadSeeker) IsDone() bool {
+func (h *BufferedStream) IsDone() bool {
 	if h == nil {
 		return false
 	}
 	return h.done
 }
 
-func (h *HttpReadSeeker) Progress() float64 {
+func (h *BufferedStream) Progress() float64 {
 	if h == nil {
 		return 0
 	}
 	return float64(h.readIndex) / float64(h.totalSize)
 }
 
-func (h *HttpReadSeeker) BufferingProgress() float64 {
+func (h *BufferedStream) BufferingProgress() float64 {
 	if h == nil {
 		return 0
 	}
 	return float64(len(h.readBuffer)) / float64(h.totalSize)
+}
+
+func (h *BufferedStream) bufferFrames(size int64) {
+	for {
+		h.mux.Lock()
+
+		if h.buffered || h.totalSize <= int64(len(h.readBuffer)) {
+			h.buffered = true
+			h.mux.Unlock()
+			return
+		}
+
+		buf := make([]byte, size)
+		n, err := io.ReadFull(h.source, buf)
+		if err == nil || err == io.EOF {
+			go h.cacheFrame(buf[:n])
+			h.readBuffer = append(h.readBuffer, buf[:n]...)
+			if err == io.EOF {
+				h.buffered = true
+				h.mux.Unlock()
+				return
+			}
+		}
+
+		h.mux.Unlock()
+
+		// await next Read call or timer expiration
+		select {
+		case <-h.bufferTimer.C:
+			continue
+		case <-h.closed:
+			return
+		}
+	}
+}
+
+func (h *BufferedStream) cacheFrame(frame []byte) {
+	for _, c := range h.cacheTo {
+		c.Write(frame)
+	}
 }

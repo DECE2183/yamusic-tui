@@ -9,6 +9,7 @@ import (
 
 	"github.com/dece2183/yamusic-tui/api"
 	"github.com/dece2183/yamusic-tui/config"
+	"github.com/dece2183/yamusic-tui/stream"
 	"github.com/dece2183/yamusic-tui/ui/helpers"
 	"github.com/dece2183/yamusic-tui/ui/model"
 	"github.com/dece2183/yamusic-tui/ui/style"
@@ -286,7 +287,7 @@ func (m *Model) Volume() float64 {
 	return m.volume
 }
 
-func (m *Model) StartTrack(track *api.Track, reader *api.HttpReadSeeker) {
+func (m *Model) StartTrack(track *api.Track, reader *stream.BufferedStream) {
 	if m.player != nil {
 		m.Stop()
 	}

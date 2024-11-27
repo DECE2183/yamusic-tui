@@ -4,16 +4,15 @@ import (
 	"io"
 	"time"
 
-	"github.com/dece2183/yamusic-tui/api"
-
 	tea "github.com/charmbracelet/bubbletea"
 	mp3 "github.com/dece2183/go-stream-mp3"
+	"github.com/dece2183/yamusic-tui/stream"
 )
 
 type readWrapper struct {
 	program         *tea.Program
 	decoder         *mp3.Decoder
-	trackReader     *api.HttpReadSeeker
+	trackReader     *stream.BufferedStream
 	trackDurationMs int
 	lastUpdateTime  time.Time
 }

@@ -480,3 +480,11 @@ func (m *Model) coverFilePath(track *api.Track) string {
 	}
 	return filepath.Join(tempDir, track.Id+".jpg")
 }
+
+func (m *Model) currentTrackFilePath() string {
+	tempDir := filepath.Join(os.TempDir(), config.ConfigPath)
+	if os.MkdirAll(tempDir, 0755) != nil {
+		return ""
+	}
+	return filepath.Join(tempDir, "currenttrack.mp3")
+}

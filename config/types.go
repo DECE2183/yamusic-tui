@@ -1,5 +1,30 @@
 package config
 
+import "gopkg.in/yaml.v3"
+
+type CacheType int
+
+const (
+	CACHE_NONE CacheType = iota
+	CACHE_LIKED_ONLY
+	CACHE_ALL
+)
+
+var cacheValues = map[string]CacheType{
+	"disable": CACHE_NONE,
+	"false":   CACHE_NONE,
+	"none":    CACHE_NONE,
+	"off":     CACHE_NONE,
+	"likes":   CACHE_LIKED_ONLY,
+	"liked":   CACHE_LIKED_ONLY,
+	"all":     CACHE_ALL,
+}
+
+func (t *CacheType) UnmarshalYAML(value *yaml.Node) error {
+	*t = cacheValues[value.Value]
+	return nil
+}
+
 type Controls struct {
 	// Main control
 	Quit        *Key `yaml:"quit"`
@@ -42,6 +67,7 @@ type Config struct {
 	RewindDuration float64   `yaml:"rewind-duration-s"`
 	Volume         float64   `yaml:"volume"`
 	VolumeStep     float64   `yaml:"volume-step"`
+	CacheTracks    CacheType `yaml:"cache-tracks"`
 	Search         *Search   `yaml:"search"`
 	Controls       *Controls `yaml:"controls"`
 }
@@ -51,6 +77,7 @@ var defaultConfig = Config{
 	RewindDuration: 5,
 	Volume:         0.5,
 	VolumeStep:     0.05,
+	CacheTracks:    CACHE_NONE,
 	Search: &Search{
 		Artists:   true,
 		Albums:    false,

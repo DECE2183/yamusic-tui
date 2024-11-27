@@ -408,7 +408,7 @@ func (client *YaMusicClient) TrackDownloadInfo(trackId string) (dowInfos []Track
 	return
 }
 
-func (client *YaMusicClient) DownloadTrack(dowInfo TrackDownloadInfo) (track *HttpReadSeeker, fileSize int64, err error) {
+func (client *YaMusicClient) DownloadTrack(dowInfo TrackDownloadInfo) (track io.ReadCloser, fileSize int64, err error) {
 	fullInfoBody, _, err := downloadRequest(client.token, dowInfo.DownloadInfoUrl+"&format=json", "application/json")
 	if err != nil {
 		return
@@ -435,7 +435,7 @@ func (client *YaMusicClient) DownloadTrack(dowInfo TrackDownloadInfo) (track *Ht
 
 	trackUrl := createTrackUrl(info, dowInfo.Codec)
 	trackReader, fileSize, err := downloadRequest(client.token, trackUrl, mimeType)
-	track = newReadSeaker(trackReader, fileSize)
+	track = trackReader
 	return
 }
 
