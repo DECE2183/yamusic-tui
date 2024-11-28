@@ -33,31 +33,23 @@ func (m *Model) likeTrack(track *api.Track) tea.Cmd {
 
 		delete(m.likedTracksMap, track.Id)
 
-		likedPlaylist := m.playlists.Items()[1]
-		for i, ltrack := range likedPlaylist.Tracks {
-			if ltrack.Id == track.Id {
-				if i+1 < len(likedPlaylist.Tracks) {
-					likedPlaylist.Tracks = append(likedPlaylist.Tracks[:i], likedPlaylist.Tracks[i+1:]...)
-				} else {
-					likedPlaylist.Tracks = likedPlaylist.Tracks[:i]
-				}
-
-				if m.playlists.SelectedItem().Kind == playlist.LIKES {
-					m.tracklist.RemoveItem(i)
-				}
-				break
-			}
+		likedPlaylist, index := m.playlists.GetFirst(playlist.LIKES)
+		trackIndex := likedPlaylist.RemoveTrack(track.Id)
+		if m.playlists.SelectedItem().Kind == playlist.LIKES && trackIndex >= 0 {
+			m.tracklist.RemoveItem(trackIndex)
+			m.tracklist.Select(likedPlaylist.SelectedTrack)
 		}
 
-		return m.playlists.SetItem(1, likedPlaylist)
+		return m.playlists.SetItem(index, likedPlaylist)
 	} else {
 		if m.client.LikeTrack(track.Id) != nil {
 			return nil
 		}
 
 		m.likedTracksMap[track.Id] = true
-		likedPlaylist := m.playlists.Items()[1]
-		likedPlaylist.Tracks = append([]api.Track{*track}, likedPlaylist.Tracks...)
-		return m.playlists.SetItem(1, likedPlaylist)
+		likedPlaylist, index := m.playlists.GetFirst(playlist.LIKES)
+		likedPlaylist.AddTrack(track)
+
+		return m.playlists.SetItem(index, likedPlaylist)
 	}
 }

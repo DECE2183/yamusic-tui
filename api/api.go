@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -223,11 +224,18 @@ func ShareTrackLink(track *Track) string {
 }
 
 func TrackCoverLink(track *Track, size int) string {
+	if len(track.CoverUri) < 2 {
+		return ""
+	}
 	return fmt.Sprintf("https://%s%dx%d", track.CoverUri[:len(track.CoverUri)-2], size, size)
 }
 
 func DownloadTrackCover(dst io.Writer, track *Track, size int) error {
 	url := TrackCoverLink(track, size)
+	if len(url) == 0 {
+		return errors.New("cover not presented")
+	}
+
 	resp, err := http.Get(url)
 	if err != nil {
 		return err

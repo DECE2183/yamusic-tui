@@ -18,7 +18,6 @@ import (
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	mp3 "github.com/dece2183/go-stream-mp3"
 	"github.com/ebitengine/oto/v3"
 )
 
@@ -33,7 +32,8 @@ const (
 	LIKE
 	REWIND
 	VOLUME
-	_UNEXPECTED_STOP
+	CACHE_TRACK
+	BUFFERING_COMPLETE
 )
 
 type ProgressControl float64
@@ -105,59 +105,59 @@ func (m *Model) View() string {
 	}
 
 	var trackTitle string
-	if m.track.Available {
-		trackTitle = style.TrackTitleStyle.Render(m.track.Title)
-	} else {
-		trackTitle = style.TrackTitleStyle.Strikethrough(true).Render(m.track.Title)
-	}
-
-	trackVersion := style.TrackVersionStyle.Render(" " + m.track.Version)
-	trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackVersion)
-	trackArtist := style.TrackArtistStyle.Render(helpers.ArtistList(m.track.Artists))
-
-	durTotal := time.Millisecond * time.Duration(m.track.DurationMs)
-	durEllapsed := time.Millisecond * time.Duration(float64(m.track.DurationMs)*m.progress.Percent())
-	trackTime := style.TrackVersionStyle.Render(fmt.Sprintf("%02d:%02d/%02d:%02d",
-		int(durEllapsed.Minutes()),
-		int(durEllapsed.Seconds())%60,
-		int(durTotal.Minutes()),
-		int(durTotal.Seconds())%60,
-	))
-
-	var trackLike string
-	if (*m.likesMap)[m.track.Id] {
-		trackLike = style.IconLiked + " "
-	} else {
-		trackLike = style.IconNotLiked + " "
-	}
-
-	trackAddInfo := style.TrackAddInfoStyle.Render(trackLike + trackTime)
-	addInfoLen, _ := lipgloss.Size(trackAddInfo)
-	maxLen := m.Width() - addInfoLen - 4
-	stl := lipgloss.NewStyle().MaxWidth(maxLen - 1)
-
-	trackTitleLen, _ := lipgloss.Size(trackTitle)
-	if trackTitleLen > maxLen {
-		trackTitle = stl.Render(trackTitle) + "…"
-	} else if trackTitleLen < maxLen {
-		trackTitle += strings.Repeat(" ", maxLen-trackTitleLen)
-	}
-
-	trackArtistLen, _ := lipgloss.Size(trackArtist)
-	if trackArtistLen > maxLen {
-		trackArtist = stl.Render(trackArtist) + "…"
-	} else if trackArtistLen < maxLen {
-		trackArtist += strings.Repeat(" ", maxLen-trackArtistLen)
-	}
-
 	if m.help.ShowAll {
-		trackTitle = lipgloss.JoinVertical(lipgloss.Left, trackTitle, "")
+		trackTitle = lipgloss.JoinVertical(lipgloss.Left, "")
 	} else {
+		if m.track.Available {
+			trackTitle = style.TrackTitleStyle.Render(m.track.Title)
+		} else {
+			trackTitle = style.TrackTitleStyle.Strikethrough(true).Render(m.track.Title)
+		}
+
+		trackVersion := style.TrackVersionStyle.Render(" " + m.track.Version)
+		trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackVersion)
+
+		durTotal := time.Millisecond * time.Duration(m.track.DurationMs)
+		durEllapsed := time.Millisecond * time.Duration(float64(m.track.DurationMs)*m.progress.Percent())
+		trackTime := style.TrackVersionStyle.Render(fmt.Sprintf("%02d:%02d/%02d:%02d",
+			int(durEllapsed.Minutes()),
+			int(durEllapsed.Seconds())%60,
+			int(durTotal.Minutes()),
+			int(durTotal.Seconds())%60,
+		))
+
+		var trackLike string
+		if (*m.likesMap)[m.track.Id] {
+			trackLike = style.IconLiked + " "
+		} else {
+			trackLike = style.IconNotLiked + " "
+		}
+
+		trackAddInfo := style.TrackAddInfoStyle.Render(trackLike + trackTime)
+		addInfoLen, _ := lipgloss.Size(trackAddInfo)
+		maxLen := m.Width() - addInfoLen - 4
+		stl := lipgloss.NewStyle().MaxWidth(maxLen - 1)
+
+		trackTitleLen, _ := lipgloss.Size(trackTitle)
+		if trackTitleLen > maxLen {
+			trackTitle = stl.Render(trackTitle) + "…"
+		} else if trackTitleLen < maxLen {
+			trackTitle += strings.Repeat(" ", maxLen-trackTitleLen)
+		}
+
+		trackArtist := style.TrackArtistStyle.Render(helpers.ArtistList(m.track.Artists))
+		trackArtistLen, _ := lipgloss.Size(trackArtist)
+		if trackArtistLen > maxLen {
+			trackArtist = stl.Render(trackArtist) + "…"
+		} else if trackArtistLen < maxLen {
+			trackArtist += strings.Repeat(" ", maxLen-trackArtistLen)
+		}
+
+		trackTitle = lipgloss.NewStyle().Width(m.width - lipgloss.Width(trackAddInfo) - 4).Render(trackTitle)
+		trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackAddInfo)
+
 		trackTitle = lipgloss.JoinVertical(lipgloss.Left, trackTitle, trackArtist, "")
 	}
-
-	trackTitle = lipgloss.NewStyle().Width(m.width - lipgloss.Width(trackAddInfo) - 4).Render(trackTitle)
-	trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackAddInfo)
 
 	tracker := style.TrackProgressStyle.Render(m.progress.View())
 	tracker = lipgloss.JoinHorizontal(lipgloss.Top, playButton, tracker)
@@ -210,6 +210,12 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 		case controls.PlayerLike.Contains(keypress):
 			cmds = append(cmds, model.Cmd(LIKE))
 
+		case controls.PlayerCache.Contains(keypress):
+			if !m.IsStoped() {
+				m.trackWrapper.trackBuffer.BufferAll()
+				cmds = append(cmds, model.Cmd(CACHE_TRACK))
+			}
+
 		case controls.PlayerVolUp.Contains(keypress):
 			m.SetVolume(m.volume + config.Current.VolumeStep)
 			config.Current.Volume = m.volume
@@ -233,8 +239,6 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 			m.Pause()
 		case STOP:
 			m.Stop()
-		case _UNEXPECTED_STOP:
-			m.restartTrack()
 		}
 
 	// track progress update
@@ -266,7 +270,7 @@ func (m *Model) Progress() float64 {
 }
 
 func (m *Model) Position() time.Duration {
-	return time.Duration(float64(m.trackWrapper.trackDurationMs)*m.trackWrapper.trackReader.Progress()) * time.Millisecond
+	return time.Duration(float64(m.track.DurationMs)*m.trackWrapper.Progress()) * time.Millisecond
 }
 
 func (m *Model) SetVolume(v float64) {
@@ -293,15 +297,7 @@ func (m *Model) StartTrack(track *api.Track, reader *stream.BufferedStream) {
 	}
 
 	m.track = *track
-	decoder, err := mp3.NewDecoder(reader)
-	if err != nil {
-		return
-	}
-
-	m.trackWrapper.trackReader = reader
-	m.trackWrapper.decoder = decoder
-	m.trackWrapper.trackDurationMs = track.DurationMs
-
+	m.trackWrapper.NewReader(reader)
 	m.player = m.playerContext.NewPlayer(m.trackWrapper)
 	m.player.SetVolume(m.volume)
 	m.player.Play()
@@ -316,24 +312,17 @@ func (m *Model) Stop() {
 		m.player.Pause()
 	}
 
-	if m.trackWrapper.decoder != nil {
-		m.trackWrapper.decoder.Seek(0, io.SeekStart)
-	}
-
-	if m.trackWrapper.trackReader != nil {
-		m.trackWrapper.trackReader.Close()
-	}
-
+	m.trackWrapper.Close()
 	m.player.Close()
 	m.player = nil
 }
 
 func (m *Model) IsPlaying() bool {
-	return m.player != nil && m.trackWrapper.trackReader != nil && m.player.IsPlaying()
+	return m.player != nil && m.trackWrapper.trackBuffer != nil && m.player.IsPlaying()
 }
 
 func (m *Model) IsStoped() bool {
-	return m.player == nil || m.trackWrapper.trackReader == nil
+	return m.player == nil || m.trackWrapper.trackBuffer == nil
 }
 
 func (m *Model) CurrentTrack() *api.Track {
@@ -341,7 +330,7 @@ func (m *Model) CurrentTrack() *api.Track {
 }
 
 func (m *Model) Play() {
-	if m.player == nil || m.trackWrapper.trackReader == nil {
+	if m.player == nil || m.trackWrapper.trackBuffer == nil {
 		return
 	}
 	if m.player.IsPlaying() {
@@ -351,7 +340,7 @@ func (m *Model) Play() {
 }
 
 func (m *Model) Pause() {
-	if m.player == nil || m.trackWrapper.trackReader == nil {
+	if m.player == nil || m.trackWrapper.trackBuffer == nil {
 		return
 	}
 	if !m.player.IsPlaying() {
@@ -367,8 +356,8 @@ func (m *Model) Rewind(amount time.Duration) {
 	}
 
 	amountMs := amount.Milliseconds()
-	currentPos := int64(float64(m.trackWrapper.trackReader.Length()) * m.trackWrapper.trackReader.Progress())
-	byteOffset := int64(math.Round((float64(m.trackWrapper.trackReader.Length()) / float64(m.trackWrapper.trackDurationMs)) * float64(amountMs)))
+	currentPos := int64(float64(m.trackWrapper.Length()) * m.trackWrapper.Progress())
+	byteOffset := int64(math.Round((float64(m.trackWrapper.Length()) / float64(m.track.DurationMs)) * float64(amountMs)))
 
 	// align position by 4 bytes
 	currentPos += byteOffset
@@ -376,7 +365,7 @@ func (m *Model) Rewind(amount time.Duration) {
 
 	if currentPos <= 0 {
 		m.player.Seek(0, io.SeekStart)
-	} else if currentPos >= m.trackWrapper.trackReader.Length() {
+	} else if currentPos >= m.trackWrapper.Length() {
 		m.player.Seek(0, io.SeekEnd)
 	} else {
 		m.player.Seek(currentPos, io.SeekStart)
@@ -390,27 +379,13 @@ func (m *Model) SetPos(pos time.Duration) {
 	}
 
 	posMs := pos.Milliseconds()
-	byteOffset := int64(math.Round((float64(m.trackWrapper.trackReader.Length()) / float64(m.trackWrapper.trackDurationMs)) * float64(posMs)))
+	byteOffset := int64(math.Round((float64(m.trackWrapper.Length()) / float64(m.track.DurationMs)) * float64(posMs)))
 
 	// align position by 4 bytes
 	byteOffset += byteOffset % 4
 	m.player.Seek(byteOffset, io.SeekStart)
 }
 
-func (m *Model) restartTrack() {
-	m.player.Close()
-
-	decoder, err := mp3.NewDecoder(m.trackWrapper.trackReader)
-	if err != nil {
-		return
-	}
-
-	m.trackWrapper.decoder = decoder
-
-	m.player = m.playerContext.NewPlayer(m.trackWrapper)
-	m.player.SetVolume(m.volume)
-
-	progress := m.trackWrapper.trackReader.Progress()
-	m.trackWrapper.trackReader.Seek(0, io.SeekStart)
-	m.Rewind(time.Duration(float64(m.trackWrapper.trackDurationMs)*progress) * time.Millisecond)
+func (m *Model) WriteBufferTo(dest io.Writer) (int64, error) {
+	return m.trackWrapper.trackBuffer.WriteTo(dest)
 }

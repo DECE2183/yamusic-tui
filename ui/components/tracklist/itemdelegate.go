@@ -14,6 +14,7 @@ import (
 
 type ItemDelegate struct {
 	likesMap *map[string]bool
+	cacheMap *map[string]bool
 }
 
 func (d ItemDelegate) Height() int {
@@ -61,7 +62,12 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 		trackLike = style.IconNotLiked
 	}
 
-	trackAddInfo := style.TrackAddInfoStyle.Render(trackLike + " " + trackTime)
+	var trackCache string
+	if (*d.cacheMap)[item.Track.Id] {
+		trackCache = style.IconCached
+	}
+
+	trackAddInfo := style.TrackAddInfoStyle.Render(trackCache + " " + trackLike + " " + trackTime)
 	addInfoLen, _ := lipgloss.Size(trackAddInfo)
 	maxLen := m.Width() - addInfoLen - 8
 	stl := lipgloss.NewStyle().MaxWidth(maxLen - 1)

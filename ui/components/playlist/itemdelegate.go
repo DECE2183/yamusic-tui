@@ -24,7 +24,7 @@ func (d ItemDelegate) Spacing() int {
 }
 
 func (d ItemDelegate) Update(message tea.Msg, m *list.Model) tea.Cmd {
-	item, ok := m.SelectedItem().(Item)
+	item, ok := m.SelectedItem().(*Item)
 	if !ok {
 		return nil
 	}
@@ -42,7 +42,7 @@ func (d ItemDelegate) Update(message tea.Msg, m *list.Model) tea.Cmd {
 }
 
 func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
-	item, ok := listItem.(Item)
+	item, ok := listItem.(*Item)
 	if !ok {
 		return
 	}

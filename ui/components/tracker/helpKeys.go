@@ -12,6 +12,7 @@ type helpKeyMap struct {
 	PrevTrack  key.Binding
 	NextTrack  key.Binding
 	LikeUnlike key.Binding
+	CacheTrack key.Binding
 	Forward    key.Binding
 	Backward   key.Binding
 	VolUp      key.Binding
@@ -34,6 +35,10 @@ var helpMap = helpKeyMap{
 	LikeUnlike: key.NewBinding(
 		config.Current.Controls.PlayerLike.Binding(),
 		config.Current.Controls.PlayerLike.Help("like/unlike"),
+	),
+	CacheTrack: key.NewBinding(
+		config.Current.Controls.PlayerCache.Binding(),
+		config.Current.Controls.PlayerCache.Help("cache track"),
 	),
 	Backward: key.NewBinding(
 		config.Current.Controls.PlayerRewindBackward.Binding(),
@@ -59,7 +64,7 @@ func (k helpKeyMap) ShortHelp() []key.Binding {
 
 func (k helpKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.PlayPause, k.LikeUnlike},
+		{k.PlayPause, k.LikeUnlike, k.CacheTrack},
 		{k.NextTrack, k.PrevTrack},
 		{k.Forward, k.Backward},
 		{k.VolUp, k.VolDown},

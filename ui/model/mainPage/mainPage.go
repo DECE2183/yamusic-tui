@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/dece2183/yamusic-tui/api"
+	"github.com/dece2183/yamusic-tui/cache"
 	"github.com/dece2183/yamusic-tui/config"
 	"github.com/dece2183/yamusic-tui/media"
 	"github.com/dece2183/yamusic-tui/media/handler"
@@ -42,6 +43,7 @@ type Model struct {
 
 	currentPlaylistIndex int
 	likedTracksMap       map[string]bool
+	cachedTracksMap      map[string]bool
 }
 
 // mainpage.Model constructor.
@@ -52,9 +54,10 @@ func New() *Model {
 	m.program = p
 	m.mediaHandler = media.NewHandler(config.ConfigPath, "Yandex music terminal client")
 	m.likedTracksMap = make(map[string]bool)
+	m.cachedTracksMap = make(map[string]bool)
 
 	m.playlists = playlist.New(m.program, "YaMusic")
-	m.tracklist = tracklist.New(m.program, &m.likedTracksMap)
+	m.tracklist = tracklist.New(m.program, &m.likedTracksMap, &m.cachedTracksMap)
 	m.tracker = tracker.New(m.program, &m.likedTracksMap)
 	m.searchDialog = search.New()
 	m.inputDialog = input.New()
@@ -220,6 +223,15 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			m.mediaHandler.OnSeek(m.tracker.Position())
 		case tracker.VOLUME:
 			m.mediaHandler.OnVolume()
+		case tracker.CACHE_TRACK:
+			cmd = m.cacheCurrentTrack()
+			cmds = append(cmds, cmd)
+		case tracker.BUFFERING_COMPLETE:
+			cacheMode := config.Current.CacheTracks
+			if cacheMode == config.CACHE_ALL || (cacheMode == config.CACHE_LIKED_ONLY && m.likedTracksMap[m.tracker.CurrentTrack().Id]) {
+				cmd = m.cacheCurrentTrack()
+				cmds = append(cmds, cmd)
+			}
 		}
 
 		m.tracker, cmd = m.tracker.Update(message)
@@ -285,8 +297,9 @@ func (m *Model) resize(width, height int) {
 	if m.width > style.PlaylistsSidePanelWidth*3 {
 		m.playlists.SetSize(style.PlaylistsSidePanelWidth, height-4)
 	} else {
-		m.playlists.SetSize(0, height-4)
+		m.playlists.SetSize(-2, height-4)
 	}
+
 	m.tracklist.SetSize(m.width-m.playlists.Width()-4, height-14)
 	m.tracker.SetWidth(m.width - m.playlists.Width() - 4)
 
@@ -347,6 +360,15 @@ func (m *Model) initialLoad() error {
 
 			station.Tracks = likedTracks
 			m.playlists.SetItem(i, station)
+		case playlist.LOCAL:
+			station.Tracks, err = cache.ListTracks()
+			if err != nil {
+				continue
+			}
+			for i := range station.Tracks {
+				m.cachedTracksMap[station.Tracks[i].Id] = true
+			}
+			m.playlists.SetItem(i, station)
 		default:
 		}
 	}
@@ -359,7 +381,7 @@ func (m *Model) initialLoad() error {
 				continue
 			}
 
-			m.playlists.InsertItem(-1, playlist.Item{
+			m.playlists.InsertItem(-1, &playlist.Item{
 				Name:     pl.Title,
 				Kind:     pl.Kind,
 				Revision: pl.Revision,
@@ -481,10 +503,10 @@ func (m *Model) coverFilePath(track *api.Track) string {
 	return filepath.Join(tempDir, track.Id+".jpg")
 }
 
-func (m *Model) currentTrackFilePath() string {
+func (m *Model) metadataFilePath() string {
 	tempDir := filepath.Join(os.TempDir(), config.ConfigPath)
 	if os.MkdirAll(tempDir, 0755) != nil {
 		return ""
 	}
-	return filepath.Join(tempDir, "currenttrack.mp3")
+	return filepath.Join(tempDir, "metadata.mp3")
 }

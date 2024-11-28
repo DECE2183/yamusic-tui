@@ -55,12 +55,12 @@ func (m *Model) displaySearchResults(res api.SearchResult) tea.Cmd {
 	}
 
 	playlists = append(playlists,
-		playlist.Item{Name: "", Kind: playlist.NONE, Active: false, Subitem: false},
-		playlist.Item{Name: "search results:", Kind: playlist.NONE, Active: false, Subitem: false},
+		&playlist.Item{Name: "", Kind: playlist.NONE, Active: false, Subitem: false},
+		&playlist.Item{Name: "search results:", Kind: playlist.NONE, Active: false, Subitem: false},
 	)
 
 	if len(res.Tracks.Results) > 0 {
-		playlists = append(playlists, playlist.Item{
+		playlists = append(playlists, &playlist.Item{
 			Name:    "search \"" + res.Text + "\"",
 			Active:  true,
 			Subitem: true,
@@ -85,7 +85,7 @@ func (m *Model) displaySearchResults(res api.SearchResult) tea.Cmd {
 				continue
 			}
 
-			playlists = append(playlists, playlist.Item{
+			playlists = append(playlists, &playlist.Item{
 				Name:    artist.Name,
 				Active:  true,
 				Subitem: true,
@@ -109,7 +109,7 @@ func (m *Model) displaySearchResults(res api.SearchResult) tea.Cmd {
 			albumArtists := helpers.ArtistList(albumWithTracks.Artists)
 			if len(albumWithTracks.Volumes) > 1 {
 				for i := range albumWithTracks.Volumes {
-					playlists = append(playlists, playlist.Item{
+					playlists = append(playlists, &playlist.Item{
 						Name:    fmt.Sprintf("%s vol.%d (%s)", albumWithTracks.Title, i, albumArtists),
 						Active:  true,
 						Subitem: true,
@@ -117,7 +117,7 @@ func (m *Model) displaySearchResults(res api.SearchResult) tea.Cmd {
 					})
 				}
 			} else {
-				playlists = append(playlists, playlist.Item{
+				playlists = append(playlists, &playlist.Item{
 					Name:    fmt.Sprintf("%s (%s)", albumWithTracks.Title, albumArtists),
 					Active:  true,
 					Subitem: true,
@@ -139,7 +139,7 @@ func (m *Model) displaySearchResults(res api.SearchResult) tea.Cmd {
 				continue
 			}
 
-			playlists = append(playlists, playlist.Item{
+			playlists = append(playlists, &playlist.Item{
 				Name:    pl.Title + " by " + pl.Owner.Name,
 				Active:  true,
 				Subitem: true,

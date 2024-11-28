@@ -36,7 +36,7 @@ type Model struct {
 	Shufflable bool
 }
 
-func New(p *tea.Program, likesMap *map[string]bool) *Model {
+func New(p *tea.Program, likesMap *map[string]bool, cacheMap *map[string]bool) *Model {
 	m := &Model{
 		program: p,
 		help:    help.New(),
@@ -45,7 +45,7 @@ func New(p *tea.Program, likesMap *map[string]bool) *Model {
 
 	controls := config.Current.Controls
 
-	m.list = list.New([]list.Item{}, ItemDelegate{likesMap: likesMap}, 512, 512)
+	m.list = list.New([]list.Item{}, ItemDelegate{likesMap: likesMap, cacheMap: cacheMap}, 512, 512)
 	m.list.Styles.Title = style.TrackListTitleStyle
 	m.list.KeyMap = list.KeyMap{
 		CursorUp:   key.NewBinding(controls.CursorUp.Binding(), controls.CursorUp.Help("up")),
@@ -75,7 +75,7 @@ func (m *Model) View() string {
 		m.list.SetHeight(m.height - 2)
 	}
 
-	return style.TrackBoxStyle.Render(lipgloss.JoinVertical(lipgloss.Left, m.list.View(), "", m.help.View(helpMap)))
+	return style.TrackBoxStyle.Width(m.width).Render(lipgloss.JoinVertical(lipgloss.Left, m.list.View(), "", m.help.View(helpMap)))
 }
 
 func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {

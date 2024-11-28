@@ -2,7 +2,7 @@ package config
 
 import "gopkg.in/yaml.v3"
 
-type CacheType int
+type CacheType uint
 
 const (
 	CACHE_NONE CacheType = iota
@@ -10,7 +10,7 @@ const (
 	CACHE_ALL
 )
 
-var cacheValues = map[string]CacheType{
+var cacheValueToEnum = map[string]CacheType{
 	"disable": CACHE_NONE,
 	"false":   CACHE_NONE,
 	"none":    CACHE_NONE,
@@ -20,9 +20,22 @@ var cacheValues = map[string]CacheType{
 	"all":     CACHE_ALL,
 }
 
+var cacheEnumToValue = map[CacheType]string{
+	CACHE_NONE:       "none",
+	CACHE_LIKED_ONLY: "likes",
+	CACHE_ALL:        "all",
+}
+
 func (t *CacheType) UnmarshalYAML(value *yaml.Node) error {
-	*t = cacheValues[value.Value]
+	*t = cacheValueToEnum[value.Value]
 	return nil
+}
+
+func (t CacheType) MarshalYAML() (interface{}, error) {
+	if t > CACHE_ALL {
+		t = CACHE_NONE
+	}
+	return cacheEnumToValue[t], nil
 }
 
 type Controls struct {
@@ -51,6 +64,7 @@ type Controls struct {
 	PlayerRewindForward  *Key `yaml:"player-rewind-forward"`
 	PlayerRewindBackward *Key `yaml:"player-rewind-backward"`
 	PlayerLike           *Key `yaml:"player-like"`
+	PlayerCache          *Key `yaml:"player-cache"`
 	PlayerVolUp          *Key `yaml:"player-vol-up"`
 	PlayerVolDown        *Key `yaml:"player-vol-donw"`
 }
@@ -105,6 +119,7 @@ var defaultConfig = Config{
 		PlayerRewindForward:      NewKey("ctrl+right"),
 		PlayerRewindBackward:     NewKey("ctrl+left"),
 		PlayerLike:               NewKey("L"),
+		PlayerCache:              NewKey("S"),
 		PlayerVolUp:              NewKey("+,="),
 		PlayerVolDown:            NewKey("-"),
 	},

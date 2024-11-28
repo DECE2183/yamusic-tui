@@ -8,7 +8,6 @@ import (
 	"github.com/bogem/id3v2"
 	"github.com/dece2183/yamusic-tui/api"
 	"github.com/dece2183/yamusic-tui/cache"
-	"github.com/dece2183/yamusic-tui/config"
 	"github.com/dece2183/yamusic-tui/stream"
 	"github.com/dece2183/yamusic-tui/ui/components/tracker"
 	"github.com/dece2183/yamusic-tui/ui/components/tracklist"
@@ -107,26 +106,13 @@ func (m *Model) nextTrack() {
 func (m *Model) playTrack(track *api.Track) {
 	m.tracker.Stop()
 
-	dowInfo, err := m.client.TrackDownloadInfo(track.Id)
-	if err != nil {
-		return
-	}
-
-	var bestBitrate int
-	var bestTrackInfo api.TrackDownloadInfo
-	for _, t := range dowInfo {
-		if t.BbitrateInKbps > bestBitrate {
-			bestBitrate = t.BbitrateInKbps
-			bestTrackInfo = t
-		}
-	}
-
 	var (
-		coverFile *os.File
-		coverStat os.FileInfo
+		coverFile  *os.File
+		coverStat  os.FileInfo
+		coverBytes []byte
+		err        error
 	)
 
-	var coverBytes []byte
 	coverPath := m.coverFilePath(track)
 	coverFile, err = os.OpenFile(coverPath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0755)
 	if err != nil {
@@ -150,6 +136,7 @@ func (m *Model) playTrack(track *api.Track) {
 
 skipcover:
 	tag := id3v2.NewEmptyTag()
+	tag.SetDefaultEncoding(id3v2.EncodingUTF8)
 	tag.SetTitle(track.Title)
 	tag.SetAlbum(track.Albums[0].Title)
 	tag.SetGenre(track.Albums[0].Genre)
@@ -160,15 +147,16 @@ skipcover:
 		PictureType: id3v2.PTFrontCover,
 		Picture:     coverBytes,
 	})
+	tag.AddFrame("TLEN", id3v2.TextFrame{
+		Encoding: id3v2.EncodingUTF8,
+		Text:     fmt.Sprint(track.DurationMs),
+	})
 
-	var cacheFile *os.File
-	var cacheWriters = make([]io.WriteCloser, 0, 1)
-
-	cacheFile, err = os.OpenFile(m.currentTrackFilePath(), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0755)
+	var metadataFile *os.File
+	metadataFile, err = os.OpenFile(m.metadataFilePath(), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0755)
 	if err == nil {
-		cacheWriters = append(cacheWriters, cacheFile)
-		tag.WriteTo(cacheFile)
-		cacheFile.Sync()
+		tag.WriteTo(metadataFile)
+		metadataFile.Close()
 	}
 
 	var trackReader io.ReadCloser
@@ -176,25 +164,28 @@ skipcover:
 
 	trackReader, trackSize, err = cache.Read(track.Id)
 	if err != nil {
+		dowInfo, err := m.client.TrackDownloadInfo(track.Id)
+		if err != nil {
+			return
+		}
+
+		var bestBitrate int
+		var bestTrackInfo api.TrackDownloadInfo
+		for _, t := range dowInfo {
+			if t.BbitrateInKbps > bestBitrate {
+				bestBitrate = t.BbitrateInKbps
+				bestTrackInfo = t
+			}
+		}
+
 		trackReader, trackSize, err = m.client.DownloadTrack(bestTrackInfo)
 		if err != nil {
 			return
 		}
-		cacheMode := config.Current.CacheTracks
-		if cacheMode == config.CACHE_ALL || (cacheMode == config.CACHE_LIKED_ONLY && m.likedTracksMap[track.Id]) {
-			cacheFile, err = cache.Write(track.Id)
-			if err == nil {
-				cacheWriters = append(cacheWriters, cacheFile)
-				tag.WriteTo(cacheFile)
-				cacheFile.Sync()
-			}
-		}
 	}
 
-	tag.Close()
-
 	m.indicateCurrentTrackPlaying(true)
-	m.tracker.StartTrack(track, stream.NewBufferedStream(trackReader, trackSize, cacheWriters...))
+	m.tracker.StartTrack(track, stream.NewBufferedStream(trackReader, trackSize))
 
 	if m.currentPlaylistIndex >= 0 {
 		currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]

@@ -36,7 +36,7 @@ func (m *Model) addPlaylistControl(msg search.Control) tea.Cmd {
 		for i := range playlists {
 			if playlists[i].Active && playlists[i].Kind >= playlist.USER {
 				if strings.EqualFold(playlists[i].Name, inputVal) {
-					foundPlaylist = &playlists[i]
+					foundPlaylist = playlists[i]
 					foundPlaylistIndex = i
 					break
 				} else if foundPlaylistIndex < 0 {
@@ -59,7 +59,7 @@ func (m *Model) addPlaylistControl(msg search.Control) tea.Cmd {
 				Subitem:  true,
 			}
 
-			m.playlists.InsertItem(foundPlaylistIndex, *foundPlaylist)
+			m.playlists.InsertItem(foundPlaylistIndex, foundPlaylist)
 			if foundPlaylistIndex < m.playlists.Index() {
 				m.playlists.Select(m.playlists.Index() + 1)
 			}
@@ -77,7 +77,7 @@ func (m *Model) addPlaylistControl(msg search.Control) tea.Cmd {
 
 		foundPlaylist.Revision = pl.Revision
 		foundPlaylist.Tracks = append(foundPlaylist.Tracks, *selectedTrack)
-		cmd = m.playlists.SetItem(foundPlaylistIndex, *foundPlaylist)
+		cmd = m.playlists.SetItem(foundPlaylistIndex, foundPlaylist)
 
 		m.isAddPlaylistActive = false
 	case search.CANCEL:
@@ -123,69 +123,76 @@ func (m *Model) renamePlaylistControl(msg input.Control) tea.Cmd {
 	return cmd
 }
 
-func (m *Model) removeFromPlaylist(pl playlist.Item, index int) tea.Cmd {
-	var cmd tea.Cmd
-	if pl.Kind <= playlist.USER && pl.Kind != playlist.LIKES {
+func (m *Model) removeFromPlaylist(pl *playlist.Item, index int) tea.Cmd {
+	if index >= len(pl.Tracks) {
 		return nil
 	}
 
-	if pl.Kind == playlist.LIKES {
+	switch pl.Kind {
+	case playlist.NONE, playlist.MYWAVE:
+		return nil
+	case playlist.LIKES:
 		selectedTrack := pl.Tracks[index]
 		return m.likeTrack(&selectedTrack)
-	}
+	case playlist.LOCAL:
+		selectedTrack := pl.Tracks[index]
+		return m.removeCache(&selectedTrack)
+	default:
+		var cmd tea.Cmd
 
-	if len(pl.Tracks) < 2 {
-		err := m.client.RemovePlaylist(pl.Kind)
+		if len(pl.Tracks) < 2 {
+			err := m.client.RemovePlaylist(pl.Kind)
+			if err != nil {
+				return nil
+			}
+			playlists := m.playlists.Items()
+			if m.currentPlaylistIndex >= 0 {
+				currentPlaylist := playlists[m.currentPlaylistIndex]
+				if pl.IsSame(currentPlaylist) && m.tracker.IsPlaying() {
+					m.currentPlaylistIndex = -1
+				}
+			}
+			m.playlists.RemoveItem(m.playlists.Index())
+			if len(playlists) <= 1 {
+				m.playlists.Select(0)
+			}
+			m.displayPlaylist(m.playlists.SelectedItem())
+			return nil
+		}
+
+		newpl, err := m.client.RemoveFromPlaylist(pl.Kind, pl.Revision, index)
 		if err != nil {
 			return nil
 		}
-		playlists := m.playlists.Items()
+
+		pl.Revision = newpl.Revision
+		pl.Tracks = slices.Delete(pl.Tracks, index, index+1)
+		if index >= len(pl.Tracks) {
+			pl.SelectedTrack = len(pl.Tracks) - 1
+		} else {
+			pl.SelectedTrack = index
+		}
+		deleteCurrentTrack := index == pl.CurrentTrack
+		if deleteCurrentTrack {
+			pl.CurrentTrack = len(pl.Tracks)
+		} else if pl.CurrentTrack > index {
+			pl.CurrentTrack--
+		}
+		cmd = m.playlists.SetItem(m.playlists.Index(), pl)
+		m.displayPlaylist(pl)
+
 		if m.currentPlaylistIndex >= 0 {
-			currentPlaylist := playlists[m.currentPlaylistIndex]
+			currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
 			if pl.IsSame(currentPlaylist) && m.tracker.IsPlaying() {
-				m.currentPlaylistIndex = -1
+				m.indicateCurrentTrackPlaying(!deleteCurrentTrack)
 			}
 		}
-		m.playlists.RemoveItem(m.playlists.Index())
-		if len(playlists) <= 1 {
-			m.playlists.Select(0)
-		}
-		m.displayPlaylist(m.playlists.SelectedItem())
-		return nil
-	}
 
-	newpl, err := m.client.RemoveFromPlaylist(pl.Kind, pl.Revision, index)
-	if err != nil {
-		return nil
+		return cmd
 	}
-
-	pl.Revision = newpl.Revision
-	pl.Tracks = slices.Delete(pl.Tracks, index, index+1)
-	if index >= len(pl.Tracks) {
-		pl.SelectedTrack = len(pl.Tracks) - 1
-	} else {
-		pl.SelectedTrack = index
-	}
-	deleteCurrentTrack := index == pl.CurrentTrack
-	if deleteCurrentTrack {
-		pl.CurrentTrack = len(pl.Tracks)
-	} else if pl.CurrentTrack > index {
-		pl.CurrentTrack--
-	}
-	cmd = m.playlists.SetItem(m.playlists.Index(), pl)
-	m.displayPlaylist(pl)
-
-	if m.currentPlaylistIndex >= 0 {
-		currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
-		if pl.IsSame(currentPlaylist) && m.tracker.IsPlaying() {
-			m.indicateCurrentTrackPlaying(!deleteCurrentTrack)
-		}
-	}
-
-	return cmd
 }
 
-func (m *Model) shufflePlaylist(pl playlist.Item) tea.Cmd {
+func (m *Model) shufflePlaylist(pl *playlist.Item) tea.Cmd {
 	var cmds []tea.Cmd
 	if pl.Kind == playlist.NONE || pl.Kind == playlist.MYWAVE || len(pl.Tracks) == 0 {
 		return nil
@@ -228,7 +235,7 @@ func (m *Model) shufflePlaylist(pl playlist.Item) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-func (m *Model) displayPlaylist(pl playlist.Item) {
+func (m *Model) displayPlaylist(pl *playlist.Item) {
 	trackList := make([]tracklist.Item, len(pl.Tracks))
 	for i := range pl.Tracks {
 		trackList[i] = tracklist.NewItem(&pl.Tracks[i])
@@ -240,6 +247,8 @@ func (m *Model) displayPlaylist(pl playlist.Item) {
 		m.tracklist.Title = "My wave"
 	case playlist.LIKES:
 		m.tracklist.Title = "Liked tracks"
+	case playlist.LOCAL:
+		m.tracklist.Title = "Cached tracks"
 	default:
 		m.tracklist.Title = "Tracks from " + pl.Name
 	}

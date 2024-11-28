@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	_BUFFERING_AMOUNT = 32 * 512
+	_BUFFERING_AMOUNT = 32 * 1024
 	_BUFFERING_PERIOD = 100 * time.Millisecond
 )
 
@@ -17,7 +17,6 @@ var errOutOfSize = errors.New("position is out of data size")
 
 type BufferedStream struct {
 	source      io.ReadCloser
-	cacheTo     []io.WriteCloser
 	bufferTimer *time.Ticker
 	closed      chan bool
 	readBuffer  []byte
@@ -28,10 +27,9 @@ type BufferedStream struct {
 	mux         sync.Mutex
 }
 
-func NewBufferedStream(source io.ReadCloser, totalSize int64, cacheTo ...io.WriteCloser) *BufferedStream {
+func NewBufferedStream(source io.ReadCloser, totalSize int64) *BufferedStream {
 	rs := BufferedStream{
 		source:      source,
-		cacheTo:     cacheTo,
 		totalSize:   totalSize,
 		bufferTimer: time.NewTicker(_BUFFERING_PERIOD),
 		closed:      make(chan bool),
@@ -59,9 +57,6 @@ func (h *BufferedStream) Close() error {
 	}
 
 	if !h.done {
-		for _, c := range h.cacheTo {
-			c.Close()
-		}
 		err = h.source.Close()
 		h.done = true
 	}
@@ -79,7 +74,6 @@ func (h *BufferedStream) Read(dest []byte) (n int, err error) {
 		newFrame := make([]byte, (h.readIndex-readBufLen)+destLen)
 		n, err = io.ReadFull(h.source, newFrame)
 		h.readBuffer = append(h.readBuffer, newFrame[:n]...)
-		go h.cacheFrame(newFrame[:n])
 		if h.readIndex < int64(len(h.readBuffer)) {
 			copy(dest, h.readBuffer[h.readIndex:])
 		} else {
@@ -102,7 +96,6 @@ func (h *BufferedStream) Read(dest []byte) (n int, err error) {
 			copy(dest, append(bufferedPart, unbufferedPart...))
 			n = len(bufferedPart) + unbufferedLen
 			h.readBuffer = append(h.readBuffer, unbufferedPart...)
-			go h.cacheFrame(unbufferedPart)
 		} else {
 			copy(dest, bufferedPart)
 			n = len(bufferedPart)
@@ -116,9 +109,6 @@ func (h *BufferedStream) Read(dest []byte) (n int, err error) {
 
 	if err != nil {
 		if err == io.EOF && !h.done {
-			for _, c := range h.cacheTo {
-				c.Close()
-			}
 			h.source.Close()
 			h.buffered = true
 			h.done = true
@@ -166,6 +156,13 @@ func (h *BufferedStream) IsDone() bool {
 	return h.done
 }
 
+func (h *BufferedStream) IsBuffered() bool {
+	if h == nil {
+		return false
+	}
+	return h.buffered
+}
+
 func (h *BufferedStream) Progress() float64 {
 	if h == nil {
 		return 0
@@ -178,6 +175,28 @@ func (h *BufferedStream) BufferingProgress() float64 {
 		return 0
 	}
 	return float64(len(h.readBuffer)) / float64(h.totalSize)
+}
+
+func (h *BufferedStream) BufferAll() {
+	h.mux.Lock()
+	defer h.mux.Unlock()
+
+	if h.buffered {
+		return
+	}
+
+	newFrame, err := io.ReadAll(h.source)
+	if err != nil {
+		return
+	}
+
+	h.readBuffer = append(h.readBuffer, newFrame...)
+	h.source.Close()
+}
+
+func (h *BufferedStream) WriteTo(dest io.Writer) (int64, error) {
+	n, err := dest.Write(h.readBuffer)
+	return int64(n), err
 }
 
 func (h *BufferedStream) bufferFrames(size int64) {
@@ -193,7 +212,6 @@ func (h *BufferedStream) bufferFrames(size int64) {
 		buf := make([]byte, size)
 		n, err := io.ReadFull(h.source, buf)
 		if err == nil || err == io.EOF {
-			go h.cacheFrame(buf[:n])
 			h.readBuffer = append(h.readBuffer, buf[:n]...)
 			if err == io.EOF {
 				h.buffered = true
@@ -211,11 +229,5 @@ func (h *BufferedStream) bufferFrames(size int64) {
 		case <-h.closed:
 			return
 		}
-	}
-}
-
-func (h *BufferedStream) cacheFrame(frame []byte) {
-	for _, c := range h.cacheTo {
-		c.Write(frame)
 	}
 }

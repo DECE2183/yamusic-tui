@@ -50,3 +50,12 @@ func Write(trackId string) (*os.File, error) {
 
 	return file, nil
 }
+
+func Remove(trackId string) error {
+	dir, err := getCacheDir()
+	if err != nil {
+		return err
+	}
+
+	return os.Remove(filepath.Join(dir, trackId+".mp3"))
+}

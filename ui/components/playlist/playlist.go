@@ -26,6 +26,7 @@ const (
 	NONE PlaylistType = iota
 	MYWAVE
 	LIKES
+	LOCAL
 	// Should be the last to detect downloaded user playlists
 	USER
 )
@@ -44,11 +45,12 @@ func New(p *tea.Program, title string) *Model {
 	}
 
 	playlistItems := []list.Item{
-		Item{Name: "my wave", Kind: MYWAVE, Active: true, Subitem: false, Infinite: true},
-		Item{Name: "likes", Kind: LIKES, Active: true, Subitem: false},
+		&Item{Name: "my wave", Kind: MYWAVE, Active: true, Subitem: false, Infinite: true},
+		&Item{Name: "likes", Kind: LIKES, Active: true, Subitem: false},
+		&Item{Name: "local", Kind: LOCAL, Active: true, Subitem: false},
 
-		Item{Name: "", Kind: NONE, Active: false, Subitem: false},
-		Item{Name: "playlists:", Kind: NONE, Active: false, Subitem: false},
+		&Item{Name: "", Kind: NONE, Active: false, Subitem: false},
+		&Item{Name: "playlists:", Kind: NONE, Active: false, Subitem: false},
 	}
 
 	controls := config.Current.Controls
@@ -71,6 +73,10 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) View() string {
+	if m.width < 0 {
+		return ""
+	}
+
 	helpMap.Renamable = m.SelectedItem().Kind >= USER
 	if m.help.ShowAll {
 		m.list.SetHeight(m.height - 3)
@@ -98,7 +104,7 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 		case controls.PlaylistsUp.Contains(keypress):
 			m.list, cmd = m.list.Update(msg)
 
-			for len(m.list.Items()) > 0 && m.list.Index() > 0 && !m.list.SelectedItem().(Item).Active {
+			for len(m.list.Items()) > 0 && m.list.Index() > 0 && !m.list.SelectedItem().(*Item).Active {
 				m.list.CursorUp()
 			}
 
@@ -107,7 +113,7 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 		case controls.PlaylistsDown.Contains(keypress):
 			m.list, cmd = m.list.Update(msg)
 
-			for m.list.Index() < len(m.list.Items())-1 && !m.list.SelectedItem().(Item).Active {
+			for m.list.Index() < len(m.list.Items())-1 && !m.list.SelectedItem().(*Item).Active {
 				m.list.CursorDown()
 			}
 
@@ -121,16 +127,28 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m *Model) Items() []Item {
+func (m *Model) GetFirst(kind PlaylistType) (*Item, int) {
+	var pl *Item
+	items := m.list.Items()
+	for i := range items {
+		pl = items[i].(*Item)
+		if pl.Kind == kind {
+			return pl, i
+		}
+	}
+	return nil, -1
+}
+
+func (m *Model) Items() []*Item {
 	litems := m.list.Items()
-	items := make([]Item, len(litems))
+	items := make([]*Item, len(litems))
 	for i := range litems {
-		items[i] = litems[i].(Item)
+		items[i] = litems[i].(*Item)
 	}
 	return items
 }
 
-func (m *Model) SetItems(items []Item) tea.Cmd {
+func (m *Model) SetItems(items []*Item) tea.Cmd {
 	newItems := make([]list.Item, len(items))
 	for i := 0; i < len(items); i++ {
 		newItems[i] = items[i]
@@ -138,14 +156,14 @@ func (m *Model) SetItems(items []Item) tea.Cmd {
 	return m.list.SetItems(newItems)
 }
 
-func (m *Model) InsertItem(index int, item Item) tea.Cmd {
+func (m *Model) InsertItem(index int, item *Item) tea.Cmd {
 	if index < 0 {
 		index = len(m.list.Items()) + 1
 	}
 	return m.list.InsertItem(index, item)
 }
 
-func (m *Model) SetItem(index int, item Item) tea.Cmd {
+func (m *Model) SetItem(index int, item *Item) tea.Cmd {
 	return m.list.SetItem(index, item)
 }
 
@@ -153,8 +171,8 @@ func (m *Model) RemoveItem(index int) {
 	m.list.RemoveItem(index)
 }
 
-func (m *Model) SelectedItem() Item {
-	return m.list.SelectedItem().(Item)
+func (m *Model) SelectedItem() *Item {
+	return m.list.SelectedItem().(*Item)
 }
 
 func (m *Model) Index() int {
