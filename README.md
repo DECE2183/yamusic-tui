@@ -63,6 +63,7 @@ buffer-size-ms: 80
 rewind-duration-s: 5
 volume: 0.5
 volume-step: 0.05
+cache-tracks: likes # none/likes/all
 search:
     artists: true
     albums: false
@@ -89,6 +90,7 @@ controls:
    player-rewind-forward: ctrl+right
    player-rewind-backward: ctrl+left
    player-like: L
+   player-cache: S
    player-vol-up: +,=
    player-vol-donw: '-'
 ```

@@ -22,7 +22,7 @@ var (
 	IconStop     = "■"
 	IconLiked    = "💛"
 	IconNotLiked = "🤍"
-	IconCached   = "⬇️"
+	IconCached   = "💿"
 )
 
 var (

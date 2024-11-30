@@ -81,10 +81,12 @@ func (m *Model) Run() error {
 	}
 
 	m.mediaHandler.Enable()
-	defer m.mediaHandler.Disable()
 	go m.mediaHandle()
 
 	_, err = m.program.Run()
+
+	m.tracker.Stop()
+	m.mediaHandler.Disable()
 	return err
 }
 
@@ -475,6 +477,12 @@ func (m *Model) mediaHandle() {
 			track := m.tracker.CurrentTrack()
 			artists := make([]string, 0, len(track.Artists))
 			albumArtists := make([]string, 0, len(track.Albums[0].Artists))
+			for i := range track.Artists {
+				artists = append(artists, track.Artists[i].Name)
+			}
+			for i := range track.Albums[0].Artists {
+				albumArtists = append(albumArtists, track.Albums[0].Artists[i].Name)
+			}
 			md := handler.TrackMetadata{
 				TrackId:      track.Id,
 				Length:       time.Duration(track.DurationMs) * time.Millisecond,

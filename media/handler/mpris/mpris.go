@@ -40,6 +40,7 @@ func (mh *MprisHandler) Enable() error {
 }
 
 func (mh *MprisHandler) Disable() error {
+	mh.evHandler.Player.OnEnded()
 	err := mh.server.Stop()
 	close(mh.msgChan)
 	close(mh.ansChan)

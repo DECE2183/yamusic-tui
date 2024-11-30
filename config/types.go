@@ -91,7 +91,7 @@ var defaultConfig = Config{
 	RewindDuration: 5,
 	Volume:         0.5,
 	VolumeStep:     0.05,
-	CacheTracks:    CACHE_NONE,
+	CacheTracks:    CACHE_LIKED_ONLY,
 	Search: &Search{
 		Artists:   true,
 		Albums:    false,
