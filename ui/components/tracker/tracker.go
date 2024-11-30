@@ -386,6 +386,6 @@ func (m *Model) SetPos(pos time.Duration) {
 	m.player.Seek(byteOffset, io.SeekStart)
 }
 
-func (m *Model) WriteBufferTo(dest io.Writer) (int64, error) {
-	return m.trackWrapper.trackBuffer.WriteTo(dest)
+func (m *Model) TrackBuffer() *stream.BufferedStream {
+	return m.trackWrapper.trackBuffer
 }

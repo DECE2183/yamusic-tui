@@ -8,7 +8,9 @@ require (
 	github.com/charmbracelet/bubbletea v0.26.6
 	github.com/charmbracelet/lipgloss v0.12.1
 	github.com/dece2183/go-stream-mp3 v1.0.0
+	github.com/dece2183/media-winrt-go v0.0.0-20241129214242-6a9743bbf6f5
 	github.com/ebitengine/oto/v3 v3.1.0
+	github.com/go-ole/go-ole v1.3.0
 	github.com/godbus/dbus/v5 v5.1.0
 	github.com/quarckster/go-mpris-server v1.0.3
 	golang.design/x/clipboard v0.7.0
@@ -40,6 +42,6 @@ require (
 	golang.org/x/image v0.15.0 // indirect
 	golang.org/x/mobile v0.0.0-20240112133503-c713f31d574b // indirect
 	golang.org/x/sync v0.9.0 // indirect
-	golang.org/x/sys v0.21.0 // indirect
+	golang.org/x/sys v0.27.0 // indirect
 	golang.org/x/text v0.20.0 // indirect
 )

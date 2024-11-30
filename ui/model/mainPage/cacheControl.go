@@ -1,9 +1,9 @@
 package mainpage
 
 import (
-	"io"
 	"os"
 
+	"github.com/bogem/id3v2"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/dece2183/yamusic-tui/api"
 	"github.com/dece2183/yamusic-tui/cache"
@@ -30,16 +30,14 @@ func (m *Model) cacheCurrentTrack() tea.Cmd {
 
 	defer cacheFile.Close()
 
-	_, err = io.Copy(cacheFile, metadataFile)
-	if err != nil {
-		return nil
-	}
+	tag := id3v2.NewEmptyTag()
+	tag.Reset(metadataFile, id3v2.Options{Parse: true})
+	tag.WriteTo(cacheFile)
+	m.tracker.TrackBuffer().WriteTo(cacheFile)
 
-	m.tracker.WriteBufferTo(cacheFile)
 	m.cachedTracksMap[currentTrack.Id] = true
 	cachePlaylist, index := m.playlists.GetFirst(playlist.LOCAL)
 	cachePlaylist.AddTrack(currentTrack)
-
 	return m.playlists.SetItem(index, cachePlaylist)
 }
 

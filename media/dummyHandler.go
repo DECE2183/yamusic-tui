@@ -1,12 +1,12 @@
-//go:build linux && !nomedia
+//go:build nomedia
 
 package media
 
 import (
 	"github.com/dece2183/yamusic-tui/media/handler"
-	"github.com/dece2183/yamusic-tui/media/handler/mpris"
+	"github.com/dece2183/yamusic-tui/media/handler/dummy"
 )
 
 func NewHandler(name, description string) handler.MediaHandler {
-	return mpris.NewHandler(name, description)
+	return dummy.NewHandler(name, description)
 }

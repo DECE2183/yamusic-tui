@@ -135,35 +135,15 @@ func (m *Model) playTrack(track *api.Track) {
 	}
 
 skipcover:
-	tag := id3v2.NewEmptyTag()
-	tag.SetDefaultEncoding(id3v2.EncodingUTF8)
-	tag.SetTitle(track.Title)
-	tag.SetAlbum(track.Albums[0].Title)
-	tag.SetGenre(track.Albums[0].Genre)
-	tag.SetArtist(helpers.ArtistList(track.Artists))
-	tag.SetYear(fmt.Sprint(track.Albums[0].Year))
-	tag.AddAttachedPicture(id3v2.PictureFrame{
-		MimeType:    "image/jpeg",
-		PictureType: id3v2.PTFrontCover,
-		Picture:     coverBytes,
-	})
-	tag.AddFrame("TLEN", id3v2.TextFrame{
-		Encoding: id3v2.EncodingUTF8,
-		Text:     fmt.Sprint(track.DurationMs),
-	})
-
-	var metadataFile *os.File
-	metadataFile, err = os.OpenFile(m.metadataFilePath(), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0755)
-	if err == nil {
-		tag.WriteTo(metadataFile)
-		metadataFile.Close()
-	}
-
+	var trackFromCache bool
+	var trackBuffer *stream.BufferedStream
 	var trackReader io.ReadCloser
 	var trackSize int64
 
 	trackReader, trackSize, err = cache.Read(track.Id)
-	if err != nil {
+	if err == nil {
+		trackFromCache = true
+	} else {
 		dowInfo, err := m.client.TrackDownloadInfo(track.Id)
 		if err != nil {
 			return
@@ -184,8 +164,34 @@ skipcover:
 		}
 	}
 
-	m.indicateCurrentTrackPlaying(true)
-	m.tracker.StartTrack(track, stream.NewBufferedStream(trackReader, trackSize))
+	trackBuffer = stream.NewBufferedStream(trackReader, trackSize)
+	metadataFile, err := os.OpenFile(m.metadataFilePath(), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0755)
+	if err == nil {
+		tag := id3v2.NewEmptyTag()
+		if trackFromCache {
+			tag.Reset(trackBuffer, id3v2.Options{Parse: true})
+		} else {
+			tag.SetDefaultEncoding(id3v2.EncodingUTF8)
+			tag.SetTitle(track.Title)
+			tag.SetAlbum(track.Albums[0].Title)
+			tag.SetGenre(track.Albums[0].Genre)
+			tag.SetArtist(helpers.ArtistList(track.Artists))
+			tag.SetYear(fmt.Sprint(track.Albums[0].Year))
+			tag.AddAttachedPicture(id3v2.PictureFrame{
+				MimeType:    "image/jpeg",
+				PictureType: id3v2.PTFrontCover,
+				Picture:     coverBytes,
+			})
+			tag.AddFrame("TLEN", id3v2.TextFrame{
+				Encoding: id3v2.EncodingUTF8,
+				Text:     fmt.Sprint(track.DurationMs),
+			})
+		}
+		tag.WriteTo(metadataFile)
+		io.CopyN(metadataFile, trackBuffer, 32*1024)
+		trackBuffer.Seek(0, io.SeekStart)
+		metadataFile.Close()
+	}
 
 	if m.currentPlaylistIndex >= 0 {
 		currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
@@ -200,6 +206,8 @@ skipcover:
 		}
 	}
 
+	m.tracker.StartTrack(track, trackBuffer)
+	m.indicateCurrentTrackPlaying(true)
 	m.mediaHandler.OnPlayback()
 	go m.client.PlayTrack(track, false)
 }
