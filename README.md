@@ -39,7 +39,7 @@ The easiest way to get a token is to use this
     - [x] Add/remove track to playlist
     - [x] Create/remove playlist
     - [x] Rename playlist
- - [ ] Caching
+ - [x] Caching
  - [x] Search
  - [ ] Landing
 
