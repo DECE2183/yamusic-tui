@@ -2,11 +2,17 @@ package tracker
 
 import (
 	"fmt"
+	"image"
+	"image/color/palette"
+	"image/draw"
 	"io"
 	"math"
 	"strings"
 	"time"
 
+	"github.com/BourgeoisBear/rasterm"
+	"github.com/BurntSushi/graphics-go/graphics"
+	"github.com/BurntSushi/graphics-go/graphics/interp"
 	"github.com/dece2183/yamusic-tui/api"
 	"github.com/dece2183/yamusic-tui/config"
 	"github.com/dece2183/yamusic-tui/stream"
@@ -18,6 +24,7 @@ import (
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/ebitengine/oto/v3"
 )
 
@@ -46,6 +53,7 @@ var rewindAmount = time.Duration(config.Current.RewindDuration) * time.Second
 
 type Model struct {
 	width    int
+	cover    string
 	track    api.Track
 	progress progress.Model
 	help     help.Model
@@ -134,11 +142,11 @@ func (m *Model) View() string {
 		}
 
 		trackAddInfo := style.TrackAddInfoStyle.Render(trackLike + trackTime)
-		addInfoLen, _ := lipgloss.Size(trackAddInfo)
-		maxLen := m.Width() - addInfoLen - 4
+		addInfoLen := lipgloss.Width(trackAddInfo)
+		maxLen := m.Width() - addInfoLen - 4 - 14
 		stl := lipgloss.NewStyle().MaxWidth(maxLen - 1)
 
-		trackTitleLen, _ := lipgloss.Size(trackTitle)
+		trackTitleLen := lipgloss.Width(trackTitle)
 		if trackTitleLen > maxLen {
 			trackTitle = stl.Render(trackTitle) + "…"
 		} else if trackTitleLen < maxLen {
@@ -146,14 +154,14 @@ func (m *Model) View() string {
 		}
 
 		trackArtist := style.TrackArtistStyle.Render(helpers.ArtistList(m.track.Artists))
-		trackArtistLen, _ := lipgloss.Size(trackArtist)
+		trackArtistLen := lipgloss.Width(trackArtist)
 		if trackArtistLen > maxLen {
 			trackArtist = stl.Render(trackArtist) + "…"
 		} else if trackArtistLen < maxLen {
 			trackArtist += strings.Repeat(" ", maxLen-trackArtistLen)
 		}
 
-		trackTitle = lipgloss.NewStyle().Width(m.width - lipgloss.Width(trackAddInfo) - 4).Render(trackTitle)
+		trackTitle = lipgloss.NewStyle().Width(m.width - lipgloss.Width(trackAddInfo) - 4 - 14).Render(trackTitle)
 		trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackAddInfo)
 
 		trackTitle = lipgloss.JoinVertical(lipgloss.Left, trackTitle, trackArtist, "")
@@ -162,6 +170,12 @@ func (m *Model) View() string {
 	tracker := style.TrackProgressStyle.Render(m.progress.View())
 	tracker = lipgloss.JoinHorizontal(lipgloss.Top, playButton, tracker)
 	tracker = lipgloss.JoinVertical(lipgloss.Left, tracker, trackTitle, m.help.View(helpMap))
+
+	if len(m.cover) > 0 {
+		tracker = lipgloss.JoinHorizontal(lipgloss.Top, style.TrackCoverStyle.Render(m.cover), tracker)
+		// tracker = lipgloss.JoinHorizontal(lipgloss.Top, lipgloss.Place(14, 6, 0, 0, m.cover), tracker)
+		// tracker = lipgloss.JoinHorizontal(lipgloss.Top, lipgloss.PlaceHorizontal(14, 0, m.cover), tracker)
+	}
 
 	return style.TrackBoxStyle.Width(m.width).Render(tracker)
 }
@@ -257,8 +271,8 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 
 func (m *Model) SetWidth(width int) {
 	m.width = width
-	m.progress.Width = width - 9
-	m.help.Width = width - 8
+	m.progress.Width = width - 9 - 14
+	m.help.Width = width - 8 - 14
 }
 
 func (m *Model) Width() int {
@@ -291,9 +305,35 @@ func (m *Model) Volume() float64 {
 	return m.volume
 }
 
-func (m *Model) StartTrack(track *api.Track, reader *stream.BufferedStream) {
+func (m *Model) StartTrack(track *api.Track, cover image.Image, reader *stream.BufferedStream) {
 	if m.player != nil {
 		m.Stop()
+	}
+
+	const (
+		chWidth  = 12
+		chHeight = 6
+		pixHor   = 10
+		pixVer   = 20
+	)
+
+	if cover != nil {
+		coverScaled := image.NewPaletted(image.Rect(0, 0, chWidth*pixHor, chHeight*pixVer), palette.Plan9)
+		graphics.I.Scale(0.62, 0.62).TransformCenter(coverScaled, cover, interp.Bilinear)
+
+		str := &strings.Builder{}
+		r := image.Rect(0, 0, chWidth*pixHor, pixVer)
+		coverSlice := image.NewPaletted(r, palette.Plan9)
+		for i := 0; i < chHeight; i++ {
+			draw.Draw(coverSlice, r, coverScaled, image.Pt(0, i*pixVer), draw.Src)
+			str.WriteString(strings.Repeat("?", chWidth))
+			str.WriteString(ansi.CUB(chWidth))
+			rasterm.SixelWriteImage(str, coverSlice)
+			str.WriteString(ansi.CUF(chWidth))
+			str.WriteRune('\n')
+		}
+
+		m.cover = str.String()
 	}
 
 	m.track = *track

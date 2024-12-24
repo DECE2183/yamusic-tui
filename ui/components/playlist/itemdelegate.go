@@ -48,7 +48,7 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	}
 
 	name := item.Name
-	nameLen, _ := lipgloss.Size(name)
+	nameLen := lipgloss.Width(name)
 	maxLen := m.Width() - 5
 	if nameLen > maxLen {
 		name = lipgloss.NewStyle().MaxWidth(maxLen-1).Render(name) + "…"

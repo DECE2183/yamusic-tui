@@ -61,7 +61,7 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) View() string {
-	titleLen, _ := lipgloss.Size(m.Title)
+	titleLen := lipgloss.Width(m.Title)
 	if titleLen > m.width-8 {
 		m.list.Title = lipgloss.NewStyle().MaxWidth(m.width-9).Render(m.Title) + "…"
 	} else {

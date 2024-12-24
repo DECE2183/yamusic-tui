@@ -1,11 +1,16 @@
 package mainpage
 
 import (
+	"bytes"
 	"fmt"
+	"image"
 	"io"
 	"os"
 
-	"github.com/bogem/id3v2"
+	_ "image/jpeg"
+	_ "image/png"
+
+	"github.com/bogem/id3v2/v2"
 	"github.com/dece2183/yamusic-tui/api"
 	"github.com/dece2183/yamusic-tui/cache"
 	"github.com/dece2183/yamusic-tui/stream"
@@ -109,6 +114,7 @@ func (m *Model) playTrack(track *api.Track) {
 	var (
 		coverFile  *os.File
 		coverStat  os.FileInfo
+		coverType  string
 		coverBytes []byte
 		err        error
 	)
@@ -123,7 +129,7 @@ func (m *Model) playTrack(track *api.Track) {
 
 	coverStat, err = coverFile.Stat()
 	if err != nil || coverStat.Size() == 0 {
-		err = api.DownloadTrackCover(coverFile, track, 200)
+		coverType, err = api.DownloadTrackCover(coverFile, track, 200)
 		if err != nil {
 			goto skipcover
 		}
@@ -170,6 +176,14 @@ skipcover:
 		tag := id3v2.NewEmptyTag()
 		if trackFromCache {
 			tag.Reset(trackBuffer, id3v2.Options{Parse: true})
+			pictures := tag.GetFrames("APIC")
+			for _, f := range pictures {
+				pic, ok := f.(id3v2.PictureFrame)
+				if !ok {
+					continue
+				}
+				coverBytes = pic.Picture
+			}
 		} else {
 			tag.SetDefaultEncoding(id3v2.EncodingUTF8)
 			tag.SetTitle(track.Title)
@@ -178,8 +192,9 @@ skipcover:
 			tag.SetArtist(helpers.ArtistList(track.Artists))
 			tag.SetYear(fmt.Sprint(track.Albums[0].Year))
 			tag.AddAttachedPicture(id3v2.PictureFrame{
-				MimeType:    "image/jpeg",
+				MimeType:    coverType,
 				PictureType: id3v2.PTFrontCover,
+				Encoding:    id3v2.EncodingUTF16BE,
 				Picture:     coverBytes,
 			})
 			tag.AddFrame("TLEN", id3v2.TextFrame{
@@ -206,7 +221,12 @@ skipcover:
 		}
 	}
 
-	m.tracker.StartTrack(track, trackBuffer)
+	var cover image.Image
+	if len(coverBytes) > 0 {
+		cover, _, _ = image.Decode(bytes.NewReader(coverBytes))
+	}
+
+	m.tracker.StartTrack(track, cover, trackBuffer)
 	m.indicateCurrentTrackPlaying(true)
 	m.mediaHandler.OnPlayback()
 	go m.client.PlayTrack(track, false)

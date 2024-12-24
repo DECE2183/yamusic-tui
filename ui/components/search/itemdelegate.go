@@ -37,7 +37,7 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	}
 
 	text := string(item)
-	textLen, _ := lipgloss.Size(text)
+	textLen := lipgloss.Width(text)
 	if textLen > maxWidth {
 		text = text[:maxWidth-1] + "…"
 	} else if textLen < maxWidth {

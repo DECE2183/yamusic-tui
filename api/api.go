@@ -230,20 +230,20 @@ func TrackCoverLink(track *Track, size int) string {
 	return fmt.Sprintf("https://%s%dx%d", track.CoverUri[:len(track.CoverUri)-2], size, size)
 }
 
-func DownloadTrackCover(dst io.Writer, track *Track, size int) error {
+func DownloadTrackCover(dst io.Writer, track *Track, size int) (string, error) {
 	url := TrackCoverLink(track, size)
 	if len(url) == 0 {
-		return errors.New("cover not presented")
+		return "", errors.New("cover not presented")
 	}
 
 	resp, err := http.Get(url)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	defer resp.Body.Close()
 	_, err = io.Copy(dst, resp.Body)
-	return err
+	return resp.Header.Get("Content-Type"), err
 }
 
 func NewClient(token string) (client *YaMusicClient, err error) {
