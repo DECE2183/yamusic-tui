@@ -2,6 +2,7 @@ package mainpage
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"time"
@@ -318,17 +319,16 @@ func (m *Model) initialLoad() error {
 	if len(config.Current.Token) == 0 {
 		return fmt.Errorf("wrong token")
 	}
+	m.client, err = api.NewClient(config.Current.Token)
+	if err != nil {
+		if _, ok := err.(*url.Error); ok {
+			return fmt.Errorf("unable to connect to the Yandex server")
+		} else {
+			return err
+		}
+	}
 
-	// m.client, err = api.NewClient(config.Current.Token)
-	// if err != nil {
-	// 	if _, ok := err.(*url.Error); ok {
-	// 		return fmt.Errorf("unable to connect to the Yandex server")
-	// 	} else {
-	// 		return err
-	// 	}
-	// }
-
-	m.client = &api.YaMusicClient{}
+	//m.client = &api.YaMusicClient{}
 
 	for i, station := range m.playlists.Items() {
 		switch station.Kind {

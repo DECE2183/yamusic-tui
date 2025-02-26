@@ -12,14 +12,21 @@ func getCacheDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-
-	configDir := filepath.Join(userDir, config.ConfigPath)
-	err = os.MkdirAll(configDir, 0755)
+	var cacheDir string
+	if config.Current.CacheDir == "default" {
+		cacheDir = filepath.Join(userDir, config.ConfigPath)
+	} else {
+		cacheDir, err = filepath.Abs(config.Current.CacheDir)
+	}
+	if err != nil {
+		return "", err
+	}
+	err = os.MkdirAll(cacheDir, 0755)
 	if err != nil {
 		return "", err
 	}
 
-	return configDir, nil
+	return cacheDir, nil
 }
 
 func Read(trackId string) (*os.File, int64, error) {
