@@ -13,8 +13,7 @@ Based on [yandex-music-open-api](https://github.com/acherkashin/yandex-music-ope
 ### Requirements
 
 To use this client, you should have a valid Yandex Music account and an access token.<br>
-The easiest way to get a token is to use this
-[browser extension](https://github.com/MarshalX/yandex-music-token/tree/main/browser-extension).
+The easiest way to get a token is to use a browser extension ([Chrome](https://chrome.google.com/webstore/detail/yandex-music-token/lcbjeookjibfhjjopieifgjnhlegmkib), [Firefox](https://addons.mozilla.org/en-US/firefox/addon/yandex-music-token/)).
 
 ### Implemented features
 
@@ -97,4 +96,4 @@ controls:
 
 You can list multiple keys for the same control, separated by commas.
 
-Increase the `buffer-size-ms` if you have glitches or statters.
+Increase the `buffer-size-ms` if you have glitches or stutters.
