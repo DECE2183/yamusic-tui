@@ -1,9 +1,7 @@
 package mainpage
 
 import (
-	"bytes"
 	"fmt"
-	"image"
 	"io"
 	"os"
 
@@ -221,12 +219,7 @@ skipcover:
 		}
 	}
 
-	var cover image.Image
-	if len(coverBytes) > 0 {
-		cover, _, _ = image.Decode(bytes.NewReader(coverBytes))
-	}
-
-	m.tracker.StartTrack(track, cover, trackBuffer)
+	m.tracker.StartTrack(track, trackBuffer)
 	m.indicateCurrentTrackPlaying(true)
 	m.mediaHandler.OnPlayback()
 	go m.client.PlayTrack(track, false)

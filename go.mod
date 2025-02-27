@@ -2,17 +2,12 @@ module github.com/dece2183/yamusic-tui
 
 go 1.22.0
 
-toolchain go1.23.3
-
 require (
-	github.com/BourgeoisBear/rasterm v1.1.1
-	github.com/BurntSushi/graphics-go v0.0.0-20160129215708-b43f31a4a966
 	github.com/bogem/id3v2 v1.2.0
 	github.com/bogem/id3v2/v2 v2.1.4
 	github.com/charmbracelet/bubbles v0.20.0
 	github.com/charmbracelet/bubbletea v1.2.4
 	github.com/charmbracelet/lipgloss v1.0.0
-	github.com/charmbracelet/x/ansi v0.6.0
 	github.com/dece2183/go-stream-mp3 v1.0.0
 	github.com/dece2183/media-winrt-go v0.0.0-20241129214242-6a9743bbf6f5
 	github.com/ebitengine/oto/v3 v3.3.1
@@ -27,6 +22,7 @@ require (
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/charmbracelet/harmonica v0.2.0 // indirect
+	github.com/charmbracelet/x/ansi v0.6.0 // indirect
 	github.com/charmbracelet/x/term v0.2.1 // indirect
 	github.com/ebitengine/purego v0.8.1 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
@@ -44,6 +40,5 @@ require (
 	golang.org/x/mobile v0.0.0-20241213221354-a87c1cf6cf46 // indirect
 	golang.org/x/sync v0.10.0 // indirect
 	golang.org/x/sys v0.28.0 // indirect
-	golang.org/x/term v0.18.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
 )

@@ -122,10 +122,3 @@ var (
 				Border(lipgloss.RoundedBorder()).
 				BorderForeground(AccentColor)
 )
-
-var (
-	TrackCoverStyle = lipgloss.NewStyle().
-		MarginRight(2).
-		MaxHeight(6).
-		Width(12)
-)

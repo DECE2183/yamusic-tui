@@ -93,7 +93,7 @@ var defaultConfig = Config{
 	Volume:         0.5,
 	VolumeStep:     0.05,
 	CacheTracks:    CACHE_LIKED_ONLY,
-	CacheDir:       "default",
+	CacheDir:       "",
 	Search: &Search{
 		Artists:   true,
 		Albums:    false,

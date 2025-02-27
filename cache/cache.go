@@ -8,19 +8,24 @@ import (
 )
 
 func getCacheDir() (string, error) {
-	userDir, err := os.UserCacheDir()
-	if err != nil {
-		return "", err
-	}
-	var cacheDir string
-	if config.Current.CacheDir == "default" {
+	var (
+		cacheDir string
+		err      error
+	)
+
+	if len(config.Current.CacheDir) == 0 {
+		userDir, err := os.UserCacheDir()
+		if err != nil {
+			return "", err
+		}
 		cacheDir = filepath.Join(userDir, config.ConfigPath)
 	} else {
 		cacheDir, err = filepath.Abs(config.Current.CacheDir)
+		if err != nil {
+			return "", err
+		}
 	}
-	if err != nil {
-		return "", err
-	}
+
 	err = os.MkdirAll(cacheDir, 0755)
 	if err != nil {
 		return "", err
