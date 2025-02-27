@@ -63,6 +63,7 @@ rewind-duration-s: 5
 volume: 0.5
 volume-step: 0.05
 cache-tracks: likes # none/likes/all
+cache-dir: ""
 search:
     artists: true
     albums: false
@@ -93,6 +94,9 @@ controls:
    player-vol-up: +,=
    player-vol-donw: '-'
 ```
+
+By default, all cached tracks are stored in the system cache directory. `~/.cache/yamusic-tui` on Linux and `~/AppData/Local/yamusic-tui` on Windows.
+You can change this behavior by specifying a preferred cache directory in the `cache-dir` field.
 
 You can list multiple keys for the same control, separated by commas.
 

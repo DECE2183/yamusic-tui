@@ -1,0 +1,89 @@
+name: Release
+
+permissions:
+  contents: write
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Release binaries
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Setup Go
+      uses: actions/setup-go@v5
+
+    - name: Download dependencies
+      run: go mod vendor
+    - name: Pack vendor dir
+      run: tar -czf yamusic-tui-vendor.tar.gz ./vendor
+    - name: Upload vendor archive
+      uses: svenstaro/upload-release-action@v2
+      with:
+        file: yamusic-tui-vendor.tar.gz
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        tag: ${{ github.ref }}
+        body: "### ${{ github.ref }}"
+        draft: true
+
+    - name: Build linux-amd64
+      run: go build -trimpath -ldflags="-w -s" -o yamusic
+      env:
+        GOOS: linux
+        GOARCH: amd64
+    - name: Upload linux-amd64
+      uses: svenstaro/upload-release-action@v2
+      with:
+        file: yamusic
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        tag: ${{ github.ref }}
+        body: "### ${{ github.ref }}"
+        draft: true
+
+    - name: Build linux-amd64-nomedia
+      run: go build -trimpath -ldflags="-w -s" -tags=nomedia -o yamusic-nomedia
+      env:
+        GOOS: linux
+        GOARCH: amd64
+    - name: Upload linux-amd64-nomedia
+      uses: svenstaro/upload-release-action@v2
+      with:
+        file: yamusic-nomedia
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        tag: ${{ github.ref }}
+        body: "### ${{ github.ref }}"
+        draft: true
+
+    - name: Build windows-amd64
+      run: go build -trimpath -ldflags="-w -s" -o yamusic.exe
+      env:
+        GOOS: windows
+        GOARCH: amd64
+    - name: Upload windows-amd64
+      uses: svenstaro/upload-release-action@v2
+      with:
+        file: yamusic.exe
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        tag: ${{ github.ref }}
+        body: "### ${{ github.ref }}"
+        draft: true
+
+    - name: Build windows-amd64-nomedia
+      run: go build -trimpath -ldflags="-w -s" -tags=nomedia -o yamusic-nomedia.exe
+      env:
+        GOOS: windows
+        GOARCH: amd64
+    - name: Upload windows-amd64
+      uses: svenstaro/upload-release-action@v2
+      with:
+        file: yamusic-nomedia.exe
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        tag: ${{ github.ref }}
+        body: "### ${{ github.ref }}"
+        draft: true
