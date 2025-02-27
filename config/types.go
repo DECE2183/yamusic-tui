@@ -82,6 +82,7 @@ type Config struct {
 	Volume         float64   `yaml:"volume"`
 	VolumeStep     float64   `yaml:"volume-step"`
 	CacheTracks    CacheType `yaml:"cache-tracks"`
+	CacheDir       string    `yaml:"cache-dir"`
 	Search         *Search   `yaml:"search"`
 	Controls       *Controls `yaml:"controls"`
 }
@@ -92,6 +93,7 @@ var defaultConfig = Config{
 	Volume:         0.5,
 	VolumeStep:     0.05,
 	CacheTracks:    CACHE_LIKED_ONLY,
+	CacheDir:       "default",
 	Search: &Search{
 		Artists:   true,
 		Albums:    false,
