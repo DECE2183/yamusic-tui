@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"strconv"
 	"strings"
 	"time"
 
@@ -47,6 +48,7 @@ var rewindAmount = time.Duration(config.Current.RewindDuration) * time.Second
 type Model struct {
 	width    int
 	track    api.Track
+	client   **api.YaMusicClient
 	progress progress.Model
 	help     help.Model
 
@@ -59,13 +61,14 @@ type Model struct {
 	likesMap *map[string]bool
 }
 
-func New(p *tea.Program, likesMap *map[string]bool) *Model {
+func New(p *tea.Program, likesMap *map[string]bool, client **api.YaMusicClient) *Model {
 	m := &Model{
 		program:  p,
 		likesMap: likesMap,
 		progress: progress.New(progress.WithSolidFill(string(style.AccentColor))),
 		help:     help.New(),
 		volume:   config.Current.Volume,
+		client:   client,
 	}
 
 	m.progress.ShowPercentage = false
@@ -155,14 +158,34 @@ func (m *Model) View() string {
 
 		trackTitle = lipgloss.NewStyle().Width(m.width - lipgloss.Width(trackAddInfo) - 4).Render(trackTitle)
 		trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackAddInfo)
-
-		trackTitle = lipgloss.JoinVertical(lipgloss.Left, trackTitle, trackArtist, "")
+		currentLine := ""
+		if m.track.LyricsInfo.HasAvailableSyncLyrics {
+			trackId, err := strconv.Atoi(m.track.Id)
+			if err != nil || trackId < 1 {
+				trackId = 1
+			}
+			lyrics, err := (*m.client).TrackLyricsRequest(uint64(trackId))
+			if err != nil {
+				return ""
+			}
+			for idx, line := range lyrics {
+				if line.Timestamp > int(m.Position().Milliseconds()) {
+					if idx != 0 {
+						currentLine = lyrics[idx-1].Line
+						break
+					}
+					currentLine = line.Line
+					break
+				}
+			}
+		}
+		trackTitle = lipgloss.JoinVertical(lipgloss.Left, trackTitle, trackArtist, currentLine)
 	}
 
 	tracker := style.TrackProgressStyle.Render(m.progress.View())
 	tracker = lipgloss.JoinHorizontal(lipgloss.Top, playButton, tracker)
 	tracker = lipgloss.JoinVertical(lipgloss.Left, tracker, trackTitle, m.help.View(helpMap))
-
+	tracker = lipgloss.JoinHorizontal(lipgloss.Top, "", tracker)
 	return style.TrackBoxStyle.Width(m.width).Render(tracker)
 }
 
