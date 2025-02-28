@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 
 	_ "image/jpeg"
 	_ "image/png"
@@ -143,7 +144,19 @@ skipcover:
 	var trackBuffer *stream.BufferedStream
 	var trackReader io.ReadCloser
 	var trackSize int64
+	var lyrics []api.LyricPair = nil
+	if track.LyricsInfo.HasAvailableSyncLyrics {
+		trackId, err := strconv.Atoi(track.Id)
+		if err != nil {
+			return
+		}
 
+		lyrics, err = m.client.TrackLyricsRequest(uint64(trackId))
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+	}
 	trackReader, trackSize, err = cache.Read(track.Id)
 	if err == nil {
 		trackFromCache = true
@@ -219,7 +232,7 @@ skipcover:
 		}
 	}
 
-	m.tracker.StartTrack(track, trackBuffer)
+	m.tracker.StartTrack(track, trackBuffer, lyrics)
 	m.indicateCurrentTrackPlaying(true)
 	m.mediaHandler.OnPlayback()
 	go m.client.PlayTrack(track, false)

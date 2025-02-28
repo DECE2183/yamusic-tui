@@ -48,7 +48,7 @@ var rewindAmount = time.Duration(config.Current.RewindDuration) * time.Second
 type Model struct {
 	width    int
 	track    api.Track
-	client   **api.YaMusicClient
+	lyrics   []api.LyricPair
 	progress progress.Model
 	help     help.Model
 
@@ -61,14 +61,13 @@ type Model struct {
 	likesMap *map[string]bool
 }
 
-func New(p *tea.Program, likesMap *map[string]bool, client **api.YaMusicClient) *Model {
+func New(p *tea.Program, likesMap *map[string]bool) *Model {
 	m := &Model{
 		program:  p,
 		likesMap: likesMap,
 		progress: progress.New(progress.WithSolidFill(string(style.AccentColor))),
 		help:     help.New(),
 		volume:   config.Current.Volume,
-		client:   client,
 	}
 
 	m.progress.ShowPercentage = false
@@ -158,24 +157,26 @@ func (m *Model) View() string {
 
 		trackTitle = lipgloss.NewStyle().Width(m.width - lipgloss.Width(trackAddInfo) - 4).Render(trackTitle)
 		trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackAddInfo)
-		currentLine := ""
-		if m.track.LyricsInfo.HasAvailableSyncLyrics {
-			trackId, err := strconv.Atoi(m.track.Id)
-			if err != nil || trackId < 1 {
-				trackId = 1
-			}
-			lyrics, err := (*m.client).TrackLyricsRequest(uint64(trackId))
-			if err != nil {
-				return ""
-			}
-			for idx, line := range lyrics {
-				if line.Timestamp > int(m.Position().Milliseconds()) {
-					if idx != 0 {
-						currentLine = lyrics[idx-1].Line
+		currentLine := " "
+		if m.player != nil {
+			if m.player.IsPlaying() && m.track.LyricsInfo.HasAvailableSyncLyrics && m.Position().Milliseconds() > 1 {
+				trackId, err := strconv.Atoi(m.track.Id)
+				if err != nil || trackId < 1 {
+					trackId = 1
+				}
+				if err != nil {
+					return ""
+				}
+				for idx, line := range m.lyrics {
+					if line.Timestamp > int(m.Position().Milliseconds())-500 {
+						if idx != 0 {
+							currentLine = m.lyrics[idx-1].Line
+							break
+						}
+
+						currentLine = " "
 						break
 					}
-					currentLine = line.Line
-					break
 				}
 			}
 		}
@@ -314,7 +315,7 @@ func (m *Model) Volume() float64 {
 	return m.volume
 }
 
-func (m *Model) StartTrack(track *api.Track, reader *stream.BufferedStream) {
+func (m *Model) StartTrack(track *api.Track, reader *stream.BufferedStream, lyrics []api.LyricPair) {
 	if m.player != nil {
 		m.Stop()
 	}
@@ -324,6 +325,7 @@ func (m *Model) StartTrack(track *api.Track, reader *stream.BufferedStream) {
 	m.player = m.playerContext.NewPlayer(m.trackWrapper)
 	m.player.SetVolume(m.volume)
 	m.player.Play()
+	m.lyrics = lyrics
 }
 
 func (m *Model) Stop() {

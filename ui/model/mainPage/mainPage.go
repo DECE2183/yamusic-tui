@@ -58,7 +58,7 @@ func New() *Model {
 
 	m.playlists = playlist.New(m.program, "YaMusic")
 	m.tracklist = tracklist.New(m.program, &m.likedTracksMap, &m.cachedTracksMap)
-	m.tracker = tracker.New(m.program, &m.likedTracksMap, &m.client)
+	m.tracker = tracker.New(m.program, &m.likedTracksMap)
 	m.searchDialog = search.New()
 	m.inputDialog = input.New()
 	return m
