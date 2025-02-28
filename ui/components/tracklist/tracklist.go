@@ -72,7 +72,7 @@ func (m *Model) View() string {
 	if m.help.ShowAll {
 		m.list.SetHeight(m.height - 4)
 	} else {
-		m.list.SetHeight(m.height - 2)
+		m.list.SetHeight(m.height - 4)
 	}
 
 	return style.TrackBoxStyle.Width(m.width).Render(lipgloss.JoinVertical(lipgloss.Left, m.list.View(), "", m.help.View(helpMap)))

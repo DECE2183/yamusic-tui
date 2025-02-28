@@ -158,29 +158,30 @@ func (m *Model) View() string {
 		trackTitle = lipgloss.NewStyle().Width(m.width - lipgloss.Width(trackAddInfo) - 4).Render(trackTitle)
 		trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackAddInfo)
 		currentLine := " "
-		if m.player != nil {
-			if m.player.IsPlaying() && m.track.LyricsInfo.HasAvailableSyncLyrics && m.Position().Milliseconds() > 1 {
-				trackId, err := strconv.Atoi(m.track.Id)
-				if err != nil || trackId < 1 {
-					trackId = 1
-				}
-				if err != nil {
-					return ""
-				}
-				for idx, line := range m.lyrics {
-					if line.Timestamp > int(m.Position().Milliseconds())-500 {
-						if idx != 0 {
-							currentLine = m.lyrics[idx-1].Line
-							break
-						}
-
-						currentLine = " "
-						break
-					}
+		nextLine := " "
+		previousLine := " "
+		if m.player != nil && m.player.IsPlaying() && m.track.LyricsInfo.HasAvailableSyncLyrics {
+			trackId, err := strconv.Atoi(m.track.Id)
+			if err != nil || trackId < 1 {
+				trackId = 1
+			}
+			if err != nil {
+				return ""
+			}
+			for idx, line := range m.lyrics {
+				if line.Timestamp > int(m.Position().Milliseconds()-1000) {
+					previousLine = m.tryGetLyricsLine(idx - 2)
+					currentLine = m.tryGetLyricsLine(idx - 1)
+					nextLine = m.tryGetLyricsLine(idx)
+					break
 				}
 			}
 		}
-		trackTitle = lipgloss.JoinVertical(lipgloss.Left, trackTitle, trackArtist, currentLine)
+		previousLine = lipgloss.NewStyle().Foreground(lipgloss.Color("#222222")).Render(previousLine)
+		nextLine = lipgloss.NewStyle().Foreground(lipgloss.Color("#444444")).Render(nextLine)
+		lyrics := lipgloss.JoinVertical(lipgloss.Center, previousLine, currentLine, nextLine)
+		lyrics = lipgloss.NewStyle().Width(m.width - 4).AlignHorizontal(lipgloss.Center).Render(lyrics)
+		trackTitle = lipgloss.JoinVertical(lipgloss.Left, trackTitle, trackArtist, lyrics)
 	}
 
 	tracker := style.TrackProgressStyle.Render(m.progress.View())
@@ -413,4 +414,10 @@ func (m *Model) SetPos(pos time.Duration) {
 
 func (m *Model) TrackBuffer() *stream.BufferedStream {
 	return m.trackWrapper.trackBuffer
+}
+func (m *Model) tryGetLyricsLine(idx int) (line string) {
+	if idx < 0 || idx >= len(m.lyrics) {
+		return
+	}
+	return m.lyrics[idx].Line
 }
