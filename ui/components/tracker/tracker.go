@@ -187,7 +187,7 @@ func (m *Model) View() string {
 	tracker := style.TrackProgressStyle.Render(m.progress.View())
 	tracker = lipgloss.JoinHorizontal(lipgloss.Top, playButton, tracker)
 	tracker = lipgloss.JoinVertical(lipgloss.Left, tracker, trackTitle, m.help.View(helpMap))
-	tracker = lipgloss.JoinHorizontal(lipgloss.Top, "", tracker)
+
 	return style.TrackBoxStyle.Width(m.width).Render(tracker)
 }
 
