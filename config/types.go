@@ -67,6 +67,7 @@ type Controls struct {
 	PlayerCache          *Key `yaml:"player-cache"`
 	PlayerVolUp          *Key `yaml:"player-vol-up"`
 	PlayerVolDown        *Key `yaml:"player-vol-donw"`
+	PlayerToggleLyrics   *Key `yaml:"player-toggle-lyrics"`
 }
 
 type Search struct {
@@ -81,6 +82,7 @@ type Config struct {
 	RewindDuration float64   `yaml:"rewind-duration-s"`
 	Volume         float64   `yaml:"volume"`
 	VolumeStep     float64   `yaml:"volume-step"`
+	ShowLyrics     bool      `yaml:"show-lyrics"`
 	CacheTracks    CacheType `yaml:"cache-tracks"`
 	CacheDir       string    `yaml:"cache-dir"`
 	Search         *Search   `yaml:"search"`
@@ -92,6 +94,7 @@ var defaultConfig = Config{
 	RewindDuration: 5,
 	Volume:         0.5,
 	VolumeStep:     0.05,
+	ShowLyrics:     false,
 	CacheTracks:    CACHE_LIKED_ONLY,
 	CacheDir:       "",
 	Search: &Search{
@@ -121,6 +124,7 @@ var defaultConfig = Config{
 		PlayerRewindForward:      NewKey("ctrl+right"),
 		PlayerRewindBackward:     NewKey("ctrl+left"),
 		PlayerLike:               NewKey("L"),
+		PlayerToggleLyrics:       NewKey("t"),
 		PlayerCache:              NewKey("S"),
 		PlayerVolUp:              NewKey("+,="),
 		PlayerVolDown:            NewKey("-"),

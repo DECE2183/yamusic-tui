@@ -112,7 +112,10 @@ type Track struct {
 	CoverUri        string `json:"coverUri"`
 	OgImage         string `json:"ogImage"`
 	LyricsAvailable bool   `json:"lyricsAvailable"`
-
+	LyricsInfo      struct {
+		HasAvailableSyncLyrics bool `json:"hasAvailableSyncLyrics"`
+		HasAvailableTextLyrics bool `json:"hasAvailableTextLyrics"`
+	} `json:"lyricsInfo"`
 	Normalization struct {
 		Gain float32 `json:"gain"`
 		Peak float32 `json:"Peak"`
@@ -346,4 +349,21 @@ type SearchSuggest struct {
 		Result Track  `json:"result"`
 	} `json:"best"`
 	Suggestions []string `json:"suggestions"`
+}
+
+type TrackLyrics struct {
+	DownloadUrl     string   `json:"downloadUrl"`
+	LyricId         string   `json:"lyricId"`
+	ExternalLyricId string   `json:"externalLyricId"`
+	Writers         []string `json:"writers"`
+	Major           struct {
+		Id         int    `json:"id"`
+		Name       string `json:"name"`
+		PrettyName string `json:"prettyName"`
+	} `json:"major"`
+}
+
+type LyricPair struct {
+	Timestamp int
+	Line      string
 }

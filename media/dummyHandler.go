@@ -1,4 +1,4 @@
-//go:build nomedia
+//go:build nomedia || darwin
 
 package media
 

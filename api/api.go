@@ -2,8 +2,11 @@ package api
 
 import (
 	"bytes"
+	"crypto/hmac"
 	"crypto/md5"
+	"crypto/sha256"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -11,6 +14,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -480,4 +484,63 @@ func (client *YaMusicClient) Search(request string, searchType SearchType) (resu
 func (client *YaMusicClient) SearchSuggest(part string) (suggestions SearchSuggest, err error) {
 	suggestions, _, err = getRequest[SearchSuggest](client.token, "/search/suggest", url.Values{"part": {part}})
 	return
+}
+
+func (client *YaMusicClient) TrackLyricsRequest(trackId uint64) (LRCLyrics []LyricPair, err error) {
+	timestamp := fmt.Sprintf("%d", time.Now().Unix())
+	// scary algorithm to sign the request (required for lyrics)
+	message := strconv.Itoa(int(trackId)) + timestamp
+	h := hmac.New(sha256.New, []byte("p93jhgh689SBReK6ghtw62"))
+	h.Write([]byte(message))
+	hmacSign := h.Sum(nil)
+	sign := base64.StdEncoding.EncodeToString(hmacSign)
+	lyrics, _, err := getRequest[TrackLyrics](client.token, fmt.Sprintf("/tracks/%d/lyrics", trackId), url.Values{"sign": {sign}, "timeStamp": {timestamp}, "format": {"LRC"}})
+	if err != nil {
+		return []LyricPair{}, err
+	}
+	LRCLyricsResponse, err := http.Get(lyrics.DownloadUrl)
+	if err != nil {
+		return []LyricPair{}, err
+	}
+	data, err := io.ReadAll(LRCLyricsResponse.Body)
+	if err != nil {
+		return []LyricPair{}, err
+	}
+	LRCLyrics = parseLRCText(string(data))
+	return
+}
+
+func parseLRCText(lrcContent string) []LyricPair {
+	var lyrics []LyricPair
+	lines := strings.Split(lrcContent, "\n")
+
+	for _, line := range lines {
+		if !strings.Contains(line, "[") || strings.HasPrefix(line, "[ti:") {
+			continue
+		}
+
+		parts := strings.SplitN(line, "]", 2)
+		if len(parts) != 2 {
+			continue
+		}
+
+		timeStr := strings.Trim(parts[0], "[]")
+		timeParts := strings.Split(timeStr, ":")
+		if len(timeParts) != 2 {
+			continue
+		}
+
+		minutes, _ := strconv.Atoi(timeParts[0])
+		secondsParts := strings.Split(timeParts[1], ".")
+		seconds, _ := strconv.Atoi(secondsParts[0])
+		millis := 0
+		if len(secondsParts) > 1 {
+			millis, _ = strconv.Atoi(secondsParts[1])
+		}
+
+		totalMs := minutes*60*1000 + seconds*1000 + millis
+		lyrics = append(lyrics, LyricPair{totalMs, strings.TrimSpace(parts[1])})
+	}
+
+	return lyrics
 }

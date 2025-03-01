@@ -1,14 +1,14 @@
 package ui
 
 import (
-	loginpage "github.com/dece2183/yamusic-tui/ui/model/loginPage"
-	mainpage "github.com/dece2183/yamusic-tui/ui/model/mainPage"
-
 	"github.com/dece2183/yamusic-tui/config"
 	"github.com/dece2183/yamusic-tui/ui/model"
+	loginpage "github.com/dece2183/yamusic-tui/ui/model/loginPage"
+	mainpage "github.com/dece2183/yamusic-tui/ui/model/mainPage"
 )
 
 func Run() {
+
 	var err error
 
 	if config.Current.Token == "" {

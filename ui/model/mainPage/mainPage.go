@@ -61,7 +61,6 @@ func New() *Model {
 	m.tracker = tracker.New(m.program, &m.likedTracksMap)
 	m.searchDialog = search.New()
 	m.inputDialog = input.New()
-
 	return m
 }
 
