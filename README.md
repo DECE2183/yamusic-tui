@@ -92,7 +92,7 @@ controls:
    player-like: L
    player-cache: S
    player-vol-up: +,=
-   player-vol-donw: '-'
+   player-vol-down: '-'
 ```
 
 By default, all cached tracks are stored in the system cache directory. `~/.cache/yamusic-tui` on Linux and `~/AppData/Local/yamusic-tui` on Windows.

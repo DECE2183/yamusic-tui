@@ -35,6 +35,7 @@ const (
 	VOLUME
 	CACHE_TRACK
 	BUFFERING_COMPLETE
+	TOGGLE_LYRICS
 )
 
 type ProgressControl float64
@@ -46,11 +47,12 @@ func (p ProgressControl) Value() float64 {
 var rewindAmount = time.Duration(config.Current.RewindDuration) * time.Second
 
 type Model struct {
-	width    int
-	track    api.Track
-	lyrics   []api.LyricPair
-	progress progress.Model
-	help     help.Model
+	width      int
+	track      api.Track
+	lyrics     []api.LyricPair
+	progress   progress.Model
+	help       help.Model
+	showLyrics bool
 
 	volume        float64
 	playerContext *oto.Context
@@ -63,11 +65,12 @@ type Model struct {
 
 func New(p *tea.Program, likesMap *map[string]bool) *Model {
 	m := &Model{
-		program:  p,
-		likesMap: likesMap,
-		progress: progress.New(progress.WithSolidFill(string(style.AccentColor))),
-		help:     help.New(),
-		volume:   config.Current.Volume,
+		program:    p,
+		likesMap:   likesMap,
+		progress:   progress.New(progress.WithSolidFill(string(style.AccentColor))),
+		help:       help.New(),
+		volume:     config.Current.Volume,
+		showLyrics: config.Current.ShowLyrics,
 	}
 
 	m.progress.ShowPercentage = false
@@ -160,21 +163,26 @@ func (m *Model) View() string {
 		currentLine := " "
 		nextLine := " "
 		previousLine := " "
-		if m.player != nil && m.player.IsPlaying() && m.track.LyricsInfo.HasAvailableSyncLyrics {
-			trackId, err := strconv.Atoi(m.track.Id)
-			if err != nil || trackId < 1 {
-				trackId = 1
-			}
-			if err != nil {
-				return ""
-			}
-			for idx, line := range m.lyrics {
-				if line.Timestamp > int(m.Position().Milliseconds()-1000) {
-					previousLine = m.tryGetLyricsLine(idx - 2)
-					currentLine = m.lyricsBreak(m.tryGetLyricsLine(idx - 1))
-					nextLine = m.tryGetLyricsLine(idx)
-					break
+		if m.player != nil && m.showLyrics {
+			switch m.track.LyricsInfo.HasAvailableSyncLyrics {
+			case true:
+				trackId, err := strconv.Atoi(m.track.Id)
+				if err != nil || trackId < 1 {
+					trackId = 1
 				}
+				if err != nil {
+					return ""
+				}
+				for idx, line := range m.lyrics {
+					if line.Timestamp > int(m.Position().Milliseconds()-1000) {
+						previousLine = m.tryGetLyricsLine(idx - 2)
+						currentLine = m.lyricsBreak(m.tryGetLyricsLine(idx - 1))
+						nextLine = m.tryGetLyricsLine(idx)
+						break
+					}
+				}
+			case false:
+				currentLine = "This song doesn't have synced lyrics!"
 			}
 		}
 		previousLine = lipgloss.NewStyle().Foreground(lipgloss.Color("#222222")).Render(previousLine)
@@ -252,7 +260,11 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 			config.Current.Volume = m.volume
 			config.Save()
 			cmds = append(cmds, model.Cmd(VOLUME))
-
+		case controls.PlayerToggleLyrics.Contains(keypress):
+			m.showLyrics = !m.showLyrics
+			config.Current.ShowLyrics = m.showLyrics
+			config.Save()
+			cmds = append(cmds, model.Cmd(TOGGLE_LYRICS))
 		}
 
 	// player control update
