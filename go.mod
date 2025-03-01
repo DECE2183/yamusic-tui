@@ -1,6 +1,6 @@
 module github.com/dece2183/yamusic-tui
 
-go 1.22.0
+go 1.24.0
 
 require (
 	github.com/bogem/id3v2 v1.2.0

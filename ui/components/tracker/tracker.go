@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"strconv"
 	"strings"
 	"time"
 
@@ -160,42 +159,17 @@ func (m *Model) View() string {
 
 		trackTitle = lipgloss.NewStyle().Width(m.width - lipgloss.Width(trackAddInfo) - 4).Render(trackTitle)
 		trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackAddInfo)
-		currentLine := " "
-		nextLine := " "
-		previousLine := " "
-		if m.player != nil && m.showLyrics {
-			switch m.track.LyricsInfo.HasAvailableSyncLyrics {
-			case true:
-				trackId, err := strconv.Atoi(m.track.Id)
-				if err != nil || trackId < 1 {
-					trackId = 1
-				}
-				if err != nil {
-					return ""
-				}
-				for idx, line := range m.lyrics {
-					if line.Timestamp > int(m.Position().Milliseconds()-1000) {
-						previousLine = m.tryGetLyricsLine(idx - 2)
-						currentLine = m.lyricsBreak(m.tryGetLyricsLine(idx - 1))
-						nextLine = m.tryGetLyricsLine(idx)
-						break
-					}
-				}
-			case false:
-				currentLine = "This song doesn't have synced lyrics!"
-			}
-		}
-		previousLine = lipgloss.NewStyle().Foreground(lipgloss.Color("#222222")).Render(previousLine)
-		nextLine = lipgloss.NewStyle().Foreground(lipgloss.Color("#444444")).Render(nextLine)
-		lyrics := lipgloss.JoinVertical(lipgloss.Center, previousLine, currentLine, nextLine)
-		lyrics = lipgloss.NewStyle().Width(m.width - 4).AlignHorizontal(lipgloss.Center).Render(lyrics)
-		trackTitle = lipgloss.JoinVertical(lipgloss.Left, trackTitle, trackArtist, lyrics)
+		trackTitle = lipgloss.JoinVertical(lipgloss.Left, trackTitle, trackArtist, "")
 	}
 
 	tracker := style.TrackProgressStyle.Render(m.progress.View())
 	tracker = lipgloss.JoinHorizontal(lipgloss.Top, playButton, tracker)
-	tracker = lipgloss.JoinVertical(lipgloss.Left, tracker, trackTitle, m.help.View(helpMap))
 
+	if m.showLyrics {
+		tracker = lipgloss.JoinVertical(lipgloss.Left, m.renderLyrics(), "", tracker)
+	}
+
+	tracker = lipgloss.JoinVertical(lipgloss.Left, tracker, trackTitle, m.help.View(helpMap))
 	return style.TrackBoxStyle.Width(m.width).Render(tracker)
 }
 
@@ -300,6 +274,14 @@ func (m *Model) SetWidth(width int) {
 
 func (m *Model) Width() int {
 	return m.width
+}
+
+func (m *Model) Height() int {
+	if m.showLyrics {
+		return 8
+	} else {
+		return 4
+	}
 }
 
 func (m *Model) Progress() float64 {
@@ -427,25 +409,58 @@ func (m *Model) SetPos(pos time.Duration) {
 func (m *Model) TrackBuffer() *stream.BufferedStream {
 	return m.trackWrapper.trackBuffer
 }
+
+func (m *Model) renderLyrics() string {
+	currentLine := " "
+	nextLine := " "
+	previousLine := " "
+
+	if m.player != nil && m.showLyrics {
+		switch m.track.LyricsInfo.HasAvailableSyncLyrics {
+		case true:
+			for idx, line := range m.lyrics {
+				if line.Timestamp > int(m.Position().Milliseconds()-1000) {
+					previousLine = m.tryGetLyricsLine(idx - 2)
+					currentLine = m.lyricsBreak(m.tryGetLyricsLine(idx - 1))
+					nextLine = m.tryGetLyricsLine(idx)
+					break
+				}
+			}
+		case false:
+			currentLine = "This song doesn't have synced lyrics!"
+		}
+	}
+
+	previousLine = lipgloss.NewStyle().Foreground(style.LyricsPreviosTextColor).Render(previousLine)
+	nextLine = lipgloss.NewStyle().Foreground(style.LyricsNextTextColor).Render(nextLine)
+	currentLine = lipgloss.NewStyle().Foreground(style.LyricsCurrentTextColor).Render(currentLine)
+
+	lyrics := lipgloss.JoinVertical(lipgloss.Center, previousLine, currentLine, nextLine)
+	lyrics = lipgloss.NewStyle().Width(m.width - 4).AlignHorizontal(lipgloss.Center).Render(lyrics)
+
+	return lyrics
+}
+
 func (m *Model) tryGetLyricsLine(idx int) (line string) {
 	if idx < 0 || idx >= len(m.lyrics) {
 		return
 	}
 	return m.lyrics[idx].Line
 }
+
 func (m *Model) lyricsBreak(line string) (newLine string) {
 	if strings.TrimSpace(strings.TrimSpace(line)) != "" {
 		return line
 	}
-	whiteDot := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF")).Render(".")
-	grayDot := lipgloss.NewStyle().Foreground(lipgloss.Color("#555555")).Render(".")
+
 	switch m.Position().Milliseconds() % 900 / 300 {
 	default:
-		newLine = whiteDot + grayDot + grayDot
+		newLine = style.IconDotLight + style.IconDotDark + style.IconDotDark
 	case 1:
-		newLine = grayDot + whiteDot + grayDot
+		newLine = style.IconDotDark + style.IconDotLight + style.IconDotDark
 	case 2:
-		newLine = grayDot + grayDot + whiteDot
+		newLine = style.IconDotDark + style.IconDotDark + style.IconDotLight
 	}
+
 	return
 }

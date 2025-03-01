@@ -66,7 +66,7 @@ type Controls struct {
 	PlayerLike           *Key `yaml:"player-like"`
 	PlayerCache          *Key `yaml:"player-cache"`
 	PlayerVolUp          *Key `yaml:"player-vol-up"`
-	PlayerVolDown        *Key `yaml:"player-vol-donw"`
+	PlayerVolDown        *Key `yaml:"player-vol-down"`
 	PlayerToggleLyrics   *Key `yaml:"player-toggle-lyrics"`
 }
 

@@ -285,6 +285,8 @@ func (m *Model) View() string {
 	if m.playlists.Width() > 0 {
 		sidePanel = m.playlists.View()
 	}
+
+	m.tracklist.SetHeight(m.height - m.tracker.Height() - 8)
 	midPanel := lipgloss.JoinVertical(lipgloss.Left, m.tracklist.View(), m.tracker.View())
 	return lipgloss.JoinHorizontal(lipgloss.Bottom, sidePanel, midPanel)
 }
@@ -301,7 +303,7 @@ func (m *Model) resize(width, height int) {
 		m.playlists.SetSize(-2, height-4)
 	}
 
-	m.tracklist.SetSize(m.width-m.playlists.Width()-4, height-14)
+	m.tracklist.SetSize(m.width-m.playlists.Width()-4, height-m.tracker.Height()-8)
 	m.tracker.SetWidth(m.width - m.playlists.Width() - 4)
 
 	searchWidth := style.SearchModalWidth

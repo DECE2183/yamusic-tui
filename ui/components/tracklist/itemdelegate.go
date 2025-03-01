@@ -69,7 +69,7 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 
 	trackAddInfo := style.TrackAddInfoStyle.Render(trackCache + " " + trackLike + " " + trackTime)
 	addInfoLen := lipgloss.Width(trackAddInfo)
-	maxLen := m.Width() - addInfoLen - 8
+	maxLen := m.Width() - addInfoLen - 2
 	stl := lipgloss.NewStyle().MaxWidth(maxLen - 1)
 
 	trackTitleLen := lipgloss.Width(trackTitle)

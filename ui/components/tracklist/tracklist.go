@@ -70,7 +70,7 @@ func (m *Model) View() string {
 
 	helpMap.Shafflable = m.Shufflable
 	if m.help.ShowAll {
-		m.list.SetHeight(m.height - 4)
+		m.list.SetHeight(m.height - 6)
 	} else {
 		m.list.SetHeight(m.height - 4)
 	}
@@ -166,12 +166,12 @@ func (m *Model) Select(index int) {
 func (m *Model) SetSize(w, h int) {
 	m.width = w
 	m.height = h
-	m.list.SetSize(m.width, m.height-3)
+	m.list.SetSize(m.width-6, m.height-3)
 }
 
 func (m *Model) SetWidth(w int) {
 	m.width = w
-	m.list.SetWidth(m.width)
+	m.list.SetWidth(m.width - 6)
 }
 
 func (m *Model) Width() int {
