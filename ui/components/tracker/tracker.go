@@ -171,7 +171,7 @@ func (m *Model) View() string {
 			for idx, line := range m.lyrics {
 				if line.Timestamp > int(m.Position().Milliseconds()-1000) {
 					previousLine = m.tryGetLyricsLine(idx - 2)
-					currentLine = m.tryGetLyricsLine(idx - 1)
+					currentLine = m.lyricsBreak(m.tryGetLyricsLine(idx - 1))
 					nextLine = m.tryGetLyricsLine(idx)
 					break
 				}
@@ -420,4 +420,20 @@ func (m *Model) tryGetLyricsLine(idx int) (line string) {
 		return
 	}
 	return m.lyrics[idx].Line
+}
+func (m *Model) lyricsBreak(line string) (newLine string) {
+	if strings.TrimSpace(strings.TrimSpace(line)) != "" {
+		return line
+	}
+	whiteDot := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF")).Render(".")
+	grayDot := lipgloss.NewStyle().Foreground(lipgloss.Color("#555555")).Render(".")
+	switch m.Position().Milliseconds() % 900 / 300 {
+	default:
+		newLine = whiteDot + grayDot + grayDot
+	case 1:
+		newLine = grayDot + whiteDot + grayDot
+	case 2:
+		newLine = grayDot + grayDot + whiteDot
+	}
+	return
 }
