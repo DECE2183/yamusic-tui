@@ -486,15 +486,15 @@ func (client *YaMusicClient) SearchSuggest(part string) (suggestions SearchSugge
 	return
 }
 
-func (client *YaMusicClient) TrackLyricsRequest(trackId uint64) (LRCLyrics []LyricPair, err error) {
+func (client *YaMusicClient) TrackLyricsRequest(trackId string) (LRCLyrics []LyricPair, err error) {
 	timestamp := fmt.Sprintf("%d", time.Now().Unix())
 	// scary algorithm to sign the request (required for lyrics)
-	message := strconv.Itoa(int(trackId)) + timestamp
+	message := trackId + timestamp
 	h := hmac.New(sha256.New, []byte("p93jhgh689SBReK6ghtw62"))
 	h.Write([]byte(message))
 	hmacSign := h.Sum(nil)
 	sign := base64.StdEncoding.EncodeToString(hmacSign)
-	lyrics, _, err := getRequest[TrackLyrics](client.token, fmt.Sprintf("/tracks/%d/lyrics", trackId), url.Values{"sign": {sign}, "timeStamp": {timestamp}, "format": {"LRC"}})
+	lyrics, _, err := getRequest[TrackLyrics](client.token, fmt.Sprintf("/tracks/%s/lyrics", trackId), url.Values{"sign": {sign}, "timeStamp": {timestamp}, "format": {"LRC"}})
 	if err != nil {
 		return []LyricPair{}, err
 	}

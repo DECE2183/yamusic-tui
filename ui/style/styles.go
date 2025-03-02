@@ -11,6 +11,7 @@ const (
 
 var (
 	AccentColor            = lipgloss.Color("#FC0")
+	ErrorColor             = lipgloss.Color("#F33")
 	BackgroundColor        = lipgloss.Color("#6b6b6b")
 	ActiveTextColor        = lipgloss.Color("#EEE")
 	NormalTextColor        = lipgloss.Color("#CCC")
@@ -32,6 +33,7 @@ var (
 
 var (
 	AccentTextStyle = lipgloss.NewStyle().Foreground(AccentColor)
+	ErrorTextStyle  = lipgloss.NewStyle().Foreground(ErrorColor)
 )
 
 var (

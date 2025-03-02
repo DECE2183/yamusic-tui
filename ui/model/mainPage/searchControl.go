@@ -7,6 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/dece2183/yamusic-tui/api"
 	"github.com/dece2183/yamusic-tui/config"
+	"github.com/dece2183/yamusic-tui/log"
 	"github.com/dece2183/yamusic-tui/ui/components/playlist"
 	"github.com/dece2183/yamusic-tui/ui/components/search"
 	"github.com/dece2183/yamusic-tui/ui/helpers"
@@ -26,6 +27,8 @@ func (m *Model) searchControl(msg search.Control) tea.Cmd {
 
 		searchRes, err := m.client.Search(req, api.SEARCH_ALL)
 		if err != nil {
+			log.Print(log.LVL_ERROR, "failed to search [%s]: %s", req, err)
+			m.tracker.ShowError("search")
 			return nil
 		}
 
@@ -35,6 +38,8 @@ func (m *Model) searchControl(msg search.Control) tea.Cmd {
 	case search.UPDATE_SUGGESTIONS:
 		suggestions, err := m.client.SearchSuggest(m.searchDialog.InputValue())
 		if err != nil {
+			log.Print(log.LVL_ERROR, "failed to obtain search [%s] suggestions: %s", m.searchDialog.InputValue(), err)
+			m.tracker.ShowError("search seggestion")
 			return nil
 		}
 		m.searchDialog.SetSuggestions(suggestions.Suggestions)
@@ -77,11 +82,17 @@ func (m *Model) displaySearchResults(res api.SearchResult) tea.Cmd {
 
 			artistTracks, err := m.client.ArtistPopularTracks(artist.Id)
 			if err != nil {
+				sval, _ := m.searchDialog.SuggestionValue()
+				log.Print(log.LVL_ERROR, "failed to obtain search [%s] artist [%s] tracks: %s", sval, artist.Name, err)
+				m.tracker.ShowError("search artist tracks")
 				continue
 			}
 
 			tracks, err := m.client.Tracks(artistTracks.Tracks)
 			if err != nil {
+				sval, _ := m.searchDialog.SuggestionValue()
+				log.Print(log.LVL_ERROR, "failed to obtain search [%s] artist [%s] tracks full info: %s", sval, artist.Name, err)
+				m.tracker.ShowError("search artist tracks info")
 				continue
 			}
 
@@ -103,6 +114,9 @@ func (m *Model) displaySearchResults(res api.SearchResult) tea.Cmd {
 
 			albumWithTracks, err := m.client.Album(album.Id, true)
 			if err != nil {
+				sval, _ := m.searchDialog.SuggestionValue()
+				log.Print(log.LVL_ERROR, "failed to obtain search [%s] album [%s] tracks: %s", sval, album.Title, err)
+				m.tracker.ShowError("search album tracks")
 				continue
 			}
 
@@ -136,6 +150,9 @@ func (m *Model) displaySearchResults(res api.SearchResult) tea.Cmd {
 
 			playlistTracks, err := m.client.PlaylistTracks(pl.Kind, pl.Owner.Uid, false)
 			if err != nil {
+				sval, _ := m.searchDialog.SuggestionValue()
+				log.Print(log.LVL_ERROR, "failed to obtain search [%s] playlist [%s] tracks: %s", sval, pl.Title, err)
+				m.tracker.ShowError("search playlist tracks")
 				continue
 			}
 

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 
 	_ "image/jpeg"
 	_ "image/png"
@@ -12,6 +11,7 @@ import (
 	"github.com/bogem/id3v2/v2"
 	"github.com/dece2183/yamusic-tui/api"
 	"github.com/dece2183/yamusic-tui/cache"
+	"github.com/dece2183/yamusic-tui/log"
 	"github.com/dece2183/yamusic-tui/stream"
 	"github.com/dece2183/yamusic-tui/ui/components/tracker"
 	"github.com/dece2183/yamusic-tui/ui/components/tracklist"
@@ -78,6 +78,9 @@ func (m *Model) nextTrack() {
 		if currentPlaylist.CurrentTrack+2 >= len(currentPlaylist.Tracks) {
 			tracks, err := m.client.StationTracks(api.MyWaveId, &currTrack)
 			if err != nil {
+				log.Print(log.LVL_ERROR, "failed to obtain more station tracks: %s", err)
+				m.tracker.ShowError("station tracks")
+				m.Send(tracker.STOP)
 				return
 			}
 
@@ -121,6 +124,7 @@ func (m *Model) playTrack(track *api.Track) {
 	coverPath := m.coverFilePath(track)
 	coverFile, err = os.OpenFile(coverPath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0755)
 	if err != nil {
+		log.Print(log.LVL_WARNIGN, "unable to open cover file [%s]: %s", coverPath, err)
 		goto skipcover
 	}
 
@@ -130,6 +134,7 @@ func (m *Model) playTrack(track *api.Track) {
 	if err != nil || coverStat.Size() == 0 {
 		coverType, err = api.DownloadTrackCover(coverFile, track, 200)
 		if err != nil {
+			log.Print(log.LVL_WARNIGN, "unable to download track [%s] cover: %s", track.Id, err)
 			goto skipcover
 		}
 		coverFile.Sync()
@@ -144,17 +149,12 @@ skipcover:
 	var trackBuffer *stream.BufferedStream
 	var trackReader io.ReadCloser
 	var trackSize int64
-	var lyrics []api.LyricPair = nil
+	var lyrics []api.LyricPair
 	if track.LyricsInfo.HasAvailableSyncLyrics {
-		trackId, err := strconv.Atoi(track.Id)
+		lyrics, err = m.client.TrackLyricsRequest(track.Id)
 		if err != nil {
-			return
-		}
-
-		lyrics, err = m.client.TrackLyricsRequest(uint64(trackId))
-		if err != nil {
-			fmt.Println(err)
-			return
+			log.Print(log.LVL_WARNIGN, "failed to obtain track [%s] lyrics: %s", track.Id, err)
+			m.tracker.ShowError("track lyrics")
 		}
 	}
 	trackReader, trackSize, err = cache.Read(track.Id)
@@ -163,6 +163,8 @@ skipcover:
 	} else {
 		dowInfo, err := m.client.TrackDownloadInfo(track.Id)
 		if err != nil {
+			log.Print(log.LVL_ERROR, "failed to obtain track [%s] info: %s", track.Id, err)
+			m.tracker.ShowError("track info")
 			return
 		}
 
@@ -177,6 +179,8 @@ skipcover:
 
 		trackReader, trackSize, err = m.client.DownloadTrack(bestTrackInfo)
 		if err != nil {
+			log.Print(log.LVL_ERROR, "failed to download track [%s]: %s", track.Id, err)
+			m.tracker.ShowError("track download")
 			return
 		}
 	}
@@ -209,6 +213,8 @@ skipcover:
 		io.CopyN(metadataFile, trackBuffer, 32*1024)
 		trackBuffer.Seek(0, io.SeekStart)
 		metadataFile.Close()
+	} else {
+		log.Print(log.LVL_WARNIGN, "failed to create metadata file: %s", err)
 	}
 
 	if m.currentPlaylistIndex >= 0 {

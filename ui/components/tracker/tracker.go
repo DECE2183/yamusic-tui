@@ -9,6 +9,7 @@ import (
 
 	"github.com/dece2183/yamusic-tui/api"
 	"github.com/dece2183/yamusic-tui/config"
+	"github.com/dece2183/yamusic-tui/log"
 	"github.com/dece2183/yamusic-tui/stream"
 	"github.com/dece2183/yamusic-tui/ui/helpers"
 	"github.com/dece2183/yamusic-tui/ui/model"
@@ -52,6 +53,8 @@ type Model struct {
 	progress   progress.Model
 	help       help.Model
 	showLyrics bool
+	showError  bool
+	errorText  string
 
 	volume        float64
 	playerContext *oto.Context
@@ -89,6 +92,7 @@ func New(p *tea.Program, likesMap *map[string]bool) *Model {
 	var readyChan chan struct{}
 	m.playerContext, readyChan, err = oto.NewContext(op)
 	if err != nil {
+		log.Print(log.LVL_PANIC, "failed to create player context: %s", err)
 		model.PrettyExit(err, 12)
 	}
 	<-readyChan
@@ -167,6 +171,15 @@ func (m *Model) View() string {
 
 	if m.showLyrics {
 		tracker = lipgloss.JoinVertical(lipgloss.Left, m.renderLyrics(), "", tracker)
+	}
+
+	if m.showError && config.Current.ShowErrors {
+		errText := "Error: " + m.errorText + "; -> " + log.Location()
+		maxLen := m.Width() - 4
+		if lipgloss.Width(errText) > maxLen {
+			errText = lipgloss.NewStyle().MaxWidth(maxLen-1).Render(errText) + "…"
+		}
+		tracker = lipgloss.JoinVertical(lipgloss.Left, style.ErrorTextStyle.Render(errText), "", tracker)
 	}
 
 	tracker = lipgloss.JoinVertical(lipgloss.Left, tracker, trackTitle, m.help.View(helpMap))
@@ -277,11 +290,14 @@ func (m *Model) Width() int {
 }
 
 func (m *Model) Height() int {
+	baseHeight := 4
 	if m.showLyrics {
-		return 8
-	} else {
-		return 4
+		baseHeight += 4
 	}
+	if m.showError && config.Current.ShowErrors {
+		baseHeight += 2
+	}
+	return baseHeight
 }
 
 func (m *Model) Progress() float64 {
@@ -311,6 +327,8 @@ func (m *Model) Volume() float64 {
 }
 
 func (m *Model) StartTrack(track *api.Track, reader *stream.BufferedStream, lyrics []api.LyricPair) {
+	m.showError = false
+
 	if m.player != nil {
 		m.Stop()
 	}
@@ -408,6 +426,11 @@ func (m *Model) SetPos(pos time.Duration) {
 
 func (m *Model) TrackBuffer() *stream.BufferedStream {
 	return m.trackWrapper.trackBuffer
+}
+
+func (m *Model) ShowError(text string) {
+	m.showError = true
+	m.errorText = text
 }
 
 func (m *Model) renderLyrics() string {

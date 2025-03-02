@@ -17,13 +17,14 @@ The easiest way to get a token is to use a browser extension ([Chrome](https://c
 
 ### Implemented features
 
- - [x] Player control
+ - [x] Player
     - [x] Play/pause
     - [x] Switch track
     - [x] Play progress
     - [x] Rewind
     - [x] Like/unlike
     - [x] Share
+    - [x] Synced lyrics
  - [ ] Radio
     - [x] My wave
     - [ ] Radio configuration
@@ -62,6 +63,8 @@ buffer-size-ms: 80
 rewind-duration-s: 5
 volume: 0.5
 volume-step: 0.05
+show-errors: false
+show-lyrics: false
 cache-tracks: likes # none/likes/all
 cache-dir: ""
 search:

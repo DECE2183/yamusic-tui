@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/dece2183/yamusic-tui/api"
+	"github.com/dece2183/yamusic-tui/log"
 	"github.com/dece2183/yamusic-tui/ui/components/input"
 	"github.com/dece2183/yamusic-tui/ui/components/playlist"
 	"github.com/dece2183/yamusic-tui/ui/components/search"
@@ -48,6 +49,8 @@ func (m *Model) addPlaylistControl(msg search.Control) tea.Cmd {
 		if foundPlaylist == nil {
 			pl, err := m.client.CreatePlaylist(inputVal, true)
 			if err != nil {
+				log.Print(log.LVL_ERROR, "failed to create playlist [%s]: %s", inputVal, err)
+				m.tracker.ShowError("playlist create")
 				return nil
 			}
 
@@ -72,6 +75,8 @@ func (m *Model) addPlaylistControl(msg search.Control) tea.Cmd {
 		selectedTrack := &selectedPlaylist.Tracks[m.tracklist.Index()]
 		pl, err := m.client.AddToPlaylist(foundPlaylist.Kind, foundPlaylist.Revision, len(foundPlaylist.Tracks), selectedTrack.Id)
 		if err != nil {
+			log.Print(log.LVL_ERROR, "failed to add track [%s] to playlist [%s]: %s", selectedTrack.Id, foundPlaylist.Name, err)
+			m.tracker.ShowError("playlist add")
 			return nil
 		}
 
@@ -113,6 +118,8 @@ func (m *Model) renamePlaylistControl(msg input.Control) tea.Cmd {
 	selectedPlaylist := m.playlists.SelectedItem()
 	pl, err := m.client.RenamePlaylist(selectedPlaylist.Kind, newName)
 	if err != nil {
+		log.Print(log.LVL_ERROR, "failed to rename playlist [%s] to '%s': %s", selectedPlaylist.Name, newName, err)
+		m.tracker.ShowError("playlist rename")
 		return nil
 	}
 
@@ -143,6 +150,8 @@ func (m *Model) removeFromPlaylist(pl *playlist.Item, index int) tea.Cmd {
 		if len(pl.Tracks) < 2 {
 			err := m.client.RemovePlaylist(pl.Kind)
 			if err != nil {
+				log.Print(log.LVL_ERROR, "failed to remove playlist [%s]: %s", pl.Name, err)
+				m.tracker.ShowError("playlist remove")
 				return nil
 			}
 			playlists := m.playlists.Items()
@@ -162,6 +171,8 @@ func (m *Model) removeFromPlaylist(pl *playlist.Item, index int) tea.Cmd {
 
 		newpl, err := m.client.RemoveFromPlaylist(pl.Kind, pl.Revision, index)
 		if err != nil {
+			log.Print(log.LVL_ERROR, "failed to remove track [%s] from playlist [%s]: %s", pl.Tracks[index].Id, pl.Name, err)
+			m.tracker.ShowError("playlist remove track")
 			return nil
 		}
 

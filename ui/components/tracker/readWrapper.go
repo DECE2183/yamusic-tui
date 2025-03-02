@@ -6,6 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	mp3 "github.com/dece2183/go-stream-mp3"
+	"github.com/dece2183/yamusic-tui/log"
 	"github.com/dece2183/yamusic-tui/stream"
 )
 
@@ -24,6 +25,7 @@ func (w *readWrapper) NewReader(reader *stream.BufferedStream) {
 	w.trackBuffer = reader
 	w.decoder, err = mp3.NewDecoder(w.trackBuffer)
 	if err != nil {
+		log.Print(log.LVL_ERROR, "failed to create mp3 decoder: %s", err)
 		return
 	}
 
@@ -49,6 +51,7 @@ func (w *readWrapper) Read(dest []byte) (n int, err error) {
 	n, err = w.decoder.Read(dest)
 	if err != nil && err != io.EOF {
 		// bypass mp3 decoding error after rewinding
+		log.Print(log.LVL_WARNIGN, "mp3 decoding error: %s", err)
 		err = nil
 	}
 

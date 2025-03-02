@@ -7,6 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/dece2183/yamusic-tui/api"
 	"github.com/dece2183/yamusic-tui/cache"
+	"github.com/dece2183/yamusic-tui/log"
 	"github.com/dece2183/yamusic-tui/ui/components/playlist"
 )
 
@@ -18,6 +19,8 @@ func (m *Model) cacheCurrentTrack() tea.Cmd {
 
 	metadataFile, err := os.OpenFile(m.metadataFilePath(), os.O_RDONLY, 0755)
 	if err != nil {
+		log.Print(log.LVL_ERROR, "failed to open cache file: %s", err)
+		m.tracker.ShowError("cache open")
 		return nil
 	}
 
@@ -25,6 +28,8 @@ func (m *Model) cacheCurrentTrack() tea.Cmd {
 
 	cacheFile, err := cache.Write(currentTrack.Id)
 	if err != nil {
+		log.Print(log.LVL_ERROR, "failed to write cache file: %s", err)
+		m.tracker.ShowError("cache write")
 		return nil
 	}
 
@@ -44,6 +49,8 @@ func (m *Model) cacheCurrentTrack() tea.Cmd {
 func (m *Model) removeCache(track *api.Track) tea.Cmd {
 	err := cache.Remove(track.Id)
 	if err != nil {
+		log.Print(log.LVL_ERROR, "failed to remove cached file: %s", err)
+		m.tracker.ShowError("cache remove")
 		return nil
 	}
 

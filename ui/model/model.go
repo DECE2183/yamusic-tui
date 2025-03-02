@@ -5,7 +5,7 @@ import (
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"github.com/dece2183/yamusic-tui/ui/style"
 )
 
 type Model interface {
@@ -19,7 +19,7 @@ func PrettyExit(err error, code int) {
 	fmt.Println()
 
 	if err != nil {
-		errMsg := lipgloss.NewStyle().Foreground(lipgloss.Color("#F33")).Render("Error:")
+		errMsg := style.ErrorTextStyle.Render("Error:")
 		fmt.Println(errMsg, err, "")
 	}
 

@@ -82,6 +82,7 @@ type Config struct {
 	RewindDuration float64   `yaml:"rewind-duration-s"`
 	Volume         float64   `yaml:"volume"`
 	VolumeStep     float64   `yaml:"volume-step"`
+	ShowErrors     bool      `yaml:"show-errors"`
 	ShowLyrics     bool      `yaml:"show-lyrics"`
 	CacheTracks    CacheType `yaml:"cache-tracks"`
 	CacheDir       string    `yaml:"cache-dir"`
@@ -97,6 +98,7 @@ var defaultConfig = Config{
 	ShowLyrics:     false,
 	CacheTracks:    CACHE_LIKED_ONLY,
 	CacheDir:       "",
+	ShowErrors:     false,
 	Search: &Search{
 		Artists:   true,
 		Albums:    false,
