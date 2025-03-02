@@ -187,14 +187,6 @@ skipcover:
 		tag := id3v2.NewEmptyTag()
 		if trackFromCache {
 			tag.Reset(trackBuffer, id3v2.Options{Parse: true})
-			pictures := tag.GetFrames("APIC")
-			for _, f := range pictures {
-				pic, ok := f.(id3v2.PictureFrame)
-				if !ok {
-					continue
-				}
-				coverBytes = pic.Picture
-			}
 		} else {
 			tag.SetDefaultEncoding(id3v2.EncodingUTF8)
 			tag.SetTitle(track.Title)

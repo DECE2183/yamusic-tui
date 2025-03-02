@@ -3,7 +3,7 @@ package mainpage
 import (
 	"os"
 
-	"github.com/bogem/id3v2"
+	"github.com/bogem/id3v2/v2"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/dece2183/yamusic-tui/api"
 	"github.com/dece2183/yamusic-tui/cache"
