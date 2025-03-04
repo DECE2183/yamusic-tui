@@ -19,8 +19,8 @@ github.com/charmbracelet/x/term v0.2.1 h1:AQeHeLZ1OqSXhrAWpYUtZyX1T3zVxfpZuEQMIQ
 github.com/charmbracelet/x/term v0.2.1/go.mod h1:oQ4enTYFV7QN4m0i9mzHrViD7TQKvNEEkHUMCmsxdUg=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/dece2183/go-stream-mp3 v1.0.0 h1:0CQqd57+Aq1ojfhoCL/+o05rq/nOQ99/CWiEo2Geg60=
-github.com/dece2183/go-stream-mp3 v1.0.0/go.mod h1:hDd2a9oSj7kjEpBtln+NBgxfJEMPUBguc8RH5L/trPk=
+github.com/dece2183/go-stream-mp3 v1.0.1 h1:5DIR5xGpqa4d6u2lVjbY0YXiDwU3g4k80Wz1rJjCc5k=
+github.com/dece2183/go-stream-mp3 v1.0.1/go.mod h1:hDd2a9oSj7kjEpBtln+NBgxfJEMPUBguc8RH5L/trPk=
 github.com/dece2183/media-winrt-go v0.0.0-20250304161442-46653f733234 h1:vlh5w+jijiQHy+/Sg+GVtZixqOsXTwqfE5i07vEIGGU=
 github.com/dece2183/media-winrt-go v0.0.0-20250304161442-46653f733234/go.mod h1:nJB51Rj5RSFhiSdUrD7Sxyg2VFskoLOi/YKIOcNUh3E=
 github.com/ebitengine/oto/v3 v3.3.2 h1:VTWBsKX9eb+dXzaF4jEwQbs4yWIdXukJ0K40KgkpYlg=

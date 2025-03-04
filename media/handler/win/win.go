@@ -20,9 +20,10 @@ import (
 const _TIMELINE_POLL_PERIOD_MS = 400
 
 type WinHandler struct {
-	msgMux  sync.Mutex
-	msgChan chan handler.Message
-	ansChan chan any
+	msgMux    sync.Mutex
+	msgChan   chan handler.Message
+	ansChan   chan any
+	closeChan chan bool
 
 	mediaPlayer *playback.MediaPlayer
 	smtc        *media.SystemMediaTransportControls
@@ -40,6 +41,7 @@ func NewHandler(name, description string) *WinHandler {
 	return &WinHandler{
 		msgChan:   make(chan handler.Message),
 		ansChan:   make(chan any),
+		closeChan: make(chan bool),
 		playState: PLAY_CLOSED,
 	}
 }
@@ -55,8 +57,9 @@ func (wh *WinHandler) Enable() error {
 }
 
 func (wh *WinHandler) Disable() error {
-	close(wh.msgChan)
+	close(wh.closeChan)
 	close(wh.ansChan)
+	close(wh.msgChan)
 	return wh.smtcDispose()
 }
 
@@ -114,7 +117,12 @@ func (wh *WinHandler) updateTimeline() {
 	periodTimer := time.NewTicker(_TIMELINE_POLL_PERIOD_MS * time.Millisecond)
 
 	for {
-		<-periodTimer.C
+		select {
+		case <-periodTimer.C:
+		case <-wh.closeChan:
+			periodTimer.Stop()
+			return
+		}
 
 		wh.msgMux.Lock()
 		wh.msgChan <- handler.Message{
