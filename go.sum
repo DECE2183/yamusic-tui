@@ -21,8 +21,8 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/dece2183/go-stream-mp3 v1.0.0 h1:0CQqd57+Aq1ojfhoCL/+o05rq/nOQ99/CWiEo2Geg60=
 github.com/dece2183/go-stream-mp3 v1.0.0/go.mod h1:hDd2a9oSj7kjEpBtln+NBgxfJEMPUBguc8RH5L/trPk=
-github.com/dece2183/media-winrt-go v0.0.0-20241129214242-6a9743bbf6f5 h1:9CPB7CubxTytf/VTCjFHDxPso7zrQRP40bVULS9InHo=
-github.com/dece2183/media-winrt-go v0.0.0-20241129214242-6a9743bbf6f5/go.mod h1:nJB51Rj5RSFhiSdUrD7Sxyg2VFskoLOi/YKIOcNUh3E=
+github.com/dece2183/media-winrt-go v0.0.0-20250304161442-46653f733234 h1:vlh5w+jijiQHy+/Sg+GVtZixqOsXTwqfE5i07vEIGGU=
+github.com/dece2183/media-winrt-go v0.0.0-20250304161442-46653f733234/go.mod h1:nJB51Rj5RSFhiSdUrD7Sxyg2VFskoLOi/YKIOcNUh3E=
 github.com/ebitengine/oto/v3 v3.3.2 h1:VTWBsKX9eb+dXzaF4jEwQbs4yWIdXukJ0K40KgkpYlg=
 github.com/ebitengine/oto/v3 v3.3.2/go.mod h1:MZeb/lwoC4DCOdiTIxYezrURTw7EvK/yF863+tmBI+U=
 github.com/ebitengine/purego v0.8.0 h1:JbqvnEzRvPpxhCJzJJ2y0RbiZ8nyjccVUrSM3q+GvvE=
