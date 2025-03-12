@@ -51,6 +51,8 @@ If you have Go installed on your PC:
 go install github.com/dece2183/yamusic-tui@latest
 ```
 
+Or just download the binary from the [releases](https://github.com/DECE2183/yamusic-tui/releases/latest) page.
+
 ## Configuration
 
 The configuration file is located at `~/.config/yamusic-tui/config.yaml`.
@@ -104,3 +106,15 @@ You can change this behavior by specifying a preferred cache directory in the `c
 You can list multiple keys for the same control, separated by commas.
 
 Increase the `buffer-size-ms` if you have glitches or stutters.
+
+## System media controls
+
+![win11-smtc-example](.assets/smtc-win11.png)
+
+Yamusic-tui supports the system media control interfaces: `MPRIS` on Linux and `SMTC` on Windows (there is currently no implementation for MacOS). 
+
+This feature is enabled by default, however for compatibility reasons you can disable it by building the app with the `nomedia` tag or downloading a release with the `-nomedia` suffix.
+
+```bash
+go build -tags='nomedia'
+```
