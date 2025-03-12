@@ -28,6 +28,7 @@ jobs:
         file: yamusic-tui-vendor.tar.gz
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         tag: ${{ github.ref }}
+        overwrite: true
 
     - name: Build linux-amd64
       run: go build -trimpath -ldflags="-w -s" -o yamusic
@@ -40,6 +41,7 @@ jobs:
         file: yamusic
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         tag: ${{ github.ref }}
+        overwrite: true
 
     - name: Build linux-amd64-nomedia
       run: go build -trimpath -ldflags="-w -s" -tags=nomedia -o yamusic-nomedia
@@ -52,6 +54,7 @@ jobs:
         file: yamusic-nomedia
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         tag: ${{ github.ref }}
+        overwrite: true
 
     - name: Build windows-amd64
       run: go build -trimpath -ldflags="-w -s" -o yamusic.exe
@@ -64,6 +67,7 @@ jobs:
         file: yamusic.exe
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         tag: ${{ github.ref }}
+        overwrite: true
 
     - name: Build windows-amd64-nomedia
       run: go build -trimpath -ldflags="-w -s" -tags=nomedia -o yamusic-nomedia.exe
@@ -76,3 +80,4 @@ jobs:
         file: yamusic-nomedia.exe
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         tag: ${{ github.ref }}
+        overwrite: true
