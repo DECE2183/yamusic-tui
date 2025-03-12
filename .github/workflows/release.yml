@@ -16,7 +16,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
     - name: Install build dependencies
-      run: sudo apt install -y libx11-dev alsa-lib
+      run: sudo apt install -y libx11-dev libasound2-dev
     - name: Setup Go
       uses: actions/setup-go@v5
 
