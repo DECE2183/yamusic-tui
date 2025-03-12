@@ -1,6 +1,7 @@
 package search
 
 import (
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -78,11 +79,19 @@ func (m *Model) Init() tea.Cmd {
 
 func (m *Model) View() string {
 	m.additionalKeyBindigs[0].SetHelp(m.additionalKeyBindigs[0].Help().Key, m.Action)
+	listHeight := m.height - 7
+
+	listView := m.list.View()
+	if lipgloss.Height(listView) <= listHeight {
+		lastLine := strings.LastIndex(listView[:len(listView)-1], "\n")
+		listView = listView[:lastLine] + "\n" + listView[lastLine:]
+	}
+
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
 		style.AccentTextStyle.MaxWidth(m.width).MarginBottom(1).Render(m.Title),
 		style.DialogBoxStyle.MaxWidth(m.width).Render(m.input.View()),
-		lipgloss.NewStyle().MaxWidth(m.width).Render(m.list.View()),
+		lipgloss.NewStyle().MaxWidth(m.width).Render(listView),
 	)
 }
 
@@ -155,14 +164,16 @@ func (m *Model) SetSize(w, h int) {
 	m.width = w
 	m.height = h
 	m.input.Width = w - 9
-	m.list.SetSize(m.width, m.height-6)
+	m.list.SetSize(m.width, m.height-7)
 }
 
 func (m *Model) SetSuggestions(suggestions []string) {
 	items := make([]list.Item, 0, len(suggestions)+1)
 
-	if len(m.input.Value()) > 0 {
-		items = append(items, Item(m.input.Value()))
+	if len(suggestions) == 0 || m.input.Value() != suggestions[0] {
+		if len(m.input.Value()) > 0 {
+			items = append(items, Item(m.input.Value()))
+		}
 	}
 
 	for _, sug := range suggestions {
@@ -170,6 +181,7 @@ func (m *Model) SetSuggestions(suggestions []string) {
 	}
 
 	m.list.SetItems(items)
+	m.list.Select(0)
 }
 
 func (m *Model) InputValue() string {

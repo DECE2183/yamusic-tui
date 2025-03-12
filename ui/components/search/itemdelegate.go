@@ -14,7 +14,7 @@ import (
 type ItemDelegate struct{}
 
 func (d ItemDelegate) Height() int {
-	return 3
+	return 2
 }
 
 func (d ItemDelegate) Spacing() int {
@@ -44,9 +44,18 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 		text += strings.Repeat(" ", maxWidth-textLen)
 	}
 
+	var stl lipgloss.Style
 	if index == m.Index() {
-		fmt.Fprint(w, style.TrackListActiveStyle.Render(text))
+		stl = style.TrackListActiveStyle
 	} else {
-		fmt.Fprint(w, style.TrackListStyle.Render(text))
+		stl = style.TrackListStyle
+		if index == m.Index()-1 {
+			stl = stl.PaddingBottom(0)
+		}
+		if index%m.Paginator.PerPage == 0 {
+			stl = stl.PaddingTop(1)
+		}
 	}
+
+	fmt.Fprint(w, stl.Render(text))
 }
