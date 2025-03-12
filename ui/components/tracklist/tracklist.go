@@ -1,6 +1,8 @@
 package tracklist
 
 import (
+	"strings"
+
 	"github.com/dece2183/yamusic-tui/config"
 	"github.com/dece2183/yamusic-tui/ui/model"
 	"github.com/dece2183/yamusic-tui/ui/style"
@@ -69,13 +71,21 @@ func (m *Model) View() string {
 	}
 
 	helpMap.Shafflable = m.Shufflable
+	listHeight := m.height
+
 	if m.help.ShowAll {
-		m.list.SetHeight(m.height - 6)
+		listHeight -= 7
 	} else {
-		m.list.SetHeight(m.height - 4)
+		listHeight -= 5
 	}
 
-	return style.TrackBoxStyle.Width(m.width).Render(lipgloss.JoinVertical(lipgloss.Left, m.list.View(), "", m.help.View(helpMap)))
+	listView := m.list.View()
+	if lipgloss.Height(listView) <= listHeight {
+		lastLine := strings.LastIndex(listView[:len(listView)-1], "\n")
+		listView = listView[:lastLine] + "\n" + listView[lastLine:]
+	}
+
+	return style.TrackBoxStyle.Width(m.width).Render(lipgloss.JoinVertical(lipgloss.Left, listView, "", m.help.View(helpMap)))
 }
 
 func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
@@ -95,6 +105,11 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 		switch {
 		case controls.ShowAllKeys.Contains(keypress):
 			m.help.ShowAll = !m.help.ShowAll
+			if m.help.ShowAll {
+				m.list.SetHeight(m.height - 7)
+			} else {
+				m.list.SetHeight(m.height - 5)
+			}
 		case controls.Apply.Contains(keypress):
 			cmds = append(cmds, model.Cmd(PLAY))
 		case controls.CursorUp.Contains(keypress):
@@ -165,8 +180,8 @@ func (m *Model) Select(index int) {
 
 func (m *Model) SetSize(w, h int) {
 	m.width = w
-	m.height = h
-	m.list.SetSize(m.width-6, m.height-3)
+	m.list.SetWidth(m.width - 6)
+	m.SetHeight(h)
 }
 
 func (m *Model) SetWidth(w int) {
@@ -180,7 +195,11 @@ func (m *Model) Width() int {
 
 func (m *Model) SetHeight(h int) {
 	m.height = h
-	m.list.SetHeight(m.height - 3)
+	if m.help.ShowAll {
+		m.list.SetHeight(m.height - 7)
+	} else {
+		m.list.SetHeight(m.height - 5)
+	}
 }
 
 func (m *Model) Height() int {

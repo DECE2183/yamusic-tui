@@ -18,7 +18,7 @@ type ItemDelegate struct {
 }
 
 func (d ItemDelegate) Height() int {
-	return 4
+	return 3
 }
 
 func (d ItemDelegate) Spacing() int {
@@ -90,8 +90,16 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackAddInfo)
 
 	if index == m.Index() {
-		fmt.Fprint(w, style.TrackListActiveStyle.Render(trackTitle))
+		stl = style.TrackListActiveStyle
 	} else {
-		fmt.Fprint(w, style.TrackListStyle.Render(trackTitle))
+		stl = style.TrackListStyle
+		if index == m.Index()-1 {
+			stl = stl.PaddingBottom(0)
+		}
+		if index%m.Paginator.PerPage == 0 {
+			stl = stl.PaddingTop(1)
+		}
 	}
+
+	fmt.Fprint(w, stl.Render(trackTitle))
 }

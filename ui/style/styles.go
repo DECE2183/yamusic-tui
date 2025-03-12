@@ -121,11 +121,9 @@ var (
 				Foreground(NormalTextColor).
 				UnsetBackground()
 	TrackListStyle = lipgloss.NewStyle().
-			Padding(1, 2).
-			MarginTop(-2)
+			Padding(0, 2, 1)
 	TrackListActiveStyle = lipgloss.NewStyle().
 				Padding(0, 1).
-				MarginTop(-2).
 				Border(lipgloss.RoundedBorder()).
 				BorderForeground(AccentColor)
 )
