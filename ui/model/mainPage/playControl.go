@@ -33,8 +33,14 @@ func (m *Model) prevTrack() {
 
 	currentPlaylist.CurrentTrack--
 	m.playlists.SetItem(m.currentPlaylistIndex, currentPlaylist)
-	m.playTrack(&currentPlaylist.Tracks[currentPlaylist.CurrentTrack])
 
+	track := &currentPlaylist.Tracks[currentPlaylist.CurrentTrack]
+	if !track.Available {
+		m.Send(tracker.PREV)
+		return
+	}
+
+	m.playTrack(track)
 	selectedPlaylist := m.playlists.SelectedItem()
 	if currentPlaylist.IsSame(selectedPlaylist) && m.tracklist.Index() == currentPlaylist.CurrentTrack+1 {
 		m.tracklist.Select(currentPlaylist.CurrentTrack)
@@ -102,8 +108,14 @@ func (m *Model) nextTrack() {
 
 	currentPlaylist.CurrentTrack++
 	m.playlists.SetItem(m.currentPlaylistIndex, currentPlaylist)
-	m.playTrack(&currentPlaylist.Tracks[currentPlaylist.CurrentTrack])
 
+	track := &currentPlaylist.Tracks[currentPlaylist.CurrentTrack]
+	if !track.Available {
+		m.Send(tracker.NEXT)
+		return
+	}
+
+	m.playTrack(track)
 	selectedPlaylist := m.playlists.SelectedItem()
 	if currentPlaylist.IsSame(selectedPlaylist) && m.tracklist.Index() == currentPlaylist.CurrentTrack-1 {
 		m.tracklist.Select(currentPlaylist.CurrentTrack)
