@@ -66,6 +66,9 @@ func (m *Model) addPlaylistControl(msg search.Control) tea.Cmd {
 			if foundPlaylistIndex < m.playlists.Index() {
 				m.playlists.Select(m.playlists.Index() + 1)
 			}
+			if m.currentPlaylistIndex >= m.playlists.Index() && m.tracker.IsPlaying() {
+				m.currentPlaylistIndex += 1
+			}
 		}
 
 		if selectedPlaylist.Kind == foundPlaylist.Kind {
@@ -154,15 +157,11 @@ func (m *Model) removeFromPlaylist(pl *playlist.Item, index int) tea.Cmd {
 				m.tracker.ShowError("playlist remove")
 				return nil
 			}
-			playlists := m.playlists.Items()
-			if m.currentPlaylistIndex >= 0 {
-				currentPlaylist := playlists[m.currentPlaylistIndex]
-				if pl.IsSame(currentPlaylist) && m.tracker.IsPlaying() {
-					m.currentPlaylistIndex = -1
-				}
+			if m.currentPlaylistIndex >= m.playlists.Index() && m.tracker.IsPlaying() {
+				m.currentPlaylistIndex -= 1
 			}
 			m.playlists.RemoveItem(m.playlists.Index())
-			if len(playlists) <= 1 {
+			if len(m.playlists.Items()) <= m.playlists.Index() {
 				m.playlists.Select(0)
 			}
 			m.displayPlaylist(m.playlists.SelectedItem())
