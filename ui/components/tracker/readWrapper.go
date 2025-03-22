@@ -10,6 +10,10 @@ import (
 	"github.com/dece2183/yamusic-tui/stream"
 )
 
+const (
+	_PROGRESS_UPDATE_PERIOD = 33 * time.Millisecond
+)
+
 type readWrapper struct {
 	program        *tea.Program
 	decoder        *mp3.Decoder
@@ -50,6 +54,12 @@ func (w *readWrapper) Read(dest []byte) (n int, err error) {
 
 	n, err = w.decoder.Read(dest)
 	if err != nil && err != io.EOF {
+		if w.trackBuffer.Error() != nil {
+			err = w.trackBuffer.Error()
+			log.Print(log.LVL_ERROR, "buffering error: %s", err)
+			go w.program.Send(STOP)
+			return
+		}
 		// bypass mp3 decoding error after rewinding
 		log.Print(log.LVL_WARNIGN, "mp3 decoding error: %s", err)
 		err = nil
@@ -64,7 +74,7 @@ func (w *readWrapper) Read(dest []byte) (n int, err error) {
 		w.decoder.Seek(0, io.SeekStart)
 		w.trackBuffer.Close()
 		go w.program.Send(NEXT)
-	} else if time.Since(w.lastUpdateTime) > time.Millisecond*33 {
+	} else if time.Since(w.lastUpdateTime) > _PROGRESS_UPDATE_PERIOD {
 		w.lastUpdateTime = time.Now()
 		fraction := ProgressControl(w.trackBuffer.Progress())
 		go w.program.Send(fraction)
@@ -74,6 +84,7 @@ func (w *readWrapper) Read(dest []byte) (n int, err error) {
 }
 
 func (w *readWrapper) Seek(offset int64, whence int) (int64, error) {
+	w.lastUpdateTime = time.Now()
 	return w.decoder.Seek(offset, whence)
 }
 

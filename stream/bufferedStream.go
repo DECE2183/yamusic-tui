@@ -19,6 +19,7 @@ type BufferedStream struct {
 	source      io.ReadCloser
 	bufferTimer *time.Ticker
 	closed      chan bool
+	lastError   error
 	readBuffer  []byte
 	readIndex   int64
 	totalSize   int64
@@ -50,11 +51,7 @@ func (h *BufferedStream) Close() error {
 	defer h.mux.Unlock()
 
 	h.readBuffer = nil
-	if !h.buffered {
-		h.bufferTimer.Stop()
-		h.buffered = true
-		close(h.closed)
-	}
+	h.stopBuffering()
 
 	if !h.done {
 		err = h.source.Close()
@@ -110,13 +107,14 @@ func (h *BufferedStream) Read(dest []byte) (n int, err error) {
 	if err != nil {
 		if err == io.EOF && !h.done {
 			h.source.Close()
-			h.buffered = true
+			h.stopBuffering()
 			h.done = true
 		} else if err == http.ErrBodyReadAfterClose {
 			err = io.EOF
 		}
 	}
 
+	h.lastError = err
 	h.mux.Unlock()
 	return
 }
@@ -185,8 +183,11 @@ func (h *BufferedStream) BufferAll() {
 		return
 	}
 
+	h.stopBuffering()
+
 	newFrame, err := io.ReadAll(h.source)
 	if err != nil {
+		h.lastError = err
 		return
 	}
 
@@ -199,12 +200,27 @@ func (h *BufferedStream) WriteTo(dest io.Writer) (int64, error) {
 	return int64(n), err
 }
 
+func (h *BufferedStream) Error() error {
+	h.mux.Lock()
+	defer h.mux.Unlock()
+	return h.lastError
+}
+
+func (h *BufferedStream) stopBuffering() {
+	h.buffered = true
+	if h.closed != nil {
+		h.bufferTimer.Stop()
+		close(h.closed)
+		h.closed = nil
+	}
+}
+
 func (h *BufferedStream) bufferFrames(size int64) {
 	for {
 		h.mux.Lock()
 
 		if h.buffered || h.totalSize <= int64(len(h.readBuffer)) {
-			h.buffered = true
+			h.stopBuffering()
 			h.mux.Unlock()
 			return
 		}
@@ -214,12 +230,13 @@ func (h *BufferedStream) bufferFrames(size int64) {
 		if err == nil || err == io.EOF {
 			h.readBuffer = append(h.readBuffer, buf[:n]...)
 			if err == io.EOF {
-				h.buffered = true
+				h.stopBuffering()
 				h.mux.Unlock()
 				return
 			}
 		}
 
+		h.lastError = err
 		h.mux.Unlock()
 
 		// await next Read call or timer expiration

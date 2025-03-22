@@ -18,6 +18,10 @@ import (
 	"github.com/dece2183/yamusic-tui/ui/helpers"
 )
 
+const (
+	_TRACK_DOWNLOAD_TRIES = 3
+)
+
 func (m *Model) prevTrack() {
 	if m.currentPlaylistIndex < 0 {
 		return
@@ -173,25 +177,34 @@ skipcover:
 	if err == nil {
 		trackFromCache = true
 	} else {
-		dowInfo, err := m.client.TrackDownloadInfo(track.Id)
-		if err != nil {
-			log.Print(log.LVL_ERROR, "failed to obtain track [%s] info: %s", track.Id, err)
-			m.tracker.ShowError("track info")
-			return
-		}
-
-		var bestBitrate int
+		var trackInfos []api.TrackDownloadInfo
 		var bestTrackInfo api.TrackDownloadInfo
-		for _, t := range dowInfo {
-			if t.BbitrateInKbps > bestBitrate {
-				bestBitrate = t.BbitrateInKbps
-				bestTrackInfo = t
+
+		for i := 0; i < _TRACK_DOWNLOAD_TRIES; i++ {
+			trackInfos, err = m.client.TrackDownloadInfo(track.Id)
+			if err != nil {
+				log.Print(log.LVL_ERROR, "failed to obtain track [%s] info: %s", track.Id, err)
+				continue
 			}
+
+			var bestBitrate int
+			for _, t := range trackInfos {
+				if t.BbitrateInKbps > bestBitrate {
+					bestBitrate = t.BbitrateInKbps
+					bestTrackInfo = t
+				}
+			}
+
+			trackReader, trackSize, err = m.client.DownloadTrack(bestTrackInfo)
+			if err != nil {
+				log.Print(log.LVL_ERROR, "failed to download track [%s]: %s", track.Id, err)
+				continue
+			}
+
+			break
 		}
 
-		trackReader, trackSize, err = m.client.DownloadTrack(bestTrackInfo)
 		if err != nil {
-			log.Print(log.LVL_ERROR, "failed to download track [%s]: %s", track.Id, err)
 			m.tracker.ShowError("track download")
 			return
 		}
@@ -259,7 +272,7 @@ func (m *Model) playSelectedPlaylist(trackIndex int) {
 
 	if m.currentPlaylistIndex >= 0 {
 		currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
-		if currentPlaylist.IsSame(selectedPlaylist) && m.tracker.CurrentTrack().Id == trackToPlay.Id {
+		if currentPlaylist.IsSame(selectedPlaylist) && selectedPlaylist.CurrentTrack == trackIndex && m.tracker.CurrentTrack().Id == trackToPlay.Id {
 			if m.tracker.IsPlaying() {
 				m.tracker.Pause()
 				return

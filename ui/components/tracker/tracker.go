@@ -44,6 +44,10 @@ func (p ProgressControl) Value() float64 {
 	return float64(p)
 }
 
+const (
+	_VOLUME_FADE_STEPS = 2
+)
+
 var rewindAmount = time.Duration(config.Current.RewindDuration) * time.Second
 
 type Model struct {
@@ -56,10 +60,11 @@ type Model struct {
 	showError  bool
 	errorText  string
 
-	volume        float64
-	playerContext *oto.Context
-	player        *oto.Player
-	trackWrapper  *readWrapper
+	volume         float64
+	volumeIncremet float64
+	playerContext  *oto.Context
+	player         *oto.Player
+	trackWrapper   *readWrapper
 
 	program  *tea.Program
 	likesMap *map[string]bool
@@ -69,15 +74,19 @@ func New(p *tea.Program, likesMap *map[string]bool) *Model {
 	m := &Model{
 		program:    p,
 		likesMap:   likesMap,
-		progress:   progress.New(progress.WithSolidFill(string(style.AccentColor))),
+		progress:   progress.New(),
 		help:       help.New(),
 		volume:     config.Current.Volume,
 		showLyrics: config.Current.ShowLyrics,
 	}
 
+	m.volumeIncremet = m.volume / _VOLUME_FADE_STEPS
+
 	m.progress.ShowPercentage = false
 	m.progress.Empty = m.progress.Full
+	m.progress.FullColor = string(style.AccentColor)
 	m.progress.EmptyColor = string(style.BackgroundColor)
+	m.progress.SetSpringOptions(60, 1)
 
 	m.trackWrapper = &readWrapper{program: m.program}
 
@@ -214,12 +223,12 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 			}
 
 		case controls.PlayerRewindForward.Contains(keypress):
-			m.Rewind(rewindAmount)
-			cmds = append(cmds, model.Cmd(REWIND))
+			cmd = m.Rewind(rewindAmount)
+			cmds = append(cmds, cmd, model.Cmd(REWIND))
 
 		case controls.PlayerRewindBackward.Contains(keypress):
-			m.Rewind(-rewindAmount)
-			cmds = append(cmds, model.Cmd(REWIND))
+			cmd = m.Rewind(-rewindAmount)
+			cmds = append(cmds, cmd, model.Cmd(REWIND))
 
 		case controls.PlayerNext.Contains(keypress):
 			cmds = append(cmds, model.Cmd(NEXT))
@@ -238,19 +247,14 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 
 		case controls.PlayerVolUp.Contains(keypress):
 			m.SetVolume(m.volume + config.Current.VolumeStep)
-			config.Current.Volume = m.volume
-			config.Save()
 			cmds = append(cmds, model.Cmd(VOLUME))
 
 		case controls.PlayerVolDown.Contains(keypress):
 			m.SetVolume(m.volume - config.Current.VolumeStep)
-			config.Current.Volume = m.volume
-			config.Save()
 			cmds = append(cmds, model.Cmd(VOLUME))
+
 		case controls.PlayerToggleLyrics.Contains(keypress):
-			m.showLyrics = !m.showLyrics
-			config.Current.ShowLyrics = m.showLyrics
-			config.Save()
+			m.SetLirycs(!m.showLyrics)
 			cmds = append(cmds, model.Cmd(TOGGLE_LYRICS))
 		}
 
@@ -267,11 +271,13 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 
 	// track progress update
 	case ProgressControl:
+		m.volumeFadeTick()
 		cmd = m.progress.SetPercent(msg.Value())
 		cmds = append(cmds, cmd)
 
 	case progress.FrameMsg:
-		progressModel, cmd := m.progress.Update(msg)
+		var progressModel tea.Model
+		progressModel, cmd = m.progress.Update(msg)
 		m.progress = progressModel.(progress.Model)
 		cmds = append(cmds, cmd)
 	}
@@ -309,17 +315,21 @@ func (m *Model) Position() time.Duration {
 }
 
 func (m *Model) SetVolume(v float64) {
+	if v < config.Current.VolumeStep/2 {
+		v = 0
+	} else if v > 1-config.Current.VolumeStep/2 {
+		v = 1
+	}
 	m.volume = v
+	m.volumeIncremet = m.volume / _VOLUME_FADE_STEPS
+	config.Current.Volume = m.volume
+	config.Save()
+}
 
-	if m.volume < 0 {
-		m.volume = 0
-	} else if m.volume > 1 {
-		m.volume = 1
-	}
-
-	if m.player != nil {
-		m.player.SetVolume(v)
-	}
+func (m *Model) SetLirycs(show bool) {
+	m.showLyrics = show
+	config.Current.ShowLyrics = m.showLyrics
+	config.Save()
 }
 
 func (m *Model) Volume() float64 {
@@ -328,6 +338,7 @@ func (m *Model) Volume() float64 {
 
 func (m *Model) StartTrack(track *api.Track, reader *stream.BufferedStream, lyrics []api.LyricPair) {
 	m.showError = false
+	m.volume = config.Current.Volume
 
 	if m.player != nil {
 		m.Stop()
@@ -336,7 +347,7 @@ func (m *Model) StartTrack(track *api.Track, reader *stream.BufferedStream, lyri
 	m.track = *track
 	m.trackWrapper.NewReader(reader)
 	m.player = m.playerContext.NewPlayer(m.trackWrapper)
-	m.player.SetVolume(m.volume)
+	m.player.SetVolume(0)
 	m.player.Play()
 	m.lyrics = lyrics
 }
@@ -347,7 +358,12 @@ func (m *Model) Stop() {
 	}
 
 	if m.player.IsPlaying() {
+		m.player.SetVolume(0)
 		m.player.Pause()
+	}
+
+	if m.trackWrapper.trackBuffer.Error() != nil {
+		m.ShowError("track buffering")
 	}
 
 	m.trackWrapper.Close()
@@ -374,6 +390,8 @@ func (m *Model) Play() {
 	if m.player.IsPlaying() {
 		return
 	}
+	m.volume = config.Current.Volume
+	m.player.SetVolume(0)
 	m.player.Play()
 }
 
@@ -384,18 +402,20 @@ func (m *Model) Pause() {
 	if !m.player.IsPlaying() {
 		return
 	}
-	m.player.Pause()
+	m.volume = 0
 }
 
-func (m *Model) Rewind(amount time.Duration) {
+func (m *Model) Rewind(amount time.Duration) tea.Cmd {
 	if m.player == nil || m.trackWrapper == nil {
 		go m.program.Send(STOP)
-		return
+		return nil
 	}
 
-	amountMs := amount.Milliseconds()
+	m.player.SetVolume(0)
+
+	amountMs := float64(amount.Milliseconds())
 	currentPos := int64(float64(m.trackWrapper.Length()) * m.trackWrapper.Progress())
-	byteOffset := int64(math.Round((float64(m.trackWrapper.Length()) / float64(m.track.DurationMs)) * float64(amountMs)))
+	byteOffset := int64(math.Round((float64(m.trackWrapper.Length()) / float64(m.track.DurationMs)) * amountMs))
 
 	// align position by 4 bytes
 	currentPos += byteOffset
@@ -408,6 +428,8 @@ func (m *Model) Rewind(amount time.Duration) {
 	} else {
 		m.player.Seek(currentPos, io.SeekStart)
 	}
+
+	return m.progress.SetPercent(m.trackWrapper.Progress())
 }
 
 func (m *Model) SetPos(pos time.Duration) {
@@ -431,6 +453,29 @@ func (m *Model) TrackBuffer() *stream.BufferedStream {
 func (m *Model) ShowError(text string) {
 	m.showError = true
 	m.errorText = text
+}
+
+func (m *Model) volumeFadeTick() {
+	if !m.IsPlaying() {
+		return
+	}
+
+	if m.volumeIncremet == 0 {
+		m.player.SetVolume(0)
+		return
+	}
+
+	currVol := m.player.Volume()
+	if currVol >= m.volume+m.volumeIncremet {
+		m.player.SetVolume(currVol - m.volumeIncremet/2)
+	} else if currVol <= m.volume-m.volumeIncremet {
+		m.player.SetVolume(currVol + m.volumeIncremet/2)
+	} else if currVol != m.volume {
+		m.player.SetVolume(m.volume)
+		if m.volume == 0 {
+			m.player.Pause()
+		}
+	}
 }
 
 func (m *Model) renderLyrics() string {

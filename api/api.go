@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/md5"
 	"crypto/sha256"
@@ -17,6 +18,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+)
+
+const (
+	_RESPONSE_TIMEOUT   = 800 * time.Millisecond
+	_TRACK_READ_TIMEOUT = 1500 * time.Millisecond
 )
 
 var mTLSConfig = &tls.Config{
@@ -41,7 +47,10 @@ var mTLSConfig = &tls.Config{
 	MaxVersion: tls.VersionTLS12,
 }
 
-var client = http.Client{Transport: &http.Transport{TLSClientConfig: mTLSConfig}}
+var httpClient = http.Client{Transport: &http.Transport{
+	TLSClientConfig:       mTLSConfig,
+	ResponseHeaderTimeout: _RESPONSE_TIMEOUT,
+}}
 
 func (e ResultError) Error() string {
 	return fmt.Sprintf("%s: %s", e.Name, e.Message)
@@ -59,7 +68,7 @@ func proccessRequest[RetT any](req *http.Request) (result RetT, invInfo InvocInf
 	req.Header.Add("x-Yandex-Music-Client", "YandexMusicAndroid/24024312")
 	req.Header.Add("User-Agent", "okhttp/4.12.0")
 
-	resp, err := client.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return
 	}
@@ -153,25 +162,29 @@ func postRequestJson[RetT any](token, reqPath string, params url.Values, body an
 }
 
 func downloadRequest(token, reqUrl, mimeType string) (body io.ReadCloser, contentLen int64, err error) {
-	req, err := http.NewRequest(http.MethodGet, reqUrl, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqUrl, nil)
 	if err != nil {
+		cancel()
 		return
 	}
 
 	req.Header.Set("accept", mimeType)
 	req.Header.Set("Authorization", "OAuth "+token)
 
-	resp, err := client.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
+		cancel()
 		return
 	}
 
 	if resp.StatusCode == 200 {
-		body = resp.Body
+		body = NewTimeLimitedReader(resp.Body, ctx, cancel, _TRACK_READ_TIMEOUT)
 		contentLen = resp.ContentLength
 	} else {
 		err = fmt.Errorf("error code %d", resp.StatusCode)
 		resp.Body.Close()
+		cancel()
 	}
 
 	return
