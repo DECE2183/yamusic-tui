@@ -23,12 +23,13 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"golang.design/x/clipboard"
+	"github.com/dece2183/go-clipboard"
 )
 
 type Model struct {
 	program       *tea.Program
 	client        *api.YaMusicClient
+	clipboard     *clipboard.Clipboard
 	mediaHandler  handler.MediaHandler
 	width, height int
 
@@ -53,6 +54,7 @@ func New() *Model {
 
 	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
 	m.program = p
+	m.clipboard = clipboard.New()
 	m.mediaHandler = media.NewHandler(config.ConfigPath, "Yandex music terminal client")
 	m.likedTracksMap = make(map[string]bool)
 	m.cachedTracksMap = make(map[string]bool)
@@ -70,10 +72,7 @@ func New() *Model {
 //
 
 func (m *Model) Run() error {
-	err := clipboard.Init()
-	if err != nil {
-		return err
-	}
+	var err error
 
 	err = m.initialLoad()
 	if err != nil {
@@ -204,7 +203,7 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, cmd)
 		case tracklist.SHARE:
 			link := api.ShareTrackLink(m.tracklist.SelectedItem().Track)
-			clipboard.Write(clipboard.FmtText, []byte(link))
+			m.clipboard.CopyText(link)
 		}
 
 	// player control update
