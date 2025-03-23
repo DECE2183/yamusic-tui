@@ -203,7 +203,9 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, cmd)
 		case tracklist.SHARE:
 			link := api.ShareTrackLink(m.tracklist.SelectedItem().Track)
-			m.clipboard.CopyText(link)
+			if link != "" {
+				m.clipboard.CopyText(link)
+			}
 		}
 
 	// player control update
@@ -491,21 +493,28 @@ func (m *Model) mediaHandle() {
 			}
 			track := m.tracker.CurrentTrack()
 			artists := make([]string, 0, len(track.Artists))
-			albumArtists := make([]string, 0, len(track.Albums[0].Artists))
 			for i := range track.Artists {
 				artists = append(artists, track.Artists[i].Name)
 			}
-			for i := range track.Albums[0].Artists {
-				albumArtists = append(albumArtists, track.Albums[0].Artists[i].Name)
+			albumArtists := make([]string, 0)
+			var albumName string
+			genre := make([]string, 0)
+			if len(track.Albums) != 0 {
+				for i := range track.Albums[0].Artists {
+					albumArtists = append(albumArtists, track.Albums[0].Artists[i].Name)
+				}
+				albumName = track.Albums[0].Title
+				genre = append(genre, track.Albums[0].Genre)
 			}
+
 			md := handler.TrackMetadata{
 				TrackId:      track.Id,
 				Length:       time.Duration(track.DurationMs) * time.Millisecond,
 				CoverUrl:     m.coverFilePath(track),
-				AlbumName:    track.Albums[0].Title,
+				AlbumName:    albumName,
 				AlbumArtists: albumArtists,
 				Artists:      artists,
-				Genre:        []string{track.Albums[0].Genre},
+				Genre:        genre,
 				Title:        track.Title,
 				Url:          api.ShareTrackLink(track),
 			}

@@ -219,10 +219,12 @@ skipcover:
 		} else {
 			tag.SetDefaultEncoding(id3v2.EncodingUTF8)
 			tag.SetTitle(track.Title)
-			tag.SetAlbum(track.Albums[0].Title)
-			tag.SetGenre(track.Albums[0].Genre)
+			if len(track.Albums) != 0 {
+				tag.SetAlbum(track.Albums[0].Title)
+				tag.SetGenre(track.Albums[0].Genre)
+				tag.SetYear(fmt.Sprint(track.Albums[0].Year))
+			}
 			tag.SetArtist(helpers.ArtistList(track.Artists))
-			tag.SetYear(fmt.Sprint(track.Albums[0].Year))
 			tag.AddAttachedPicture(id3v2.PictureFrame{
 				MimeType:    coverType,
 				PictureType: id3v2.PTFrontCover,
