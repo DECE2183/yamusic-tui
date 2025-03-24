@@ -237,6 +237,9 @@ func Token(username, password string) (token string, err error) {
 }
 
 func ShareTrackLink(track *Track) string {
+	if len(track.Albums) == 0 {
+		return ""
+	}
 	return fmt.Sprintf("https://music.yandex.ru/album/%d/track/%s", track.Albums[0].Id, track.Id)
 }
 
