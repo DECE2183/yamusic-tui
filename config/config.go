@@ -33,7 +33,7 @@ func getDir() (string, error) {
 		return "", err
 	}
 
-	configDir := filepath.Join(userDir, ".config", ConfigPath)
+	configDir := filepath.Join(userDir, ".config", DirName)
 	err = os.MkdirAll(configDir, 0755)
 	if err != nil {
 		return "", err
@@ -109,6 +109,15 @@ func save(conf Config) error {
 	}
 
 	return nil
+}
+
+func Path() string {
+	configDir, err := getDir()
+	if err != nil {
+		return ""
+	}
+
+	return filepath.Join(configDir, "config.yaml")
 }
 
 func Save() error {

@@ -30,11 +30,11 @@ var (
 )
 
 func getLogLocation() (string, error) {
-	tempDir := filepath.Join(os.TempDir(), config.ConfigPath)
+	tempDir := filepath.Join(os.TempDir(), config.DirName)
 	if err := os.MkdirAll(tempDir, 0755); err != nil {
 		return "", err
 	}
-	return filepath.Join(tempDir, config.ConfigPath+".log"), nil
+	return filepath.Join(tempDir, config.DirName+".log"), nil
 }
 
 func Location() string {

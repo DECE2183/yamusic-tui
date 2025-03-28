@@ -88,6 +88,8 @@ func New(p *tea.Program, likesMap *map[string]bool) *Model {
 	m.progress.EmptyColor = string(style.BackgroundColor)
 	m.progress.SetSpringOptions(60, 1)
 
+	m.help.Ellipsis = "…"
+
 	m.trackWrapper = &readWrapper{program: m.program}
 
 	op := &oto.NewContextOptions{
@@ -121,10 +123,24 @@ func (m *Model) View() string {
 		playButton = style.ActiveButtonStyle.Padding(0, 1).Margin(0).Render(style.IconStop)
 	}
 
+	tracker := style.TrackProgressStyle.Render(m.progress.View())
+	tracker = lipgloss.JoinHorizontal(lipgloss.Top, playButton, tracker)
+
+	if m.showLyrics {
+		tracker = lipgloss.JoinVertical(lipgloss.Left, m.renderLyrics(), "", tracker)
+	}
+
+	if m.showError && !config.Current.SuppressErrors {
+		errText := "Error: " + m.errorText + "; -> " + log.Location()
+		maxLen := m.Width() - 4
+		if lipgloss.Width(errText) > maxLen {
+			errText = lipgloss.NewStyle().MaxWidth(maxLen-1).Render(errText) + "…"
+		}
+		tracker = lipgloss.JoinVertical(lipgloss.Left, style.ErrorTextStyle.Render(errText), "", tracker)
+	}
+
 	var trackTitle string
-	if m.help.ShowAll {
-		trackTitle = lipgloss.JoinVertical(lipgloss.Left, "")
-	} else {
+	if !m.help.ShowAll {
 		if m.track.Available {
 			trackTitle = style.TrackTitleStyle.Render(m.track.Title)
 		} else {
@@ -173,25 +189,11 @@ func (m *Model) View() string {
 		trackTitle = lipgloss.NewStyle().Width(m.width - lipgloss.Width(trackAddInfo) - 4).Render(trackTitle)
 		trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackAddInfo)
 		trackTitle = lipgloss.JoinVertical(lipgloss.Left, trackTitle, trackArtist, "")
+
+		tracker = lipgloss.JoinVertical(lipgloss.Left, tracker, trackTitle)
 	}
 
-	tracker := style.TrackProgressStyle.Render(m.progress.View())
-	tracker = lipgloss.JoinHorizontal(lipgloss.Top, playButton, tracker)
-
-	if m.showLyrics {
-		tracker = lipgloss.JoinVertical(lipgloss.Left, m.renderLyrics(), "", tracker)
-	}
-
-	if m.showError && config.Current.ShowErrors {
-		errText := "Error: " + m.errorText + "; -> " + log.Location()
-		maxLen := m.Width() - 4
-		if lipgloss.Width(errText) > maxLen {
-			errText = lipgloss.NewStyle().MaxWidth(maxLen-1).Render(errText) + "…"
-		}
-		tracker = lipgloss.JoinVertical(lipgloss.Left, style.ErrorTextStyle.Render(errText), "", tracker)
-	}
-
-	tracker = lipgloss.JoinVertical(lipgloss.Left, tracker, trackTitle, m.help.View(helpMap))
+	tracker = lipgloss.JoinVertical(lipgloss.Left, tracker, m.help.View(helpMap))
 	return style.TrackBoxStyle.Width(m.width).Render(tracker)
 }
 
@@ -288,7 +290,7 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 func (m *Model) SetWidth(width int) {
 	m.width = width
 	m.progress.Width = width - 9
-	m.help.Width = width - 8
+	m.help.Width = width - 4
 }
 
 func (m *Model) Width() int {
@@ -300,7 +302,7 @@ func (m *Model) Height() int {
 	if m.showLyrics {
 		baseHeight += 4
 	}
-	if m.showError && config.Current.ShowErrors {
+	if m.showError && !config.Current.SuppressErrors {
 		baseHeight += 2
 	}
 	return baseHeight
@@ -339,6 +341,7 @@ func (m *Model) Volume() float64 {
 func (m *Model) StartTrack(track *api.Track, reader *stream.BufferedStream, lyrics []api.LyricPair) {
 	m.showError = false
 	m.volume = config.Current.Volume
+	m.volumeIncremet = m.volume / _VOLUME_FADE_STEPS
 
 	if m.player != nil {
 		m.Stop()
@@ -391,6 +394,7 @@ func (m *Model) Play() {
 		return
 	}
 	m.volume = config.Current.Volume
+	m.volumeIncremet = m.volume / _VOLUME_FADE_STEPS
 	m.player.SetVolume(0)
 	m.player.Play()
 }
@@ -453,6 +457,10 @@ func (m *Model) TrackBuffer() *stream.BufferedStream {
 func (m *Model) ShowError(text string) {
 	m.showError = true
 	m.errorText = text
+}
+
+func (m *Model) HideError() {
+	m.showError = false
 }
 
 func (m *Model) volumeFadeTick() {

@@ -15,6 +15,7 @@ type helpKeyMap struct {
 	Search             key.Binding
 	Share              key.Binding
 	Shuffle            key.Binding
+	Reload             key.Binding
 	ShowHelp           key.Binding
 	CloseHelp          key.Binding
 
@@ -31,14 +32,14 @@ func (k helpKeyMap) FullHelp() [][]key.Binding {
 			{k.CursorUp, k.CursorDown, k.Play},
 			{k.LikeUnlike, k.AddToPlaylist, k.RemoveFromPlaylist},
 			{k.Search, k.Share, k.Shuffle},
-			{k.CloseHelp},
+			{k.Reload, k.CloseHelp},
 		}
 	} else {
 		return [][]key.Binding{
 			{k.CursorUp, k.CursorDown, k.Play},
 			{k.LikeUnlike, k.AddToPlaylist},
 			{k.Search, k.Share},
-			{k.CloseHelp},
+			{k.Reload, k.CloseHelp},
 		}
 	}
 }
@@ -53,6 +54,7 @@ var helpMap = helpKeyMap{
 	Search:             key.NewBinding(config.Current.Controls.TracksSearch.Binding(), config.Current.Controls.TracksSearch.Help("search")),
 	Share:              key.NewBinding(config.Current.Controls.TracksShare.Binding(), config.Current.Controls.TracksShare.Help("share")),
 	Shuffle:            key.NewBinding(config.Current.Controls.TracksShuffle.Binding(), config.Current.Controls.TracksShuffle.Help("shuffle")),
+	Reload:             key.NewBinding(config.Current.Controls.Reload.Binding(), config.Current.Controls.Reload.Help("reload")),
 	ShowHelp:           key.NewBinding(config.Current.Controls.ShowAllKeys.Binding(), config.Current.Controls.ShowAllKeys.Help("show keys")),
 	CloseHelp:          key.NewBinding(config.Current.Controls.ShowAllKeys.Binding(), config.Current.Controls.ShowAllKeys.Help("hide")),
 }

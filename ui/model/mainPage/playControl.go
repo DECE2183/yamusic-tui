@@ -260,7 +260,10 @@ skipcover:
 	m.tracker.StartTrack(track, trackBuffer, lyrics)
 	m.indicateCurrentTrackPlaying(true)
 	m.mediaHandler.OnPlayback()
-	go m.client.PlayTrack(track, false)
+
+	if m.client != nil {
+		go m.client.PlayTrack(track, trackFromCache)
+	}
 }
 
 func (m *Model) playSelectedPlaylist(trackIndex int) {

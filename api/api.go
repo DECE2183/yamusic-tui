@@ -21,8 +21,9 @@ import (
 )
 
 const (
-	_RESPONSE_TIMEOUT   = 800 * time.Millisecond
+	_RESPONSE_TIMEOUT   = 2500 * time.Millisecond
 	_TRACK_READ_TIMEOUT = 1500 * time.Millisecond
+	_TIMESTAMP_FORMAT   = "2006-01-02T15:04:05.999Z"
 )
 
 var mTLSConfig = &tls.Config{
@@ -52,16 +53,8 @@ var httpClient = http.Client{Transport: &http.Transport{
 	ResponseHeaderTimeout: _RESPONSE_TIMEOUT,
 }}
 
-func (e ResultError) Error() string {
-	return fmt.Sprintf("%s: %s", e.Name, e.Message)
-}
-
 func nowTimestamp() string {
-	nowTime := time.Now()
-	return fmt.Sprintf("%04d-%02d-%02dT%02d:%02d:%02d",
-		nowTime.Year(), nowTime.Month(), nowTime.Day(),
-		nowTime.Hour(), nowTime.Minute(), nowTime.Second(),
-	)
+	return time.Now().Format(_TIMESTAMP_FORMAT)
 }
 
 func proccessRequest[RetT any](req *http.Request) (result RetT, invInfo InvocInfo, err error) {
@@ -74,7 +67,8 @@ func proccessRequest[RetT any](req *http.Request) (result RetT, invInfo InvocInf
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == 200 {
+	switch resp.StatusCode {
+	case http.StatusOK:
 		var respBody struct {
 			InvocationInfo InvocInfo `json:"invocationInfo"`
 			Result         RetT      `json:"result"`
@@ -85,10 +79,10 @@ func proccessRequest[RetT any](req *http.Request) (result RetT, invInfo InvocInf
 
 		invInfo = respBody.InvocationInfo
 		result = respBody.Result
-	} else {
+	case http.StatusBadRequest:
 		var respBody struct {
-			InvocationInfo InvocInfo   `json:"invocationInfo"`
-			Error          ResultError `json:"error"`
+			InvocationInfo InvocInfo       `json:"invocationInfo"`
+			Error          BadRequestError `json:"error"`
 		}
 
 		dec := json.NewDecoder(resp.Body)
@@ -96,6 +90,14 @@ func proccessRequest[RetT any](req *http.Request) (result RetT, invInfo InvocInf
 
 		invInfo = respBody.InvocationInfo
 		err = respBody.Error
+	case http.StatusUnauthorized:
+		var respBody UnauthorizedError
+		dec := json.NewDecoder(resp.Body)
+		dec.Decode(&respBody)
+		err = respBody
+		invInfo.ReqId = respBody.RequestId
+	default:
+		err = fmt.Errorf("unhandled status %s", resp.Status)
 	}
 
 	return
@@ -266,15 +268,21 @@ func DownloadTrackCover(dst io.Writer, track *Track, size int) (string, error) {
 	return resp.Header.Get("Content-Type"), err
 }
 
-func NewClient(token string) (client *YaMusicClient, err error) {
-	client = &YaMusicClient{
+func NewClient(name, token string) (*YaMusicClient, error) {
+	client := &YaMusicClient{
+		name:  name,
 		token: token,
 	}
 
 	clientStatus, _, err := getRequest[UserStatus](token, "account/status", nil)
-	client.userid = clientStatus.Account.Uid
+	if err != nil {
+		return nil, err
+	}
 
-	return
+	client.userid = clientStatus.Account.Uid
+	client.sessionid = nowTimestamp()
+
+	return client, nil
 }
 
 func (client *YaMusicClient) Tracks(trackIds []string) (tracks []Track, err error) {
@@ -386,7 +394,7 @@ func (client *YaMusicClient) StationFeedback(feedType string, stationId StationI
 	body := map[string]interface{}{
 		"type":               feedType,
 		"timestamp":          nowTimestamp(),
-		"from":               "yamusic-tui",
+		"from":               client.name,
 		"trackId":            trackId,
 		"totalPlayedSeconds": playedSeconds,
 	}
@@ -400,13 +408,14 @@ func (client *YaMusicClient) StationFeedback(feedType string, stationId StationI
 
 func (client *YaMusicClient) PlayTrack(track *Track, fromCache bool) (err error) {
 	queryParams := url.Values{
-		"from":                 {"yamusic-tui"},
 		"uid":                  {fmt.Sprint(client.userid)},
-		"timestamp":            {nowTimestamp()},
+		"from":                 {client.name},
+		"play-id":              {client.sessionid},
 		"track-id":             {track.Id},
 		"from-cache":           {fmt.Sprint(fromCache)},
 		"track-length-seconds": {fmt.Sprint(track.DurationMs + 1000)},
 		"total-played-seconds": {fmt.Sprint(track.DurationMs + 1000)},
+		"timestamp":            {nowTimestamp()},
 	}
 	_, _, err = postRequest[interface{}](client.token, "/play-audio", queryParams)
 	return

@@ -1,5 +1,7 @@
 package api
 
+import "time"
+
 type fullDownloadInfo struct {
 	Host string `json:"host"`
 	Path string `json:"path"`
@@ -8,13 +10,32 @@ type fullDownloadInfo struct {
 }
 
 type YaMusicClient struct {
-	token  string
-	userid uint64
+	name      string
+	token     string
+	userid    uint64
+	sessionid string
 }
 
-type ResultError struct {
+type BadRequestError struct {
 	Name    string `json:"name"`
 	Message string `json:"message"`
+}
+
+func (e BadRequestError) Error() string {
+	return e.Name + ": " + e.Message
+}
+
+type UnauthorizedError struct {
+	Timestamp time.Time   `json:"timestamp"`
+	Path      string      `json:"path"`
+	Status    float64     `json:"status"`
+	Name      string      `json:"error"`
+	Message   interface{} `json:"message"`
+	RequestId string      `json:"requestId"`
+}
+
+func (e UnauthorizedError) Error() string {
+	return e.Name
 }
 
 type InvocInfo struct {

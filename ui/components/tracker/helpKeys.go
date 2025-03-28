@@ -69,9 +69,8 @@ func (k helpKeyMap) ShortHelp() []key.Binding {
 
 func (k helpKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.PlayPause, k.LikeUnlike, k.CacheTrack},
-		{k.NextTrack, k.PrevTrack, k.ToggleLyrics},
-		{k.Forward, k.Backward},
+		{k.PlayPause, k.LikeUnlike, k.ToggleLyrics, k.CacheTrack},
+		{k.NextTrack, k.PrevTrack, k.Forward, k.Backward},
 		{k.VolUp, k.VolDown},
 	}
 }

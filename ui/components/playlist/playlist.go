@@ -31,6 +31,15 @@ const (
 	USER
 )
 
+var defaultPlaylists = []list.Item{
+	&Item{Name: "my wave", Kind: MYWAVE, Active: true, Subitem: false, Infinite: true},
+	&Item{Name: "likes", Kind: LIKES, Active: true, Subitem: false},
+	&Item{Name: "local", Kind: LOCAL, Active: true, Subitem: false},
+
+	&Item{Name: "", Kind: NONE, Active: false, Subitem: false},
+	&Item{Name: "playlists:", Kind: NONE, Active: false, Subitem: false},
+}
+
 type Model struct {
 	program       *tea.Program
 	list          list.Model
@@ -44,18 +53,9 @@ func New(p *tea.Program, title string) *Model {
 		help:    help.New(),
 	}
 
-	playlistItems := []list.Item{
-		&Item{Name: "my wave", Kind: MYWAVE, Active: true, Subitem: false, Infinite: true},
-		&Item{Name: "likes", Kind: LIKES, Active: true, Subitem: false},
-		&Item{Name: "local", Kind: LOCAL, Active: true, Subitem: false},
-
-		&Item{Name: "", Kind: NONE, Active: false, Subitem: false},
-		&Item{Name: "playlists:", Kind: NONE, Active: false, Subitem: false},
-	}
-
 	controls := config.Current.Controls
 
-	m.list = list.New(playlistItems, ItemDelegate{programm: p}, 512, 512)
+	m.list = list.New(defaultPlaylists, ItemDelegate{programm: p}, 512, 512)
 	m.list.Title = title
 	m.list.SetShowStatusBar(false)
 	m.list.Styles.Title = m.list.Styles.Title.Foreground(style.AccentColor).UnsetBackground().Padding(0)
@@ -146,6 +146,10 @@ func (m *Model) Items() []*Item {
 		items[i] = litems[i].(*Item)
 	}
 	return items
+}
+
+func (m *Model) Reset() tea.Cmd {
+	return m.list.SetItems(defaultPlaylists)
 }
 
 func (m *Model) SetItems(items []*Item) tea.Cmd {

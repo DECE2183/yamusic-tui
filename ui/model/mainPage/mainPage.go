@@ -1,7 +1,6 @@
 package mainpage
 
 import (
-	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -18,12 +17,19 @@ import (
 	"github.com/dece2183/yamusic-tui/ui/components/search"
 	"github.com/dece2183/yamusic-tui/ui/components/tracker"
 	"github.com/dece2183/yamusic-tui/ui/components/tracklist"
+	"github.com/dece2183/yamusic-tui/ui/model"
 	"github.com/dece2183/yamusic-tui/ui/style"
 
-	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/dece2183/go-clipboard"
+)
+
+type LoadingMsg uint
+
+const (
+	LOADING_DONE LoadingMsg = iota
 )
 
 type Model struct {
@@ -33,12 +39,14 @@ type Model struct {
 	mediaHandler  handler.MediaHandler
 	width, height int
 
+	spinner      spinner.Model
 	playlists    *playlist.Model
 	tracklist    *tracklist.Model
 	tracker      *tracker.Model
 	searchDialog *search.Model
 	inputDialog  *input.Model
 
+	isLoading              bool
 	isSearchActive         bool
 	isAddPlaylistActive    bool
 	isRenamePlaylistActive bool
@@ -55,15 +63,17 @@ func New() *Model {
 	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
 	m.program = p
 	m.clipboard = clipboard.New()
-	m.mediaHandler = media.NewHandler(config.ConfigPath, "Yandex music terminal client")
+	m.mediaHandler = media.NewHandler(config.DirName, "Yandex music terminal client")
 	m.likedTracksMap = make(map[string]bool)
 	m.cachedTracksMap = make(map[string]bool)
 
+	m.spinner = spinner.New(spinner.WithSpinner(spinner.Points))
 	m.playlists = playlist.New(m.program, "YaMusic")
 	m.tracklist = tracklist.New(m.program, &m.likedTracksMap, &m.cachedTracksMap)
 	m.tracker = tracker.New(m.program, &m.likedTracksMap)
 	m.searchDialog = search.New()
 	m.inputDialog = input.New()
+
 	return m
 }
 
@@ -72,17 +82,10 @@ func New() *Model {
 //
 
 func (m *Model) Run() error {
-	var err error
-
-	err = m.initialLoad()
-	if err != nil {
-		return err
-	}
-
 	m.mediaHandler.Enable()
 	go m.mediaHandle()
 
-	_, err = m.program.Run()
+	_, err := m.program.Run()
 
 	m.tracker.Stop()
 	m.mediaHandler.Disable()
@@ -98,7 +101,9 @@ func (m *Model) Send(msg tea.Msg) {
 //
 
 func (m *Model) Init() tea.Cmd {
-	return textinput.Blink
+	m.isLoading = true
+	go m.initialLoad()
+	return m.spinner.Tick
 }
 
 func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
@@ -108,6 +113,10 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	)
 
 	switch msg := message.(type) {
+	case LoadingMsg:
+		m.isLoading = false
+		return m, model.Cmd(playlist.CURSOR_UP)
+
 	case tea.WindowSizeMsg:
 		m.resize(msg.Width, msg.Height)
 		return m, tea.ClearScreen
@@ -125,13 +134,24 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case m.isRenamePlaylistActive:
 			m.inputDialog, cmd = m.inputDialog.Update(message)
 			cmds = append(cmds, cmd)
+		case controls.Reload.Contains(keypress):
+			m.isLoading = true
+			cmd = m.playlists.Reset()
+			cmds = append(cmds, cmd)
+			cmds = append(cmds, m.spinner.Tick)
+			go m.initialLoad()
 		default:
-			m.playlists, cmd = m.playlists.Update(message)
-			cmds = append(cmds, cmd)
-			m.tracklist, cmd = m.tracklist.Update(message)
-			cmds = append(cmds, cmd)
-			m.tracker, cmd = m.tracker.Update(message)
-			cmds = append(cmds, cmd)
+			if m.isLoading {
+				m.spinner, cmd = m.spinner.Update(message)
+				cmds = append(cmds, cmd)
+			} else {
+				m.playlists, cmd = m.playlists.Update(message)
+				cmds = append(cmds, cmd)
+				m.tracklist, cmd = m.tracklist.Update(message)
+				cmds = append(cmds, cmd)
+				m.tracker, cmd = m.tracker.Update(message)
+				cmds = append(cmds, cmd)
+			}
 		}
 
 	// playlist control update
@@ -257,7 +277,10 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 
 	default:
-		if m.isSearchActive || m.isAddPlaylistActive {
+		if m.isLoading {
+			m.spinner, cmd = m.spinner.Update(message)
+			cmds = append(cmds, cmd)
+		} else if m.isSearchActive || m.isAddPlaylistActive {
 			m.searchDialog, cmd = m.searchDialog.Update(message)
 			cmds = append(cmds, cmd)
 		} else if m.isRenamePlaylistActive {
@@ -277,6 +300,10 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) View() string {
+	if m.isLoading {
+		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, m.spinner.View())
+	}
+
 	if m.isSearchActive || m.isAddPlaylistActive {
 		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, m.searchDialog.View())
 	} else if m.isRenamePlaylistActive {
@@ -317,25 +344,34 @@ func (m *Model) resize(width, height int) {
 	m.inputDialog.SetWidth(searchWidth)
 }
 
-func (m *Model) initialLoad() error {
+func (m *Model) initialLoad() {
 	var err error
+
+	m.tracker.HideError()
 	if len(config.Current.Token) == 0 {
-		return fmt.Errorf("wrong token")
-	}
-	m.client, err = api.NewClient(config.Current.Token)
-	if err != nil {
-		if _, ok := err.(*url.Error); ok {
-			return fmt.Errorf("unable to connect to the Yandex server")
-		} else {
-			return err
+		log.Print(log.LVL_ERROR, "missing client token, check the config file at '%s'", config.Path())
+		m.tracker.ShowError("missing token")
+		m.client = nil
+	} else {
+		m.client, err = api.NewClient(config.DirName, config.Current.Token)
+		if err != nil {
+			if _, ok := err.(*url.Error); ok {
+				log.Print(log.LVL_ERROR, "failed to connect to the Yandex server: %s", err)
+				m.tracker.ShowError("unable to connect to the Yandex server")
+			} else {
+				log.Print(log.LVL_ERROR, "client init error: %s", err)
+				m.tracker.ShowError("unable to login: " + err.Error())
+			}
 		}
 	}
-
-	//m.client = &api.YaMusicClient{}
 
 	for i, station := range m.playlists.Items() {
 		switch station.Kind {
 		case playlist.MYWAVE:
+			if m.client == nil {
+				continue
+			}
+
 			tracks, err := m.client.StationTracks(api.MyWaveId, nil)
 			if err != nil {
 				log.Print(log.LVL_ERROR, "failed to obtain station tracks for the first time: %s", err)
@@ -345,11 +381,17 @@ func (m *Model) initialLoad() error {
 
 			station.StationId = tracks.Id
 			station.StationBatch = tracks.BatchId
-			for _, t := range tracks.Sequence {
-				station.Tracks = append(station.Tracks, t.Track)
+			station.Tracks = make([]api.Track, len(tracks.Sequence))
+			for i := range tracks.Sequence {
+				station.Tracks[i] = tracks.Sequence[i].Track
 			}
+
 			m.playlists.SetItem(i, station)
 		case playlist.LIKES:
+			if m.client == nil {
+				continue
+			}
+
 			likes, err := m.client.LikedTracks()
 			if err != nil {
 				log.Print(log.LVL_ERROR, "failed to obtain liked tracks for the first time: %s", err)
@@ -387,34 +429,35 @@ func (m *Model) initialLoad() error {
 		}
 	}
 
-	playlists, err := m.client.ListPlaylists()
-	if err == nil {
-		for _, pl := range playlists {
-			playlistTracks, err := m.client.PlaylistTracks(pl.Kind, pl.Owner.Uid, false)
-			if err != nil {
-				log.Print(log.LVL_ERROR, "failed to obtain playlist [%s] tracks: %s", pl.Title, err)
-				m.tracker.ShowError("playlist tracks")
-				continue
-			}
+	if m.client != nil {
+		playlists, err := m.client.ListPlaylists()
+		if err == nil {
+			for _, pl := range playlists {
+				playlistTracks, err := m.client.PlaylistTracks(pl.Kind, pl.Owner.Uid, false)
+				if err != nil {
+					log.Print(log.LVL_ERROR, "failed to obtain playlist [%s] tracks: %s", pl.Title, err)
+					m.tracker.ShowError("playlist tracks")
+					continue
+				}
 
-			m.playlists.InsertItem(-1, &playlist.Item{
-				Name:     pl.Title,
-				Kind:     pl.Kind,
-				Revision: pl.Revision,
-				Active:   true,
-				Subitem:  true,
-				Tracks:   playlistTracks,
-			})
+				m.playlists.InsertItem(-1, &playlist.Item{
+					Name:     pl.Title,
+					Kind:     pl.Kind,
+					Revision: pl.Revision,
+					Active:   true,
+					Subitem:  true,
+					Tracks:   playlistTracks,
+				})
+			}
+		} else {
+			log.Print(log.LVL_ERROR, "failed to obtain user playlists: %s", err)
+			m.tracker.ShowError("playlists")
 		}
-	} else {
-		log.Print(log.LVL_ERROR, "failed to obtain user playlists: %s", err)
-		m.tracker.ShowError("playlists")
 	}
 
+	m.currentPlaylistIndex = -1
 	m.playlists.Select(0)
-	m.Send(playlist.CURSOR_UP)
-
-	return nil
+	m.Send(LOADING_DONE)
 }
 
 func (m *Model) mediaHandle() {
@@ -528,7 +571,7 @@ func (m *Model) mediaHandle() {
 }
 
 func (m *Model) coverFilePath(track *api.Track) string {
-	tempDir := filepath.Join(os.TempDir(), config.ConfigPath)
+	tempDir := filepath.Join(os.TempDir(), config.DirName)
 	if os.MkdirAll(tempDir, 0755) != nil {
 		return ""
 	}
@@ -536,7 +579,7 @@ func (m *Model) coverFilePath(track *api.Track) string {
 }
 
 func (m *Model) metadataFilePath() string {
-	tempDir := filepath.Join(os.TempDir(), config.ConfigPath)
+	tempDir := filepath.Join(os.TempDir(), config.DirName)
 	if os.MkdirAll(tempDir, 0755) != nil {
 		return ""
 	}

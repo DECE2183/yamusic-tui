@@ -84,7 +84,7 @@ func (wh *WinHandler) OnPlayback() {
 
 	wh.playState = PLAY_PLAYING
 	wh.setState(wh.playState)
-	wh.setMetadata(filepath.Join(os.TempDir(), config.ConfigPath, "metadata.mp3"))
+	wh.setMetadata(filepath.Join(os.TempDir(), config.DirName, "metadata.mp3"))
 
 	wh.msgMux.Lock()
 	wh.msgChan <- handler.Message{

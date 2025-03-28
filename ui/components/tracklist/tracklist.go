@@ -55,6 +55,9 @@ func New(p *tea.Program, likesMap *map[string]bool, cacheMap *map[string]bool) *
 	}
 	m.list.SetShowHelp(false)
 
+	m.help.Ellipsis = "…"
+	m.help.Styles.FullDesc = m.help.Styles.FullDesc.PaddingRight(1)
+
 	return m
 }
 
@@ -180,12 +183,14 @@ func (m *Model) Select(index int) {
 
 func (m *Model) SetSize(w, h int) {
 	m.width = w
+	m.help.Width = m.width - 4
 	m.list.SetWidth(m.width - 6)
 	m.SetHeight(h)
 }
 
 func (m *Model) SetWidth(w int) {
 	m.width = w
+	m.help.Width = m.width - 4
 	m.list.SetWidth(m.width - 6)
 }
 

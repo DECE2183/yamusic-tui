@@ -45,6 +45,7 @@ type Controls struct {
 	Cancel      *Key `yaml:"cancel"`
 	CursorUp    *Key `yaml:"cursor-up"`
 	CursorDown  *Key `yaml:"cursor-down"`
+	Reload      *Key `yaml:"reload"`
 	ShowAllKeys *Key `yaml:"show-all-kyes"`
 	// Playlists control
 	PlaylistsUp     *Key `yaml:"playlists-up"`
@@ -82,7 +83,7 @@ type Config struct {
 	RewindDuration float64   `yaml:"rewind-duration-s"`
 	Volume         float64   `yaml:"volume"`
 	VolumeStep     float64   `yaml:"volume-step"`
-	ShowErrors     bool      `yaml:"show-errors"`
+	SuppressErrors bool      `yaml:"suppress-errors"`
 	ShowLyrics     bool      `yaml:"show-lyrics"`
 	CacheTracks    CacheType `yaml:"cache-tracks"`
 	CacheDir       string    `yaml:"cache-dir"`
@@ -98,7 +99,7 @@ var defaultConfig = Config{
 	ShowLyrics:     false,
 	CacheTracks:    CACHE_LIKED_ONLY,
 	CacheDir:       "",
-	ShowErrors:     false,
+	SuppressErrors: false,
 	Search: &Search{
 		Artists:   true,
 		Albums:    false,
@@ -110,6 +111,7 @@ var defaultConfig = Config{
 		Cancel:                   NewKey("esc"),
 		CursorUp:                 NewKey("up"),
 		CursorDown:               NewKey("down"),
+		Reload:                   NewKey("ctrl+\\"),
 		ShowAllKeys:              NewKey("?"),
 		PlaylistsUp:              NewKey("ctrl+up"),
 		PlaylistsDown:            NewKey("ctrl+down"),
@@ -133,4 +135,4 @@ var defaultConfig = Config{
 	},
 }
 
-const ConfigPath = "yamusic-tui"
+const DirName = "yamusic-tui"

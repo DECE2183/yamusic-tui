@@ -18,7 +18,7 @@ func getCacheDir() (string, error) {
 		if err != nil {
 			return "", err
 		}
-		cacheDir = filepath.Join(userDir, config.ConfigPath)
+		cacheDir = filepath.Join(userDir, config.DirName)
 	} else {
 		cacheDir, err = filepath.Abs(config.Current.CacheDir)
 		if err != nil {
