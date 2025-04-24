@@ -58,8 +58,7 @@ func nowTimestamp() string {
 }
 
 func proccessRequest[RetT any](req *http.Request) (result RetT, invInfo InvocInfo, err error) {
-	req.Header.Add("x-Yandex-Music-Client", "YandexMusicAndroid/24024312")
-	req.Header.Add("User-Agent", "okhttp/4.12.0")
+	req.Header.Add("User-Agent", "'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36")
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
