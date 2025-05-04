@@ -45,7 +45,7 @@ var mTLSConfig = &tls.Config{
 		tls.TLS_RSA_WITH_AES_256_CBC_SHA,
 	},
 	MinVersion: tls.VersionTLS12,
-	MaxVersion: tls.VersionTLS12,
+	// MaxVersion: tls.VersionTLS12,
 }
 
 var httpClient = http.Client{Transport: &http.Transport{
