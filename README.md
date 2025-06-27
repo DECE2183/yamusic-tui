@@ -53,6 +53,8 @@ go install github.com/dece2183/yamusic-tui@latest
 
 Or just download the binary from the [releases](https://github.com/DECE2183/yamusic-tui/releases/latest) page.
 
+Also available [Gentoo Linux ebuild](https://github.com/microcai/gentoo-zh/pull/7387/files).
+
 ## Configuration
 
 The configuration file is located at `~/.config/yamusic-tui/config.yaml`.
