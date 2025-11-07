@@ -122,7 +122,7 @@ func InitStyles() {
 		MaxWidth(PlaylistsSidePanelWidth)
 	SideBoxSelItemStyle = SideBoxItemStyle.
 		Foreground(ActiveTextColor).
-		Background(lipgloss.Color("#4a3c00")).
+		Background(BackgroundColor).
 		PaddingLeft(1).
 		Border(lipgloss.InnerHalfBlockBorder()).
 		BorderForeground(AccentColor).
