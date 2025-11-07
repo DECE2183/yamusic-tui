@@ -86,6 +86,20 @@ func load() (Config, error) {
 		}
 	}
 
+	if newConfig.Colors == nil {
+		colors := *defaultConfig.Colors
+		newConfig.Colors = &colors
+	} else {
+		colors := reflect.ValueOf(newConfig.Colors).Elem()
+		defaultConfig := reflect.ValueOf(defaultConfig.Colors).Elem()
+		for i := 0; i < colors.NumField(); i++ {
+			colorField := colors.Field(i)
+			if colorField.String() == "" {
+				colorField.Set(defaultConfig.Field(i))
+			}
+		}
+	}
+
 	return newConfig, nil
 }
 

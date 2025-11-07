@@ -38,6 +38,18 @@ func (t CacheType) MarshalYAML() (interface{}, error) {
 	return cacheEnumToValue[t], nil
 }
 
+type Colors struct {
+	Accent         string `yaml:"accent"`
+	Error          string `yaml:"error"`
+	Background     string `yaml:"background"`
+	ActiveText     string `yaml:"active-text"`
+	NormalText     string `yaml:"normal-text"`
+	InactiveText   string `yaml:"inactive-text"`
+	LyricsPrevious string `yaml:"lyrics-previous"`
+	LyricsCurrent  string `yaml:"lyrics-current"`
+	LyricsNext     string `yaml:"lyrics-next"`
+}
+
 type Controls struct {
 	// Main control
 	Quit        *Key `yaml:"quit"`
@@ -89,6 +101,7 @@ type Config struct {
 	CacheDir       string    `yaml:"cache-dir"`
 	Search         *Search   `yaml:"search"`
 	Controls       *Controls `yaml:"controls"`
+	Colors         *Colors   `yaml:"colors"`
 }
 
 var defaultConfig = Config{
@@ -132,6 +145,17 @@ var defaultConfig = Config{
 		PlayerCache:              NewKey("S"),
 		PlayerVolUp:              NewKey("+,="),
 		PlayerVolDown:            NewKey("-"),
+	},
+	Colors: &Colors{
+		Accent:         "#FC0",
+		Error:          "#F33",
+		Background:     "#6b6b6b",
+		ActiveText:     "#EEE",
+		NormalText:     "#CCC",
+		InactiveText:   "#888",
+		LyricsPrevious: "#444",
+		LyricsCurrent:  "#EEE",
+		LyricsNext:     "#777",
 	},
 }
 
