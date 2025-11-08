@@ -1,4 +1,4 @@
-module github.com/dece2183/yamusic-tui
+module github.com/bircoder432/yamusic-tui-enhanced
 
 go 1.21
 

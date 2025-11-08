@@ -1,11 +1,12 @@
 
 # yamusic-tui
 
-[![GitHub License](https://img.shields.io/github/license/dece2183/yamusic-tui)](https://github.com/DECE2183/yamusic-tui/blob/main/LICENSE)
-[![Go Report Card](https://goreportcard.com/badge/github.com/dece2183/yamusic-tui)](https://goreportcard.com/report/github.com/dece2183/yamusic-tui)
-[![Release](https://img.shields.io/github/v/release/dece2183/yamusic-tui)](https://github.com/dece2183/yamusic-tui/releases)
+[![GitHub License](https://img.shields.io/github/license/bircoder432/yamusic-tui-enhanced)](https://github.com/bircoder432/yamusic-tui-enhaced/blob/main/LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/github.com/bircoder432/yamusic-tui-enhanced)](https://goreportcard.com/report/github.com/bircoder432/yamusic-tui-enhanced)
+[![Release](https://img.shields.io/github/v/release/bircoder432/yamusic-tui-enhanced)](https://github.com/bircoder432/yamusic-tui-enhanced/releases)
 
 An unofficial Yandex Music terminal client.<br>
+Fork of [yamusic-tui](https://github.com/dece2183/yamusic-tui)
 Based on [yandex-music-open-api](https://github.com/acherkashin/yandex-music-open-api).
 
 ![screenshot](.assets/screenshot.png)
@@ -48,12 +49,11 @@ The easiest way to get a token is to use a browser extension ([Chrome](https://c
 If you have Go installed on your PC:
 
 ```bash
-go install github.com/dece2183/yamusic-tui@latest
+go install github.com/bircoder432/yamusic-tui-enhanced@latest
 ```
 
-Or just download the binary from the [releases](https://github.com/DECE2183/yamusic-tui/releases/latest) page.
+Or just download the binary from the [releases](https://github.com/bircoder432/yamusic-tui-enhanced/releases/latest) page.
 
-Also available [Gentoo Linux ebuild](https://github.com/microcai/gentoo-zh/pull/7387/files).
 
 ## Configuration
 
