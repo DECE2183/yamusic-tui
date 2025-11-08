@@ -63,7 +63,7 @@ type Controls struct {
 	PlaylistsUp     *Key `yaml:"playlists-up"`
 	PlaylistsDown   *Key `yaml:"playlists-down"`
 	PlaylistsRename *Key `yaml:"playlists-rename"`
-	PlaylistsHide   *Key `yaml:"playlis-hide"`
+	PlaylistsHide   *Key `yaml:"playlists-hide"`
 	// Track list control
 	TracksLike               *Key `yaml:"tracks-like"`
 	TracksAddToPlaylist      *Key `yaml:"tracks-add-to-playlist"`
