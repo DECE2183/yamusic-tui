@@ -38,6 +38,7 @@ type Model struct {
 	clipboard     *clipboard.Clipboard
 	mediaHandler  handler.MediaHandler
 	width, height int
+	showPlaylists bool
 
 	spinner      spinner.Model
 	playlists    *playlist.Model
@@ -86,7 +87,9 @@ func (m *Model) Run() error {
 	go m.mediaHandle()
 
 	_, err := m.program.Run()
-
+	if err != nil {
+		println(err)
+	}
 	m.tracker.Stop()
 	m.mediaHandler.Disable()
 	return err
@@ -183,6 +186,9 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			m.inputDialog.Title = "Rename playlist " + selectedPlaylist.Name
 			m.inputDialog.SetValue(selectedPlaylist.Name)
 			m.isRenamePlaylistActive = true
+		case playlist.TOGGLE_SHOW:
+			m.showPlaylists = !m.showPlaylists
+			m.resize(m.width, m.height)
 		}
 
 	// tracklist control update
@@ -311,7 +317,7 @@ func (m *Model) View() string {
 	}
 
 	var sidePanel string
-	if m.playlists.Width() > 0 {
+	if m.playlists.Width() > 0 && m.showPlaylists {
 		sidePanel = m.playlists.View()
 	}
 
@@ -326,14 +332,22 @@ func (m *Model) View() string {
 
 func (m *Model) resize(width, height int) {
 	m.width, m.height = width, height
-	if m.width > style.PlaylistsSidePanelWidth*3 {
-		m.playlists.SetSize(style.PlaylistsSidePanelWidth, height-4)
+
+	var playlistWidth int
+	if m.showPlaylists && m.width > style.PlaylistsSidePanelWidth*3 {
+		playlistWidth = style.PlaylistsSidePanelWidth
 	} else {
-		m.playlists.SetSize(-2, height-4)
+		playlistWidth = -2
+	}
+	m.playlists.SetSize(playlistWidth, height-4)
+
+	tracklistWidth := m.width - playlistWidth - 4
+	if !m.showPlaylists {
+		tracklistWidth = m.width - 4
 	}
 
-	m.tracklist.SetSize(m.width-m.playlists.Width()-4, height-m.tracker.Height()-8)
-	m.tracker.SetWidth(m.width - m.playlists.Width() - 4)
+	m.tracklist.SetSize(tracklistWidth, height-m.tracker.Height()-8)
+	m.tracker.SetWidth(tracklistWidth)
 
 	searchWidth := style.SearchModalWidth
 	if searchWidth > width {

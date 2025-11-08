@@ -63,6 +63,7 @@ type Controls struct {
 	PlaylistsUp     *Key `yaml:"playlists-up"`
 	PlaylistsDown   *Key `yaml:"playlists-down"`
 	PlaylistsRename *Key `yaml:"playlists-rename"`
+	PlaylistsHide   *Key `yaml:"playlis-hide"`
 	// Track list control
 	TracksLike               *Key `yaml:"tracks-like"`
 	TracksAddToPlaylist      *Key `yaml:"tracks-add-to-playlist"`
@@ -129,6 +130,7 @@ var defaultConfig = Config{
 		PlaylistsUp:              NewKey("ctrl+up"),
 		PlaylistsDown:            NewKey("ctrl+down"),
 		PlaylistsRename:          NewKey("ctrl+r"),
+		PlaylistsHide:            NewKey("ctrl+b"),
 		TracksLike:               NewKey("l"),
 		TracksAddToPlaylist:      NewKey("a"),
 		TracksRemoveFromPlaylist: NewKey("ctrl+a"),
