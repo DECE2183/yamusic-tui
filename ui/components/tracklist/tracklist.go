@@ -26,6 +26,7 @@ const (
 	LIKE
 	ADD_TO_PLAYLIST
 	REMOVE_FROM_PLAYLIST
+	TOGGLE_VIEW
 )
 
 type Model struct {
@@ -33,9 +34,9 @@ type Model struct {
 	list          list.Model
 	help          help.Model
 	width, height int
-
-	Title      string
-	Shufflable bool
+	showTracklist bool
+	Title         string
+	Shufflable    bool
 }
 
 func New(p *tea.Program, likesMap *map[string]bool, cacheMap *map[string]bool) *Model {
@@ -131,6 +132,8 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 			cmds = append(cmds, model.Cmd(ADD_TO_PLAYLIST))
 		case controls.TracksRemoveFromPlaylist.Contains(keypress):
 			cmds = append(cmds, model.Cmd(REMOVE_FROM_PLAYLIST))
+		case controls.TracksHide.Contains(keypress):
+			cmds = append(cmds, model.Cmd(TOGGLE_VIEW))
 		}
 	}
 

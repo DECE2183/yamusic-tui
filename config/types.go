@@ -71,6 +71,7 @@ type Controls struct {
 	TracksShare              *Key `yaml:"tracks-share"`
 	TracksShuffle            *Key `yaml:"tracks-shuffle"`
 	TracksSearch             *Key `yaml:"tracks-search"`
+	TracksHide               *Key `yaml:"tracks-hide"`
 	// Player control
 	PlayerPause          *Key `yaml:"player-pause"`
 	PlayerNext           *Key `yaml:"player-next"`
@@ -82,6 +83,7 @@ type Controls struct {
 	PlayerVolUp          *Key `yaml:"player-vol-up"`
 	PlayerVolDown        *Key `yaml:"player-vol-down"`
 	PlayerToggleLyrics   *Key `yaml:"player-toggle-lyrics"`
+	PlayerHide           *Key `yaml:"player-hide"`
 }
 
 type Search struct {
@@ -137,6 +139,7 @@ var defaultConfig = Config{
 		TracksSearch:             NewKey("ctrl+f"),
 		TracksShuffle:            NewKey("ctrl+x"),
 		TracksShare:              NewKey("ctrl+s"),
+		TracksHide:               NewKey("ctrl+t"),
 		PlayerPause:              NewKey("space"),
 		PlayerNext:               NewKey("right"),
 		PlayerPrevious:           NewKey("left"),
@@ -147,6 +150,7 @@ var defaultConfig = Config{
 		PlayerCache:              NewKey("S"),
 		PlayerVolUp:              NewKey("+,="),
 		PlayerVolDown:            NewKey("-"),
+		PlayerHide:               NewKey("ctrl+p"),
 	},
 	Colors: &Colors{
 		Accent:         "#FC0",

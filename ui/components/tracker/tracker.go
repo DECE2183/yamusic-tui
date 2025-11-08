@@ -36,6 +36,7 @@ const (
 	CACHE_TRACK
 	BUFFERING_COMPLETE
 	TOGGLE_LYRICS
+	TOGGLE_VIEW
 )
 
 type ProgressControl float64
@@ -68,6 +69,8 @@ type Model struct {
 
 	program  *tea.Program
 	likesMap *map[string]bool
+
+	showPlayer bool
 }
 
 func New(p *tea.Program, likesMap *map[string]bool) *Model {
@@ -258,6 +261,8 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 		case controls.PlayerToggleLyrics.Contains(keypress):
 			m.SetLirycs(!m.showLyrics)
 			cmds = append(cmds, model.Cmd(TOGGLE_LYRICS))
+		case controls.PlayerHide.Contains(keypress):
+			cmds = append(cmds, model.Cmd(TOGGLE_VIEW))
 		}
 
 	// player control update

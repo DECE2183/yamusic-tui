@@ -38,15 +38,17 @@ type Model struct {
 	clipboard     *clipboard.Clipboard
 	mediaHandler  handler.MediaHandler
 	width, height int
-	showPlaylists bool
 
-	spinner      spinner.Model
-	playlists    *playlist.Model
-	tracklist    *tracklist.Model
-	tracker      *tracker.Model
-	searchDialog *search.Model
-	inputDialog  *input.Model
+	spinner   spinner.Model
+	playlists *playlist.Model
+	tracklist *tracklist.Model
+	tracker   *tracker.Model
 
+	searchDialog           *search.Model
+	inputDialog            *input.Model
+	showPlaylists          bool
+	showTracklist          bool
+	showPlayer             bool
 	isLoading              bool
 	isSearchActive         bool
 	isAddPlaylistActive    bool
@@ -67,7 +69,9 @@ func New() *Model {
 	m.mediaHandler = media.NewHandler(config.DirName, "Yandex music terminal client")
 	m.likedTracksMap = make(map[string]bool)
 	m.cachedTracksMap = make(map[string]bool)
-
+	m.showPlayer = true
+	m.showPlaylists = true
+	m.showTracklist = true
 	m.spinner = spinner.New(spinner.WithSpinner(spinner.Points))
 	m.playlists = playlist.New(m.program, "YaMusic")
 	m.tracklist = tracklist.New(m.program, &m.likedTracksMap, &m.cachedTracksMap)
@@ -186,7 +190,7 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			m.inputDialog.Title = "Rename playlist " + selectedPlaylist.Name
 			m.inputDialog.SetValue(selectedPlaylist.Name)
 			m.isRenamePlaylistActive = true
-		case playlist.TOGGLE_SHOW:
+		case playlist.TOGGLE_VIEW:
 			m.showPlaylists = !m.showPlaylists
 			m.resize(m.width, m.height)
 		}
@@ -232,6 +236,9 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			if link != "" {
 				m.clipboard.CopyText(link)
 			}
+		case tracklist.TOGGLE_VIEW:
+			m.showTracklist = !m.showTracklist
+			m.resize(m.width, m.height)
 		}
 
 	// player control update
@@ -261,6 +268,10 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				cmd = m.cacheCurrentTrack()
 				cmds = append(cmds, cmd)
 			}
+		case tracker.TOGGLE_VIEW:
+			m.showPlayer = !m.showPlayer
+			m.resize(m.width, m.height)
+
 		}
 
 		m.tracker, cmd = m.tracker.Update(message)
@@ -321,8 +332,26 @@ func (m *Model) View() string {
 		sidePanel = m.playlists.View()
 	}
 
-	m.tracklist.SetHeight(m.height - m.tracker.Height() - 8)
-	midPanel := lipgloss.JoinVertical(lipgloss.Left, m.tracklist.View(), m.tracker.View())
+	var midPanel string
+	if m.showTracklist {
+		if m.showPlayer {
+			midPanel = lipgloss.JoinVertical(lipgloss.Left, m.tracklist.View(), m.tracker.View())
+			m.tracklist.SetHeight(m.height - m.tracker.Height() - 8)
+		} else {
+			midPanel = lipgloss.JoinVertical(lipgloss.Left, m.tracklist.View())
+			m.tracklist.SetHeight(m.height - 4)
+		}
+	} else {
+		if m.showPlayer {
+			midPanel = lipgloss.JoinVertical(lipgloss.Left, m.tracker.View())
+		} else {
+			if sidePanel != "" {
+				return lipgloss.JoinHorizontal(lipgloss.Bottom, sidePanel, "")
+			}
+			return "..."
+		}
+	}
+
 	return lipgloss.JoinHorizontal(lipgloss.Bottom, sidePanel, midPanel)
 }
 
@@ -341,13 +370,28 @@ func (m *Model) resize(width, height int) {
 	}
 	m.playlists.SetSize(playlistWidth, height-4)
 
-	tracklistWidth := m.width - playlistWidth - 4
+	contentWidth := m.width - playlistWidth - 4
 	if !m.showPlaylists {
-		tracklistWidth = m.width - 4
+		contentWidth = m.width - 4
 	}
 
-	m.tracklist.SetSize(tracklistWidth, height-m.tracker.Height()-8)
-	m.tracker.SetWidth(tracklistWidth)
+	if m.showTracklist {
+		if m.showPlayer {
+			tracklistHeight := height - m.tracker.Height() - 8
+			m.tracklist.SetSize(contentWidth, tracklistHeight)
+		} else {
+			tracklistHeight := height - 4
+			m.tracklist.SetSize(contentWidth, tracklistHeight)
+		}
+	} else {
+		m.tracklist.SetSize(0, 0)
+	}
+
+	if m.showPlayer {
+		m.tracker.SetWidth(contentWidth)
+	} else {
+		m.tracker.SetWidth(0)
+	}
 
 	searchWidth := style.SearchModalWidth
 	if searchWidth > width {
