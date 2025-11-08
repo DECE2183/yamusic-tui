@@ -11,7 +11,7 @@ makedepends=('go')
 conflicts=('yamusic-tui' 'yamusic-tui-nomedia' 'yamusic-tui-enhanced-nomedia')
 provides=('yamusic-tui-enhanced' 'yamusic-tui')
 source=("$pkgname-$pkgver.tar.gz::https://github.com/bircoder432/yamusic-tui-enhanced/archive/v$pkgver.tar.gz")
-sha256sums=('SKIP')
+sha256sums=('83b3c9aa474684a05ab4c8a3396cd8205c5c44f51a79cc9da3987abf1cb600d2')
 
 build() {
   cd "yamusic-tui-enhanced-$pkgver"
