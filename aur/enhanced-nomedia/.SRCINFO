@@ -8,12 +8,12 @@ pkgbase = yamusic-tui-enhanced-nomedia
 	arch = aarch64
 	license = MIT
 	makedepends = go
-	provides = yamusic-tui-enhanced
 	provides = yamusic-tui
+	provides = yamusic-tui-enhanced
 	conflicts = yamusic-tui-enhanced
 	conflicts = yamusic-tui
 	conflicts = yamusic-tui-nomedia
 	source = yamusic-tui-enhanced-nomedia-0.7.2.tar.gz::https://github.com/bircoder432/yamusic-tui-enhanced/archive/v0.7.2.tar.gz
-	sha256sums = SKIP
+	sha256sums = 83b3c9aa474684a05ab4c8a3396cd8205c5c44f51a79cc9da3987abf1cb600d2
 
 pkgname = yamusic-tui-enhanced-nomedia
