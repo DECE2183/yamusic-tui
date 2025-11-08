@@ -1,6 +1,6 @@
 package playlist
 
-import "github.com/dece2183/yamusic-tui/api"
+import "github.com/bircoder432/yamusic-tui-enhanced/api"
 
 type Item struct {
 	Uid uint64

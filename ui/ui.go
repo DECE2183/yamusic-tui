@@ -1,12 +1,12 @@
 package ui
 
 import (
-	"github.com/dece2183/yamusic-tui/config"
-	"github.com/dece2183/yamusic-tui/log"
-	"github.com/dece2183/yamusic-tui/ui/model"
-	loginpage "github.com/dece2183/yamusic-tui/ui/model/loginPage"
-	mainpage "github.com/dece2183/yamusic-tui/ui/model/mainPage"
-	"github.com/dece2183/yamusic-tui/ui/style"
+	"github.com/bircoder432/yamusic-tui-enhanced/config"
+	"github.com/bircoder432/yamusic-tui-enhanced/log"
+	"github.com/bircoder432/yamusic-tui-enhanced/ui/model"
+	loginpage "github.com/bircoder432/yamusic-tui-enhanced/ui/model/loginPage"
+	mainpage "github.com/bircoder432/yamusic-tui-enhanced/ui/model/mainPage"
+	"github.com/bircoder432/yamusic-tui-enhanced/ui/style"
 )
 
 func Run() {

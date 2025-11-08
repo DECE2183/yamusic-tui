@@ -5,13 +5,13 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/bircoder432/yamusic-tui-enhanced/api"
+	"github.com/bircoder432/yamusic-tui-enhanced/log"
+	"github.com/bircoder432/yamusic-tui-enhanced/ui/components/input"
+	"github.com/bircoder432/yamusic-tui-enhanced/ui/components/playlist"
+	"github.com/bircoder432/yamusic-tui-enhanced/ui/components/search"
+	"github.com/bircoder432/yamusic-tui-enhanced/ui/components/tracklist"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/dece2183/yamusic-tui/api"
-	"github.com/dece2183/yamusic-tui/log"
-	"github.com/dece2183/yamusic-tui/ui/components/input"
-	"github.com/dece2183/yamusic-tui/ui/components/playlist"
-	"github.com/dece2183/yamusic-tui/ui/components/search"
-	"github.com/dece2183/yamusic-tui/ui/components/tracklist"
 )
 
 func (m *Model) addPlaylistControl(msg search.Control) tea.Cmd {

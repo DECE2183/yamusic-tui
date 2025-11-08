@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/dece2183/yamusic-tui/log"
-	"github.com/dece2183/yamusic-tui/ui"
+	"github.com/bircoder432/yamusic-tui-enhanced/log"
+	"github.com/bircoder432/yamusic-tui-enhanced/ui"
 )
 
 func main() {

@@ -7,12 +7,12 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/bircoder432/yamusic-tui-enhanced/media/handler"
 	winrt "github.com/dece2183/media-winrt-go"
 	"github.com/dece2183/media-winrt-go/windows/foundation"
 	"github.com/dece2183/media-winrt-go/windows/media"
 	"github.com/dece2183/media-winrt-go/windows/media/playback"
 	"github.com/dece2183/media-winrt-go/windows/storage"
-	"github.com/dece2183/yamusic-tui/media/handler"
 	"github.com/go-ole/go-ole"
 )
 

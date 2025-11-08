@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/bircoder432/yamusic-tui-enhanced/api"
+	"github.com/bircoder432/yamusic-tui-enhanced/config"
+	"github.com/bircoder432/yamusic-tui-enhanced/log"
+	"github.com/bircoder432/yamusic-tui-enhanced/ui/components/playlist"
+	"github.com/bircoder432/yamusic-tui-enhanced/ui/components/search"
+	"github.com/bircoder432/yamusic-tui-enhanced/ui/helpers"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/dece2183/yamusic-tui/api"
-	"github.com/dece2183/yamusic-tui/config"
-	"github.com/dece2183/yamusic-tui/log"
-	"github.com/dece2183/yamusic-tui/ui/components/playlist"
-	"github.com/dece2183/yamusic-tui/ui/components/search"
-	"github.com/dece2183/yamusic-tui/ui/helpers"
 )
 
 func (m *Model) searchControl(msg search.Control) tea.Cmd {

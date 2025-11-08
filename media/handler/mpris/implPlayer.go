@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/dece2183/yamusic-tui/media/handler"
+	"github.com/bircoder432/yamusic-tui-enhanced/media/handler"
 	"github.com/godbus/dbus/v5"
 	"github.com/quarckster/go-mpris-server/pkg/types"
 )

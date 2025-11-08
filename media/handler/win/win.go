@@ -10,11 +10,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bircoder432/yamusic-tui-enhanced/config"
+	"github.com/bircoder432/yamusic-tui-enhanced/media/handler"
 	"github.com/dece2183/media-winrt-go/windows/foundation"
 	"github.com/dece2183/media-winrt-go/windows/media"
 	"github.com/dece2183/media-winrt-go/windows/media/playback"
-	"github.com/dece2183/yamusic-tui/config"
-	"github.com/dece2183/yamusic-tui/media/handler"
 )
 
 const _TIMELINE_POLL_PERIOD_MS = 400

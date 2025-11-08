@@ -1,9 +1,9 @@
 package mainpage
 
 import (
+	"github.com/bircoder432/yamusic-tui-enhanced/api"
+	"github.com/bircoder432/yamusic-tui-enhanced/ui/components/playlist"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/dece2183/yamusic-tui/api"
-	"github.com/dece2183/yamusic-tui/ui/components/playlist"
 )
 
 func (m *Model) likePlayingTrack() tea.Cmd {

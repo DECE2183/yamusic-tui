@@ -5,7 +5,7 @@ package dummy
 import (
 	"time"
 
-	"github.com/dece2183/yamusic-tui/media/handler"
+	"github.com/bircoder432/yamusic-tui-enhanced/media/handler"
 )
 
 type DummyHandler struct {

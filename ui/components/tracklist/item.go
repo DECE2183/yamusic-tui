@@ -1,8 +1,8 @@
 package tracklist
 
 import (
-	"github.com/dece2183/yamusic-tui/api"
-	"github.com/dece2183/yamusic-tui/ui/helpers"
+	"github.com/bircoder432/yamusic-tui-enhanced/api"
+	"github.com/bircoder432/yamusic-tui-enhanced/ui/helpers"
 )
 
 type Item struct {

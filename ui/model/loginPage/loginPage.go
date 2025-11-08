@@ -1,8 +1,8 @@
 package loginpage
 
 import (
-	"github.com/dece2183/yamusic-tui/config"
-	"github.com/dece2183/yamusic-tui/ui/style"
+	"github.com/bircoder432/yamusic-tui-enhanced/config"
+	"github.com/bircoder432/yamusic-tui-enhanced/ui/style"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/textinput"

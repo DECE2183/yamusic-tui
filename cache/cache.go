@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/dece2183/yamusic-tui/config"
+	"github.com/bircoder432/yamusic-tui-enhanced/config"
 )
 
 func getCacheDir() (string, error) {

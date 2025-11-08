@@ -5,10 +5,10 @@ import (
 	"io"
 	"strings"
 
+	"github.com/bircoder432/yamusic-tui-enhanced/ui/style"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/dece2183/yamusic-tui/ui/style"
 )
 
 type ItemDelegate struct{}

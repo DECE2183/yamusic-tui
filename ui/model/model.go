@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/bircoder432/yamusic-tui-enhanced/ui/style"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/dece2183/yamusic-tui/ui/style"
 )
 
 type Model interface {

@@ -1,8 +1,8 @@
 package tracklist
 
 import (
+	"github.com/bircoder432/yamusic-tui-enhanced/config"
 	"github.com/charmbracelet/bubbles/key"
-	"github.com/dece2183/yamusic-tui/config"
 )
 
 type helpKeyMap struct {

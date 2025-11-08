@@ -1,9 +1,9 @@
 package playlist
 
 import (
-	"github.com/dece2183/yamusic-tui/config"
-	"github.com/dece2183/yamusic-tui/ui/model"
-	"github.com/dece2183/yamusic-tui/ui/style"
+	"github.com/bircoder432/yamusic-tui-enhanced/config"
+	"github.com/bircoder432/yamusic-tui-enhanced/ui/model"
+	"github.com/bircoder432/yamusic-tui-enhanced/ui/style"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"

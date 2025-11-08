@@ -1,8 +1,8 @@
 package style
 
 import (
+	"github.com/bircoder432/yamusic-tui-enhanced/config"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/dece2183/yamusic-tui/config"
 )
 
 const (
