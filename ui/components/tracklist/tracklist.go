@@ -34,7 +34,7 @@ type Model struct {
 	list          list.Model
 	help          help.Model
 	width, height int
-	showTracklist bool
+	Visible       bool
 	Title         string
 	Shufflable    bool
 }
@@ -44,6 +44,7 @@ func New(p *tea.Program, likesMap *map[string]bool, cacheMap *map[string]bool) *
 		program: p,
 		help:    help.New(),
 		Title:   "Tracks",
+		Visible: true,
 	}
 
 	controls := config.Current.Controls
@@ -66,7 +67,14 @@ func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
+func (m *Model) SetVisible(visible bool) {
+	m.Visible = visible
+}
+
 func (m *Model) View() string {
+	if !m.Visible {
+		return ""
+	}
 	titleLen := lipgloss.Width(m.Title)
 	if titleLen > m.width-8 {
 		m.list.Title = lipgloss.NewStyle().MaxWidth(m.width-9).Render(m.Title) + "…"

@@ -45,7 +45,7 @@ type Model struct {
 	program       *tea.Program
 	list          list.Model
 	help          help.Model
-	showPlaylists bool
+	Visible       bool
 	width, height int
 }
 
@@ -53,6 +53,7 @@ func New(p *tea.Program, title string) *Model {
 	m := &Model{
 		program: p,
 		help:    help.New(),
+		Visible: true,
 	}
 
 	controls := config.Current.Controls
@@ -74,8 +75,12 @@ func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
+func (m *Model) SetVisible(visible bool) {
+	m.Visible = visible
+}
+
 func (m *Model) View() string {
-	if m.width < 0 {
+	if m.width < 0 || !m.Visible {
 		return ""
 	}
 
