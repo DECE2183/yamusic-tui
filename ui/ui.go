@@ -6,6 +6,7 @@ import (
 	"github.com/dece2183/yamusic-tui/ui/model"
 	loginpage "github.com/dece2183/yamusic-tui/ui/model/loginPage"
 	mainpage "github.com/dece2183/yamusic-tui/ui/model/mainPage"
+	"github.com/dece2183/yamusic-tui/ui/style"
 )
 
 func Run() {
@@ -18,7 +19,7 @@ func Run() {
 			model.PrettyExit(err, 4)
 		}
 	}
-
+	style.InitStyles()
 	err = mainpage.New().Run()
 	if err != nil {
 		log.Print(log.LVL_PANIC, err.Error())
