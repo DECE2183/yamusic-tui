@@ -4,10 +4,13 @@ package macos
 
 /*
 #cgo CFLAGS: -x objective-c
-#cgo LDFLAGS: -framework Foundation -framework MediaPlayer
+#cgo LDFLAGS: -framework Foundation -framework AppKit -framework MediaPlayer -framework IOKit
 
 #import <Foundation/Foundation.h>
+#import <AppKit/AppKit.h>
 #import <MediaPlayer/MediaPlayer.h>
+#import <IOKit/hidsystem/ev_keymap.h>
+#include <pthread.h>
 
 // Go callbacks declared here, implemented in Go via //export
 extern void goOnPlay(void);
@@ -84,10 +87,52 @@ static void runLoop(void) {
     }
 }
 
+static void claimNowPlaying(void) {
+    NSMutableDictionary *info = [NSMutableDictionary dictionary];
+    info[MPNowPlayingInfoPropertyPlaybackRate] = @(0.0);
+    info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = @(0.0);
+    [[MPNowPlayingInfoCenter defaultCenter] setNowPlayingInfo:info];
+}
+
+static void registerMediaKeyMonitor(void) {
+    [NSEvent addGlobalMonitorForEventsMatchingMask:NSEventMaskSystemDefined handler:^(NSEvent *event) {
+        if ([event type] == NSEventTypeSystemDefined && [event subtype] == 8) {
+            int keyCode = (([event data1] & 0xFFFF0000) >> 16);
+            int keyFlags = ([event data1] & 0x0000FFFF);
+            int keyDown = ((keyFlags & 0xFF00) >> 8) == 0xA;
+            if (keyDown) {
+                switch (keyCode) {
+                    case NX_KEYTYPE_PLAY:     goOnTogglePlayPause(); break;
+                    case NX_KEYTYPE_NEXT:     goOnNext();            break;
+                    case NX_KEYTYPE_PREVIOUS: goOnPrevious();        break;
+                    case NX_KEYTYPE_FAST:     goOnNext();            break;
+                    case NX_KEYTYPE_REWIND:   goOnPrevious();        break;
+                }
+            }
+        }
+    }];
+}
+
+// runCocoaMain must be called from the main OS thread.
+// It initializes NSApplication, registers media key handlers, and runs the Cocoa event loop.
+// It blocks until stopCocoaMain() is called.
+static void runCocoaMain(void) {
+    @autoreleasepool {
+        NSApplication *app = [NSApplication sharedApplication];
+        [app setActivationPolicy:NSApplicationActivationPolicyProhibited];
+        setupRemoteCommandCenter();
+        registerMediaKeyMonitor();
+        claimNowPlaying();
+        [app run];
+    }
+}
+
+static void stopCocoaMain(void) {
+    [[NSApplication sharedApplication] terminate:nil];
+}
+
 static void startRunLoop(void) {
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        runLoop();
-    });
+    // legacy stub — not used when runCocoaMain() is called from main()
 }
 
 static void updateNowPlayingInfo(
@@ -151,9 +196,18 @@ func NewHandler(name, description string) *MacosHandler {
 	return mh
 }
 
+// RunMain must be called from the main OS thread. Blocks until StopMain is called.
+func RunMain() {
+	C.runCocoaMain()
+}
+
+// StopMain signals the Cocoa main loop to exit.
+func StopMain() {
+	C.stopCocoaMain()
+}
+
 func (mh *MacosHandler) Enable() error {
-	C.setupRemoteCommandCenter()
-	C.startRunLoop()
+	// Cocoa main loop is started externally via RunMain()
 	return nil
 }
 
@@ -167,6 +221,7 @@ func (mh *MacosHandler) Disable() error {
 	globalHandler = nil
 	handlerMu.Unlock()
 
+	StopMain()
 	return nil
 }
 
