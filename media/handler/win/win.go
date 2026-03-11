@@ -113,6 +113,9 @@ func (wh *WinHandler) OnSeek(position time.Duration) {
 	wh.updateTimeLineProperties(wh.trackDuration, position)
 }
 
+func (wh *WinHandler) OnTrackStart(metadata handler.TrackMetadata, duration time.Duration, isPlaying bool) {
+}
+
 func (wh *WinHandler) updateTimeline() {
 	periodTimer := time.NewTicker(_TIMELINE_POLL_PERIOD_MS * time.Millisecond)
 

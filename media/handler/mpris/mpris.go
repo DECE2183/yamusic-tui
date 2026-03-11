@@ -74,3 +74,6 @@ func (mh *MprisHandler) OnPlayPause() {
 func (mh *MprisHandler) OnSeek(position time.Duration) {
 	mh.evHandler.Player.OnSeek(types.Microseconds(position.Microseconds()))
 }
+
+func (mh *MprisHandler) OnTrackStart(metadata handler.TrackMetadata, duration time.Duration, isPlaying bool) {
+}

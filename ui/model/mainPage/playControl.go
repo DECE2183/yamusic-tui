@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	_ "image/jpeg"
 	_ "image/png"
@@ -12,6 +13,7 @@ import (
 	"github.com/dece2183/yamusic-tui/api"
 	"github.com/dece2183/yamusic-tui/cache"
 	"github.com/dece2183/yamusic-tui/log"
+	mediaHandler "github.com/dece2183/yamusic-tui/media/handler"
 	"github.com/dece2183/yamusic-tui/stream"
 	"github.com/dece2183/yamusic-tui/ui/components/tracker"
 	"github.com/dece2183/yamusic-tui/ui/components/tracklist"
@@ -260,6 +262,32 @@ skipcover:
 	m.tracker.StartTrack(track, trackBuffer, lyrics)
 	m.indicateCurrentTrackPlaying(true)
 	m.mediaHandler.OnPlayback()
+
+	artists := make([]string, 0, len(track.Artists))
+	for i := range track.Artists {
+		artists = append(artists, track.Artists[i].Name)
+	}
+	albumArtists := make([]string, 0)
+	albumName := ""
+	if len(track.Albums) != 0 {
+		for i := range track.Albums[0].Artists {
+			albumArtists = append(albumArtists, track.Albums[0].Artists[i].Name)
+		}
+		albumName = track.Albums[0].Title
+	}
+	trackDuration := time.Duration(track.DurationMs) * time.Millisecond
+	m.mediaHandler.OnTrackStart(
+		mediaHandler.TrackMetadata{
+			TrackId:      track.Id,
+			Title:        track.Title,
+			Artists:      artists,
+			AlbumName:    albumName,
+			AlbumArtists: albumArtists,
+			Length:       trackDuration,
+		},
+		trackDuration,
+		true,
+	)
 
 	if m.client != nil {
 		go m.client.PlayTrack(track, trackFromCache)
