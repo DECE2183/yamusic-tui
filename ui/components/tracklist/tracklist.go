@@ -26,6 +26,7 @@ const (
 	LIKE
 	ADD_TO_PLAYLIST
 	REMOVE_FROM_PLAYLIST
+	TOGGLE_VIEW
 )
 
 type Model struct {
@@ -34,9 +35,9 @@ type Model struct {
 	help          help.Model
 	helpMap       *helpKeyMap
 	width, height int
-
-	Title      string
-	Shufflable bool
+	Visible       bool
+	Title         string
+	Shufflable    bool
 }
 
 func New(p *tea.Program, likesMap *map[string]bool, cacheMap *map[string]bool) *Model {
@@ -45,6 +46,7 @@ func New(p *tea.Program, likesMap *map[string]bool, cacheMap *map[string]bool) *
 		help:    help.New(),
 		helpMap: newHelpMap(),
 		Title:   "Tracks",
+		Visible: true,
 	}
 
 	controls := config.Current.Controls
@@ -67,7 +69,14 @@ func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
+func (m *Model) SetVisible(visible bool) {
+	m.Visible = visible
+}
+
 func (m *Model) View() string {
+	if !m.Visible {
+		return ""
+	}
 	titleLen := lipgloss.Width(m.Title)
 	if titleLen > m.width-8 {
 		m.list.Title = lipgloss.NewStyle().MaxWidth(m.width-9).Render(m.Title) + "…"
@@ -133,6 +142,8 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 			cmds = append(cmds, model.Cmd(ADD_TO_PLAYLIST))
 		case controls.TracksRemoveFromPlaylist.Contains(keypress):
 			cmds = append(cmds, model.Cmd(REMOVE_FROM_PLAYLIST))
+		case controls.TracksHide.Contains(keypress):
+			cmds = append(cmds, model.Cmd(TOGGLE_VIEW))
 		}
 	}
 

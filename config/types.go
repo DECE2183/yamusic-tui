@@ -63,6 +63,7 @@ type Controls struct {
 	PlaylistsUp     *Key `yaml:"playlists-up"`
 	PlaylistsDown   *Key `yaml:"playlists-down"`
 	PlaylistsRename *Key `yaml:"playlists-rename"`
+	PlaylistsHide   *Key `yaml:"playlists-hide"`
 	// Track list control
 	TracksLike               *Key `yaml:"tracks-like"`
 	TracksAddToPlaylist      *Key `yaml:"tracks-add-to-playlist"`
@@ -70,6 +71,7 @@ type Controls struct {
 	TracksShare              *Key `yaml:"tracks-share"`
 	TracksShuffle            *Key `yaml:"tracks-shuffle"`
 	TracksSearch             *Key `yaml:"tracks-search"`
+	TracksHide               *Key `yaml:"tracks-hide"`
 	// Player control
 	PlayerPause          *Key `yaml:"player-pause"`
 	PlayerNext           *Key `yaml:"player-next"`
@@ -81,6 +83,7 @@ type Controls struct {
 	PlayerVolUp          *Key `yaml:"player-vol-up"`
 	PlayerVolDown        *Key `yaml:"player-vol-down"`
 	PlayerToggleLyrics   *Key `yaml:"player-toggle-lyrics"`
+	PlayerHide           *Key `yaml:"player-hide"`
 }
 
 type Search struct {
@@ -129,12 +132,14 @@ var defaultConfig = Config{
 		PlaylistsUp:              NewKey("ctrl+up"),
 		PlaylistsDown:            NewKey("ctrl+down"),
 		PlaylistsRename:          NewKey("ctrl+r"),
+		PlaylistsHide:            NewKey("ctrl+b"),
 		TracksLike:               NewKey("l"),
 		TracksAddToPlaylist:      NewKey("a"),
 		TracksRemoveFromPlaylist: NewKey("ctrl+a"),
 		TracksSearch:             NewKey("ctrl+f"),
 		TracksShuffle:            NewKey("ctrl+x"),
 		TracksShare:              NewKey("ctrl+s"),
+		TracksHide:               NewKey("ctrl+t"),
 		PlayerPause:              NewKey("space"),
 		PlayerNext:               NewKey("right"),
 		PlayerPrevious:           NewKey("left"),
@@ -145,6 +150,18 @@ var defaultConfig = Config{
 		PlayerCache:              NewKey("S"),
 		PlayerVolUp:              NewKey("+,="),
 		PlayerVolDown:            NewKey("-"),
+		PlayerHide:               NewKey("ctrl+p"),
+	},
+	Colors: &Colors{
+		Accent:         "#FC0",
+		Error:          "#F33",
+		Background:     "#6b6b6b",
+		ActiveText:     "#EEE",
+		NormalText:     "#CCC",
+		InactiveText:   "#888",
+		LyricsPrevious: "#444",
+		LyricsCurrent:  "#EEE",
+		LyricsNext:     "#777",
 	},
 	Colors: &Colors{
 		Accent:         "#FC0",

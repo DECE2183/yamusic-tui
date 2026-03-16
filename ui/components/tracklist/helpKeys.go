@@ -18,6 +18,7 @@ type helpKeyMap struct {
 	Reload             key.Binding
 	ShowHelp           key.Binding
 	CloseHelp          key.Binding
+	HideTracklist      key.Binding
 
 	Shafflable bool
 }
@@ -35,6 +36,7 @@ func newHelpMap() *helpKeyMap {
 		Share:              key.NewBinding(controls.TracksShare.Binding(), controls.TracksShare.Help("share")),
 		Shuffle:            key.NewBinding(controls.TracksShuffle.Binding(), controls.TracksShuffle.Help("shuffle")),
 		Reload:             key.NewBinding(controls.Reload.Binding(), controls.Reload.Help("reload")),
+    HideTracklist:      key.NewBinding(controls.TracksHide.Binding(), controls.TracksHide.Help("hide tracklist")),
 		ShowHelp:           key.NewBinding(controls.ShowAllKeys.Binding(), controls.ShowAllKeys.Help("show keys")),
 		CloseHelp:          key.NewBinding(controls.ShowAllKeys.Binding(), controls.ShowAllKeys.Help("hide")),
 	}
@@ -45,19 +47,17 @@ func (k helpKeyMap) ShortHelp() []key.Binding {
 }
 
 func (k helpKeyMap) FullHelp() [][]key.Binding {
-	if k.Shafflable {
-		return [][]key.Binding{
-			{k.CursorUp, k.CursorDown, k.Play},
-			{k.LikeUnlike, k.AddToPlaylist, k.RemoveFromPlaylist},
-			{k.Search, k.Share, k.Shuffle},
-			{k.Reload, k.CloseHelp},
-		}
-	} else {
-		return [][]key.Binding{
-			{k.CursorUp, k.CursorDown, k.Play},
-			{k.LikeUnlike, k.AddToPlaylist},
-			{k.Search, k.Share},
-			{k.Reload, k.CloseHelp},
-		}
+	bindings := [][]key.Binding{
+		{k.CursorUp, k.CursorDown, k.Play},
+		{k.LikeUnlike, k.AddToPlaylist, k.RemoveFromPlaylist},
+		{k.Search, k.Share},
 	}
+
+	if k.Shafflable {
+		bindings[2] = append(bindings[2], k.Shuffle)
+	}
+
+	bindings = append(bindings, []key.Binding{k.Reload, k.HideTracklist, k.CloseHelp})
+
+	return bindings
 }
