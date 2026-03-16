@@ -58,6 +58,7 @@ type Model struct {
 	progress   progress.Model
 	help       help.Model
 	helpMap    *helpKeyMap
+	Hidden     bool
 	showLyrics bool
 	showError  bool
 	errorText  string
@@ -70,8 +71,6 @@ type Model struct {
 
 	program  *tea.Program
 	likesMap *map[string]bool
-
-	Visible bool
 }
 
 func New(p *tea.Program, likesMap *map[string]bool) *Model {
@@ -119,12 +118,8 @@ func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m *Model) SetVisible(visible bool) {
-	m.Visible = visible
-}
-
 func (m *Model) View() string {
-	if !m.Visible {
+	if m.Hidden {
 		return ""
 	}
 
@@ -271,6 +266,7 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 			m.SetLirycs(!m.showLyrics)
 			cmds = append(cmds, model.Cmd(TOGGLE_LYRICS))
 		case controls.PlayerHide.Contains(keypress):
+			m.Hidden = !m.Hidden
 			cmds = append(cmds, model.Cmd(TOGGLE_VIEW))
 		}
 

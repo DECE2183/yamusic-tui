@@ -45,7 +45,7 @@ type Model struct {
 	program       *tea.Program
 	list          list.Model
 	help          help.Model
-	Visible       bool
+	Hidden        bool
 	helpMap       *helpKeyMap
 	width, height int
 }
@@ -54,7 +54,6 @@ func New(p *tea.Program, title string) *Model {
 	m := &Model{
 		program: p,
 		help:    help.New(),
-		Visible: true,
 		helpMap: newHelpMap(),
 	}
 
@@ -76,12 +75,8 @@ func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m *Model) SetVisible(visible bool) {
-	m.Visible = visible
-}
-
 func (m *Model) View() string {
-	if m.width < 0 || !m.Visible {
+	if m.Hidden {
 		return ""
 	}
 
@@ -91,6 +86,7 @@ func (m *Model) View() string {
 	} else {
 		m.list.SetHeight(m.height - 2)
 	}
+
 	hp := lipgloss.NewStyle().PaddingLeft(2).MaxWidth(m.width - 2).Render(m.help.View(m.helpMap))
 	return style.SideBoxStyle.Render(lipgloss.JoinVertical(lipgloss.Left, m.list.View(), "", hp))
 }
@@ -130,6 +126,7 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 		case controls.PlaylistsRename.Contains(keypress):
 			cmds = append(cmds, model.Cmd(RENAME))
 		case controls.PlaylistsHide.Contains(keypress):
+			m.Hidden = !m.Hidden
 			cmds = append(cmds, model.Cmd(TOGGLE_VIEW))
 		}
 	}

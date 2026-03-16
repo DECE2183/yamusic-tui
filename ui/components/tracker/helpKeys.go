@@ -62,12 +62,12 @@ func newHelpMap() *helpKeyMap {
 		),
 		ToggleLyrics: key.NewBinding(
 			controls.PlayerToggleLyrics.Binding(),
-			controls.PlayerToggleLyrics.Help("show/hide lyrics"),
+			controls.PlayerToggleLyrics.Help("lyrics"),
 		),
-    HidePlayer: key.NewBinding(
-      controls.PlayerHide.Binding(),
-      controls.PlayerHide.Help("hide player"),
-    ),
+		HidePlayer: key.NewBinding(
+			controls.PlayerHide.Binding(),
+			controls.PlayerHide.Help("hide"),
+		),
 	}
 }
 

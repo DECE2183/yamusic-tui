@@ -36,9 +36,9 @@ func newHelpMap() *helpKeyMap {
 		Share:              key.NewBinding(controls.TracksShare.Binding(), controls.TracksShare.Help("share")),
 		Shuffle:            key.NewBinding(controls.TracksShuffle.Binding(), controls.TracksShuffle.Help("shuffle")),
 		Reload:             key.NewBinding(controls.Reload.Binding(), controls.Reload.Help("reload")),
-    HideTracklist:      key.NewBinding(controls.TracksHide.Binding(), controls.TracksHide.Help("hide tracklist")),
+		HideTracklist:      key.NewBinding(controls.TracksHide.Binding(), controls.TracksHide.Help("hide")),
 		ShowHelp:           key.NewBinding(controls.ShowAllKeys.Binding(), controls.ShowAllKeys.Help("show keys")),
-		CloseHelp:          key.NewBinding(controls.ShowAllKeys.Binding(), controls.ShowAllKeys.Help("hide")),
+		CloseHelp:          key.NewBinding(controls.ShowAllKeys.Binding(), controls.ShowAllKeys.Help("hide keys")),
 	}
 }
 
@@ -57,7 +57,5 @@ func (k helpKeyMap) FullHelp() [][]key.Binding {
 		bindings[2] = append(bindings[2], k.Shuffle)
 	}
 
-	bindings = append(bindings, []key.Binding{k.Reload, k.HideTracklist, k.CloseHelp})
-
-	return bindings
+	return append(bindings, []key.Binding{k.Reload, k.HideTracklist, k.CloseHelp})
 }

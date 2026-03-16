@@ -16,10 +16,10 @@ type helpKeyMap struct {
 func newHelpMap() *helpKeyMap {
 	controls := config.Current.Controls
 	return &helpKeyMap{
-		CursorUp:   key.NewBinding(controls.PlaylistsUp.Binding(), controls.PlaylistsUp.Help("up")),
-		CursorDown: key.NewBinding(controls.PlaylistsDown.Binding(), controls.PlaylistsDown.Help("down")),
-		Rename:     key.NewBinding(controls.PlaylistsRename.Binding(), controls.PlaylistsRename.Help("rename")),
-    HidePlaylists: key.NewBinding(controls.PlaylistsHide.Binding(), controls.PlaylistsHide.Help("hide playlists")),
+		CursorUp:      key.NewBinding(controls.PlaylistsUp.Binding(), controls.PlaylistsUp.Help("up")),
+		CursorDown:    key.NewBinding(controls.PlaylistsDown.Binding(), controls.PlaylistsDown.Help("down")),
+		Rename:        key.NewBinding(controls.PlaylistsRename.Binding(), controls.PlaylistsRename.Help("rename")),
+		HidePlaylists: key.NewBinding(controls.PlaylistsHide.Binding(), controls.PlaylistsHide.Help("hide")),
 	}
 }
 
