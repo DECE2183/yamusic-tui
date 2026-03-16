@@ -163,17 +163,6 @@ var defaultConfig = Config{
 		LyricsCurrent:  "#EEE",
 		LyricsNext:     "#777",
 	},
-	Colors: &Colors{
-		Accent:         "#FC0",
-		Error:          "#F33",
-		Background:     "#6b6b6b",
-		ActiveText:     "#EEE",
-		NormalText:     "#CCC",
-		InactiveText:   "#888",
-		LyricsPrevious: "#444",
-		LyricsCurrent:  "#EEE",
-		LyricsNext:     "#777",
-	},
 }
 
 const DirName = "yamusic-tui"
