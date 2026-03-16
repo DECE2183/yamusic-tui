@@ -499,6 +499,9 @@ func (client *YaMusicClient) Album(albumId uint64, withTracks bool) (album Album
 }
 
 func (client *YaMusicClient) Search(request string, searchType SearchType) (results SearchResult, err error) {
+	if client == nil {
+		return results, errors.New("client is nil")
+	}
 	results, _, err = getRequest[SearchResult](client.token, "/search", url.Values{"text": {request}, "page": {"0"}, "type": {string(searchType)}})
 	for i := range results.Tracks.Results {
 		results.Tracks.Results[i].Id = results.Tracks.Results[i].RealId
@@ -507,6 +510,9 @@ func (client *YaMusicClient) Search(request string, searchType SearchType) (resu
 }
 
 func (client *YaMusicClient) SearchSuggest(part string) (suggestions SearchSuggest, err error) {
+	if client == nil {
+		return suggestions, errors.New("client is nil")
+	}
 	suggestions, _, err = getRequest[SearchSuggest](client.token, "/search/suggest", url.Values{"part": {part}})
 	return
 }
