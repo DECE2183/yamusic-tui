@@ -54,8 +54,8 @@ const (
 )
 
 type MediaHandler interface {
-	Enable() error
-	Disable() error
+	Start(handler func() error) error
+
 	Message() <-chan Message
 	SendAnswer(ans any)
 

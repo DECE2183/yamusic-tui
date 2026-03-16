@@ -10,13 +10,14 @@ import (
 
 var Current Config
 
-func init() {
+func InitialLoad() error {
 	var err error
+
 	Current, err = load()
 	if err != nil {
 		configDir, err := getDir()
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		if oldToken, err := os.ReadFile(filepath.Join(configDir, "token")); err == nil {
@@ -25,6 +26,8 @@ func init() {
 
 		save(Current)
 	}
+
+	return nil
 }
 
 func getDir() (string, error) {

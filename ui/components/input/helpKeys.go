@@ -13,14 +13,15 @@ type helpKeyMap struct {
 }
 
 func newHelpMap() *helpKeyMap {
+	controls := config.Current.Controls
 	return &helpKeyMap{
 		apply: key.NewBinding(
-			config.Current.Controls.Apply.Binding(),
-			config.Current.Controls.Apply.Help("apply"),
+			controls.Apply.Binding(),
+			controls.Apply.Help("apply"),
 		),
 		cancel: key.NewBinding(
-			config.Current.Controls.Cancel.Binding(),
-			config.Current.Controls.Cancel.Help("cancel"),
+			controls.Cancel.Binding(),
+			controls.Cancel.Help("cancel"),
 		),
 	}
 }

@@ -34,16 +34,16 @@ func NewHandler(name, description string) *MprisHandler {
 	return mh
 }
 
-func (mh *MprisHandler) Enable() error {
+func (mh *MprisHandler) Start(handler func() error) error {
 	go mh.server.Listen()
-	return nil
-}
 
-func (mh *MprisHandler) Disable() error {
+	err := handler()
+
 	mh.evHandler.Player.OnEnded()
-	err := mh.server.Stop()
+	mh.server.Stop()
 	close(mh.msgChan)
 	close(mh.ansChan)
+
 	return err
 }
 

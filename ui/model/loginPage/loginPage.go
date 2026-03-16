@@ -15,15 +15,17 @@ type Model struct {
 	program       *tea.Program
 	width, height int
 
-	input textinput.Model
-	help  help.Model
+	input   textinput.Model
+	help    help.Model
+	helpMap *helpKeyMap
 }
 
 // loginpage.Model constructor.
 func New() *Model {
 	m := &Model{
-		input: textinput.New(),
-		help:  help.New(),
+		input:   textinput.New(),
+		help:    help.New(),
+		helpMap: newHelpMap(),
 	}
 
 	m.input.Width = 64
@@ -102,7 +104,7 @@ func (m *Model) View() string {
 	title := style.DialogTitleStyle.Render("Enter your token")
 	content := lipgloss.JoinVertical(lipgloss.Left, title, m.input.View())
 	content = style.DialogBoxStyle.Render(content)
-	content = lipgloss.JoinVertical(lipgloss.Left, content, style.DialogHelpStyle.Render(m.help.View(helpMap)))
+	content = lipgloss.JoinVertical(lipgloss.Left, content, style.DialogHelpStyle.Render(m.help.View(m.helpMap)))
 
 	dialog := lipgloss.Place(
 		m.width, m.height,

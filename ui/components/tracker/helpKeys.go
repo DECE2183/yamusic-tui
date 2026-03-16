@@ -21,51 +21,54 @@ type helpKeyMap struct {
 	HidePlayer   key.Binding
 }
 
-var helpMap = helpKeyMap{
-	PlayPause: key.NewBinding(
-		config.Current.Controls.PlayerPause.Binding(),
-		config.Current.Controls.PlayerPause.Help("play/pause"),
-	),
-	PrevTrack: key.NewBinding(
-		config.Current.Controls.PlayerPrevious.Binding(),
-		config.Current.Controls.PlayerPrevious.Help("previous track"),
-	),
-	NextTrack: key.NewBinding(
-		config.Current.Controls.PlayerNext.Binding(),
-		config.Current.Controls.PlayerNext.Help("next track"),
-	),
-	LikeUnlike: key.NewBinding(
-		config.Current.Controls.PlayerLike.Binding(),
-		config.Current.Controls.PlayerLike.Help("like/unlike"),
-	),
-	CacheTrack: key.NewBinding(
-		config.Current.Controls.PlayerCache.Binding(),
-		config.Current.Controls.PlayerCache.Help("cache track"),
-	),
-	Backward: key.NewBinding(
-		config.Current.Controls.PlayerRewindBackward.Binding(),
-		config.Current.Controls.PlayerRewindBackward.Help(fmt.Sprintf("-%d sec", int(config.Current.RewindDuration))),
-	),
-	Forward: key.NewBinding(
-		config.Current.Controls.PlayerRewindForward.Binding(),
-		config.Current.Controls.PlayerRewindForward.Help(fmt.Sprintf("+%d sec", int(config.Current.RewindDuration))),
-	),
-	VolUp: key.NewBinding(
-		config.Current.Controls.PlayerVolUp.Binding(),
-		config.Current.Controls.PlayerVolUp.Help("vol up"),
-	),
-	VolDown: key.NewBinding(
-		config.Current.Controls.PlayerVolDown.Binding(),
-		config.Current.Controls.PlayerVolDown.Help("vol down"),
-	),
-	ToggleLyrics: key.NewBinding(
-		config.Current.Controls.PlayerToggleLyrics.Binding(),
-		config.Current.Controls.PlayerToggleLyrics.Help("show/hide lyrics"),
-	),
-	HidePlayer: key.NewBinding(
-		config.Current.Controls.PlayerHide.Binding(),
-		config.Current.Controls.PlayerHide.Help("hide player"),
-	),
+func newHelpMap() *helpKeyMap {
+	controls := config.Current.Controls
+	return &helpKeyMap{
+		PlayPause: key.NewBinding(
+			controls.PlayerPause.Binding(),
+			controls.PlayerPause.Help("play/pause"),
+		),
+		PrevTrack: key.NewBinding(
+			controls.PlayerPrevious.Binding(),
+			controls.PlayerPrevious.Help("previous track"),
+		),
+		NextTrack: key.NewBinding(
+			controls.PlayerNext.Binding(),
+			controls.PlayerNext.Help("next track"),
+		),
+		LikeUnlike: key.NewBinding(
+			controls.PlayerLike.Binding(),
+			controls.PlayerLike.Help("like/unlike"),
+		),
+		CacheTrack: key.NewBinding(
+			controls.PlayerCache.Binding(),
+			controls.PlayerCache.Help("cache track"),
+		),
+		Backward: key.NewBinding(
+			controls.PlayerRewindBackward.Binding(),
+			controls.PlayerRewindBackward.Help(fmt.Sprintf("-%d sec", int(config.Current.RewindDuration))),
+		),
+		Forward: key.NewBinding(
+			controls.PlayerRewindForward.Binding(),
+			controls.PlayerRewindForward.Help(fmt.Sprintf("+%d sec", int(config.Current.RewindDuration))),
+		),
+		VolUp: key.NewBinding(
+			controls.PlayerVolUp.Binding(),
+			controls.PlayerVolUp.Help("vol up"),
+		),
+		VolDown: key.NewBinding(
+			controls.PlayerVolDown.Binding(),
+			controls.PlayerVolDown.Help("vol down"),
+		),
+		ToggleLyrics: key.NewBinding(
+			controls.PlayerToggleLyrics.Binding(),
+			controls.PlayerToggleLyrics.Help("show/hide lyrics"),
+		),
+    HidePlayer: key.NewBinding(
+      controls.PlayerHide.Binding(),
+      controls.PlayerHide.Help("hide player"),
+    ),
+	}
 }
 
 func (k helpKeyMap) ShortHelp() []key.Binding {

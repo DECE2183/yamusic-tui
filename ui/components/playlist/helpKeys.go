@@ -13,6 +13,16 @@ type helpKeyMap struct {
 	Renamable     bool
 }
 
+func newHelpMap() *helpKeyMap {
+	controls := config.Current.Controls
+	return &helpKeyMap{
+		CursorUp:   key.NewBinding(controls.PlaylistsUp.Binding(), controls.PlaylistsUp.Help("up")),
+		CursorDown: key.NewBinding(controls.PlaylistsDown.Binding(), controls.PlaylistsDown.Help("down")),
+		Rename:     key.NewBinding(controls.PlaylistsRename.Binding(), controls.PlaylistsRename.Help("rename")),
+    HidePlaylists: key.NewBinding(controls.PlaylistsHide.Binding(), controls.PlaylistsHide.Help("hide playlists")),
+	}
+}
+
 func (k helpKeyMap) ShortHelp() []key.Binding {
 	return []key.Binding{k.CursorUp, k.CursorDown}
 }
@@ -29,11 +39,4 @@ func (k helpKeyMap) FullHelp() [][]key.Binding {
 	bindings = append(bindings, []key.Binding{k.HidePlaylists})
 
 	return bindings
-}
-
-var helpMap = helpKeyMap{
-	CursorUp:      key.NewBinding(config.Current.Controls.PlaylistsUp.Binding(), config.Current.Controls.PlaylistsUp.Help("up")),
-	CursorDown:    key.NewBinding(config.Current.Controls.PlaylistsDown.Binding(), config.Current.Controls.PlaylistsDown.Help("down")),
-	Rename:        key.NewBinding(config.Current.Controls.PlaylistsRename.Binding(), config.Current.Controls.PlaylistsRename.Help("rename")),
-	HidePlaylists: key.NewBinding(config.Current.Controls.PlaylistsHide.Binding(), config.Current.Controls.PlaylistsHide.Help("hide playlists")),
 }

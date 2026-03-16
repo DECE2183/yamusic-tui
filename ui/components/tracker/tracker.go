@@ -57,6 +57,7 @@ type Model struct {
 	lyrics     []api.LyricPair
 	progress   progress.Model
 	help       help.Model
+	helpMap    *helpKeyMap
 	showLyrics bool
 	showError  bool
 	errorText  string
@@ -79,6 +80,7 @@ func New(p *tea.Program, likesMap *map[string]bool) *Model {
 		likesMap:   likesMap,
 		progress:   progress.New(),
 		help:       help.New(),
+		helpMap:    newHelpMap(),
 		volume:     config.Current.Volume,
 		showLyrics: config.Current.ShowLyrics,
 	}
@@ -92,7 +94,6 @@ func New(p *tea.Program, likesMap *map[string]bool) *Model {
 	m.progress.SetSpringOptions(60, 1)
 
 	m.help.Ellipsis = "…"
-
 	m.trackWrapper = &readWrapper{program: m.program}
 
 	op := &oto.NewContextOptions{
@@ -204,7 +205,7 @@ func (m *Model) View() string {
 		tracker = lipgloss.JoinVertical(lipgloss.Left, tracker, trackTitle)
 	}
 
-	tracker = lipgloss.JoinVertical(lipgloss.Left, tracker, m.help.View(helpMap))
+	tracker = lipgloss.JoinVertical(lipgloss.Left, tracker, m.help.View(m.helpMap))
 	return style.TrackBoxStyle.Width(m.width).Render(tracker)
 }
 

@@ -113,10 +113,20 @@ Increase the `buffer-size-ms` if you have glitches or stutters.
 
 ![win11-smtc-example](.assets/smtc-win11.png)
 
-Yamusic-tui supports the system media control interfaces: `MPRIS` on Linux and `SMTC` on Windows (there is currently no implementation for MacOS). 
+Yamusic-tui supports the system media control interfaces: `MPRIS` on Linux, `SMTC` on Windows, and `MPRemoteCommandCenter` on macOS.
 
 This feature is enabled by default, however for compatibility reasons you can disable it by building the app with the `nomedia` tag or downloading a release with the `-nomedia` suffix.
 
 ```bash
 go build -tags='nomedia'
+```
+
+### macOS
+
+On macOS, media key support uses `MPRemoteCommandCenter` and `MPNowPlayingInfoCenter`, which display the current track in the system Now Playing widget and respond to media keys / Touch Bar controls.
+
+Due to a Go linker limitation, the binary must be built with an external linker to include the required `LC_UUID` load command (enforced by dyld on macOS 15+):
+
+```bash
+go build -ldflags="-linkmode=external" -o yamusic-tui .
 ```
