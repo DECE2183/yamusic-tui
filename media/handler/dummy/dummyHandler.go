@@ -1,4 +1,4 @@
-//go:build nomedia || darwin
+//go:build nomedia
 
 package dummy
 
@@ -47,4 +47,7 @@ func (*DummyHandler) OnPlayPause() {
 }
 
 func (*DummyHandler) OnSeek(position time.Duration) {
+}
+
+func (*DummyHandler) OnTrackStart(metadata handler.TrackMetadata, duration time.Duration, isPlaying bool) {
 }

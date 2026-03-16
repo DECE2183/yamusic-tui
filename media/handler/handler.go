@@ -64,4 +64,5 @@ type MediaHandler interface {
 	OnPlayback()
 	OnPlayPause()
 	OnSeek(position time.Duration)
+	OnTrackStart(metadata TrackMetadata, duration time.Duration, isPlaying bool)
 }
