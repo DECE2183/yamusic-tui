@@ -54,8 +54,8 @@ const (
 )
 
 type MediaHandler interface {
-	Enable() error
-	Disable() error
+	Start(handler func() error) error
+
 	Message() <-chan Message
 	SendAnswer(ans any)
 
@@ -64,5 +64,4 @@ type MediaHandler interface {
 	OnPlayback()
 	OnPlayPause()
 	OnSeek(position time.Duration)
-	OnTrackStart(metadata TrackMetadata, duration time.Duration, isPlaying bool)
 }

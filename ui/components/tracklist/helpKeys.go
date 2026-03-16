@@ -22,6 +22,24 @@ type helpKeyMap struct {
 	Shafflable bool
 }
 
+func newHelpMap() *helpKeyMap {
+	controls := config.Current.Controls
+	return &helpKeyMap{
+		CursorUp:           key.NewBinding(controls.CursorUp.Binding(), controls.CursorUp.Help("up")),
+		CursorDown:         key.NewBinding(controls.CursorDown.Binding(), controls.CursorDown.Help("down")),
+		Play:               key.NewBinding(controls.Apply.Binding(), controls.Apply.Help("play")),
+		LikeUnlike:         key.NewBinding(controls.TracksLike.Binding(), controls.TracksLike.Help("like/unlike")),
+		AddToPlaylist:      key.NewBinding(controls.TracksAddToPlaylist.Binding(), controls.TracksAddToPlaylist.Help("add to")),
+		RemoveFromPlaylist: key.NewBinding(controls.TracksRemoveFromPlaylist.Binding(), controls.TracksRemoveFromPlaylist.Help("remove")),
+		Search:             key.NewBinding(controls.TracksSearch.Binding(), controls.TracksSearch.Help("search")),
+		Share:              key.NewBinding(controls.TracksShare.Binding(), controls.TracksShare.Help("share")),
+		Shuffle:            key.NewBinding(controls.TracksShuffle.Binding(), controls.TracksShuffle.Help("shuffle")),
+		Reload:             key.NewBinding(controls.Reload.Binding(), controls.Reload.Help("reload")),
+		ShowHelp:           key.NewBinding(controls.ShowAllKeys.Binding(), controls.ShowAllKeys.Help("show keys")),
+		CloseHelp:          key.NewBinding(controls.ShowAllKeys.Binding(), controls.ShowAllKeys.Help("hide")),
+	}
+}
+
 func (k helpKeyMap) ShortHelp() []key.Binding {
 	return []key.Binding{k.CursorUp, k.CursorDown, k.Play, k.LikeUnlike, k.ShowHelp}
 }
@@ -42,19 +60,4 @@ func (k helpKeyMap) FullHelp() [][]key.Binding {
 			{k.Reload, k.CloseHelp},
 		}
 	}
-}
-
-var helpMap = helpKeyMap{
-	CursorUp:           key.NewBinding(config.Current.Controls.CursorUp.Binding(), config.Current.Controls.CursorUp.Help("up")),
-	CursorDown:         key.NewBinding(config.Current.Controls.CursorDown.Binding(), config.Current.Controls.CursorDown.Help("down")),
-	Play:               key.NewBinding(config.Current.Controls.Apply.Binding(), config.Current.Controls.Apply.Help("play")),
-	LikeUnlike:         key.NewBinding(config.Current.Controls.TracksLike.Binding(), config.Current.Controls.TracksLike.Help("like/unlike")),
-	AddToPlaylist:      key.NewBinding(config.Current.Controls.TracksAddToPlaylist.Binding(), config.Current.Controls.TracksAddToPlaylist.Help("add to")),
-	RemoveFromPlaylist: key.NewBinding(config.Current.Controls.TracksRemoveFromPlaylist.Binding(), config.Current.Controls.TracksRemoveFromPlaylist.Help("remove")),
-	Search:             key.NewBinding(config.Current.Controls.TracksSearch.Binding(), config.Current.Controls.TracksSearch.Help("search")),
-	Share:              key.NewBinding(config.Current.Controls.TracksShare.Binding(), config.Current.Controls.TracksShare.Help("share")),
-	Shuffle:            key.NewBinding(config.Current.Controls.TracksShuffle.Binding(), config.Current.Controls.TracksShuffle.Help("shuffle")),
-	Reload:             key.NewBinding(config.Current.Controls.Reload.Binding(), config.Current.Controls.Reload.Help("reload")),
-	ShowHelp:           key.NewBinding(config.Current.Controls.ShowAllKeys.Binding(), config.Current.Controls.ShowAllKeys.Help("show keys")),
-	CloseHelp:          key.NewBinding(config.Current.Controls.ShowAllKeys.Binding(), config.Current.Controls.ShowAllKeys.Help("hide")),
 }

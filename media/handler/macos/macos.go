@@ -168,6 +168,8 @@ static void clearNowPlayingInfo(void) {
 */
 import "C"
 import (
+	"runtime"
+	"strings"
 	"sync"
 	"time"
 	"unsafe"
@@ -179,8 +181,15 @@ var globalHandler *MacosHandler
 var handlerMu sync.Mutex
 
 type MacosHandler struct {
+	msgMux  sync.Mutex
 	msgChan chan handler.Message
 	ansChan chan any
+}
+
+func init() {
+	// Lock the main goroutine to the main OS thread so that
+	// the Cocoa run loop (which requires the main thread) can be started here.
+	runtime.LockOSThread()
 }
 
 func NewHandler(name, description string) *MacosHandler {
@@ -196,24 +205,19 @@ func NewHandler(name, description string) *MacosHandler {
 	return mh
 }
 
-// RunMain must be called from the main OS thread. Blocks until StopMain is called.
-func RunMain() {
+func (mh *MacosHandler) Start(handler func() error) error {
+	var err error
+	go func() {
+		err = handler()
+		C.teardownRemoteCommandCenter()
+		C.clearNowPlayingInfo()
+		C.stopCocoaMain()
+	}()
+
+	// Block the main OS thread running the Cocoa event loop.
+	// This is required for MPRemoteCommandCenter and NSEvent monitoring to work.
 	C.runCocoaMain()
-}
 
-// StopMain signals the Cocoa main loop to exit.
-func StopMain() {
-	C.stopCocoaMain()
-}
-
-func (mh *MacosHandler) Enable() error {
-	// Cocoa main loop is started externally via RunMain()
-	return nil
-}
-
-func (mh *MacosHandler) Disable() error {
-	C.teardownRemoteCommandCenter()
-	C.clearNowPlayingInfo()
 	close(mh.msgChan)
 	close(mh.ansChan)
 
@@ -221,8 +225,7 @@ func (mh *MacosHandler) Disable() error {
 	globalHandler = nil
 	handlerMu.Unlock()
 
-	StopMain()
-	return nil
+	return err
 }
 
 func (mh *MacosHandler) Message() <-chan handler.Message {
@@ -244,23 +247,19 @@ func (mh *MacosHandler) OnVolume() {
 }
 
 func (mh *MacosHandler) OnPlayback() {
-}
-
-func (mh *MacosHandler) OnPlayPause() {
-}
-
-func (mh *MacosHandler) OnSeek(position time.Duration) {
-}
-
-func (mh *MacosHandler) OnTrackStart(metadata handler.TrackMetadata, duration time.Duration, isPlaying bool) {
-	title := metadata.Title
-	artist := ""
-	if len(metadata.Artists) > 0 {
-		artist = metadata.Artists[0]
-		for i := 1; i < len(metadata.Artists); i++ {
-			artist += ", " + metadata.Artists[i]
-		}
+	mh.msgMux.Lock()
+	mh.msgChan <- handler.Message{
+		Type: handler.MSG_GET_METADATA,
 	}
+	metadata, ok := (<-mh.ansChan).(handler.TrackMetadata)
+	mh.msgMux.Unlock()
+
+	if !ok {
+		return
+	}
+
+	title := metadata.Title
+	artist := strings.Join(metadata.Artists, ", ")
 	album := metadata.AlbumName
 
 	cTitle := C.CString(title)
@@ -270,17 +269,18 @@ func (mh *MacosHandler) OnTrackStart(metadata handler.TrackMetadata, duration ti
 	cAlbum := C.CString(album)
 	defer C.free(unsafe.Pointer(cAlbum))
 
-	playingInt := C.int(0)
-	if isPlaying {
-		playingInt = 1
-	}
-
 	C.updateNowPlayingInfo(
 		cTitle, cArtist, cAlbum,
-		C.double(duration.Seconds()),
+		C.double(metadata.Length.Seconds()),
 		C.double(0),
-		playingInt,
+		C.int(1),
 	)
+}
+
+func (mh *MacosHandler) OnPlayPause() {
+}
+
+func (mh *MacosHandler) OnSeek(position time.Duration) {
 }
 
 func sendMsg(msg handler.Message) {
@@ -291,10 +291,13 @@ func sendMsg(msg handler.Message) {
 	if mh == nil {
 		return
 	}
+
+	mh.msgMux.Lock()
 	select {
 	case mh.msgChan <- msg:
 	default:
 	}
+	mh.msgMux.Unlock()
 }
 
 //export goOnPlay

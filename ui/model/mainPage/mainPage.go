@@ -10,7 +10,6 @@ import (
 	"github.com/dece2183/yamusic-tui/cache"
 	"github.com/dece2183/yamusic-tui/config"
 	"github.com/dece2183/yamusic-tui/log"
-	"github.com/dece2183/yamusic-tui/media"
 	"github.com/dece2183/yamusic-tui/media/handler"
 	"github.com/dece2183/yamusic-tui/ui/components/input"
 	"github.com/dece2183/yamusic-tui/ui/components/playlist"
@@ -57,13 +56,13 @@ type Model struct {
 }
 
 // mainpage.Model constructor.
-func New() *Model {
+func New(mediaHandler handler.MediaHandler) *Model {
 	m := &Model{}
 
 	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
 	m.program = p
 	m.clipboard = clipboard.New()
-	m.mediaHandler = media.NewHandler(config.DirName, "Yandex music terminal client")
+	m.mediaHandler = mediaHandler
 	m.likedTracksMap = make(map[string]bool)
 	m.cachedTracksMap = make(map[string]bool)
 
@@ -82,13 +81,9 @@ func New() *Model {
 //
 
 func (m *Model) Run() error {
-	m.mediaHandler.Enable()
 	go m.mediaHandle()
-
 	_, err := m.program.Run()
-
 	m.tracker.Stop()
-	m.mediaHandler.Disable()
 	return err
 }
 

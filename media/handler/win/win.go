@@ -46,21 +46,21 @@ func NewHandler(name, description string) *WinHandler {
 	}
 }
 
-func (wh *WinHandler) Enable() error {
+func (wh *WinHandler) Start(handler func() error) error {
 	err := wh.initSmtc()
 	if err != nil {
 		return err
 	}
 
 	go wh.updateTimeline()
-	return nil
-}
+	err = handler()
 
-func (wh *WinHandler) Disable() error {
 	close(wh.closeChan)
 	close(wh.ansChan)
 	close(wh.msgChan)
-	return wh.smtcDispose()
+	wh.smtcDispose()
+
+	return err
 }
 
 func (wh *WinHandler) Message() <-chan handler.Message {
@@ -111,11 +111,8 @@ func (wh *WinHandler) OnPlayPause() {
 
 func (wh *WinHandler) OnSeek(position time.Duration) {
 	wh.updateTimeLineProperties(wh.trackDuration, position)
-}
 
-func (wh *WinHandler) OnTrackStart(metadata handler.TrackMetadata, duration time.Duration, isPlaying bool) {
 }
-
 func (wh *WinHandler) updateTimeline() {
 	periodTimer := time.NewTicker(_TIMELINE_POLL_PERIOD_MS * time.Millisecond)
 

@@ -18,13 +18,9 @@ func NewHandler(name, description string) *DummyHandler {
 	}
 }
 
-func (*DummyHandler) Enable() error {
-	return nil
-}
-
-func (dh *DummyHandler) Disable() error {
-	close(dh.msgChan)
-	return nil
+func (dh *DummyHandler) Start(handler func() error) error {
+	defer close(dh.msgChan)
+	return handler()
 }
 
 func (dh *DummyHandler) Message() <-chan handler.Message {
@@ -47,7 +43,4 @@ func (*DummyHandler) OnPlayPause() {
 }
 
 func (*DummyHandler) OnSeek(position time.Duration) {
-}
-
-func (*DummyHandler) OnTrackStart(metadata handler.TrackMetadata, duration time.Duration, isPlaying bool) {
 }

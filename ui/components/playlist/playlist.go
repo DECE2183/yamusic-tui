@@ -44,6 +44,7 @@ type Model struct {
 	program       *tea.Program
 	list          list.Model
 	help          help.Model
+	helpMap       *helpKeyMap
 	width, height int
 }
 
@@ -51,10 +52,10 @@ func New(p *tea.Program, title string) *Model {
 	m := &Model{
 		program: p,
 		help:    help.New(),
+		helpMap: newHelpMap(),
 	}
 
 	controls := config.Current.Controls
-
 	m.list = list.New(defaultPlaylists, ItemDelegate{programm: p}, 512, 512)
 	m.list.Title = title
 	m.list.SetShowStatusBar(false)
@@ -77,13 +78,13 @@ func (m *Model) View() string {
 		return ""
 	}
 
-	helpMap.Renamable = m.SelectedItem().Kind >= USER
+	m.helpMap.Renamable = m.SelectedItem().Kind >= USER
 	if m.help.ShowAll {
 		m.list.SetHeight(m.height - 3)
 	} else {
 		m.list.SetHeight(m.height - 2)
 	}
-	hp := lipgloss.NewStyle().PaddingLeft(2).MaxWidth(m.width - 2).Render(m.help.View(helpMap))
+	hp := lipgloss.NewStyle().PaddingLeft(2).MaxWidth(m.width - 2).Render(m.help.View(m.helpMap))
 	return style.SideBoxStyle.Render(lipgloss.JoinVertical(lipgloss.Left, m.list.View(), "", hp))
 }
 

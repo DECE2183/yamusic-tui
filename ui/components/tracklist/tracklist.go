@@ -32,6 +32,7 @@ type Model struct {
 	program       *tea.Program
 	list          list.Model
 	help          help.Model
+	helpMap       *helpKeyMap
 	width, height int
 
 	Title      string
@@ -42,6 +43,7 @@ func New(p *tea.Program, likesMap *map[string]bool, cacheMap *map[string]bool) *
 	m := &Model{
 		program: p,
 		help:    help.New(),
+		helpMap: newHelpMap(),
 		Title:   "Tracks",
 	}
 
@@ -73,7 +75,7 @@ func (m *Model) View() string {
 		m.list.Title = m.Title
 	}
 
-	helpMap.Shafflable = m.Shufflable
+	m.helpMap.Shafflable = m.Shufflable
 	listHeight := m.height
 
 	if m.help.ShowAll {
@@ -88,7 +90,7 @@ func (m *Model) View() string {
 		listView = listView[:lastLine] + "\n" + listView[lastLine:]
 	}
 
-	return style.TrackBoxStyle.Width(m.width).Render(lipgloss.JoinVertical(lipgloss.Left, listView, "", m.help.View(helpMap)))
+	return style.TrackBoxStyle.Width(m.width).Render(lipgloss.JoinVertical(lipgloss.Left, listView, "", m.help.View(m.helpMap)))
 }
 
 func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {

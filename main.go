@@ -1,29 +1,39 @@
 package main
 
 import (
-	"runtime"
-
+	"github.com/dece2183/yamusic-tui/config"
 	"github.com/dece2183/yamusic-tui/log"
-	"github.com/dece2183/yamusic-tui/media/handler/macos"
-	"github.com/dece2183/yamusic-tui/ui"
+	"github.com/dece2183/yamusic-tui/media"
+	"github.com/dece2183/yamusic-tui/ui/model"
+	loginpage "github.com/dece2183/yamusic-tui/ui/model/loginPage"
+	mainpage "github.com/dece2183/yamusic-tui/ui/model/mainPage"
+	"github.com/dece2183/yamusic-tui/ui/style"
 )
-
-func init() {
-	// Lock the main goroutine to the main OS thread so that
-	// the Cocoa run loop (which requires the main thread) can be started here.
-	runtime.LockOSThread()
-}
 
 func main() {
 	log.Start()
+	defer log.Stop()
 
-	go func() {
-		ui.Run()
-		log.Stop()
-		macos.StopMain()
-	}()
+	err := config.InitialLoad()
+	if err != nil {
+		log.Print(log.LVL_WARNIGN, "config load error: %s", err.Error())
+	}
 
-	// Block the main OS thread running the Cocoa event loop.
-	// This is required for MPRemoteCommandCenter and NSEvent monitoring to work.
-	macos.RunMain()
+	style.InitStyles()
+
+	if config.Current.Token == "" {
+		err = loginpage.New().Run()
+		if err != nil {
+			log.Print(log.LVL_PANIC, err.Error())
+			model.PrettyExit(err, 4)
+		}
+	}
+
+	mediaHandler := media.NewHandler(config.DirName, "Yandex music terminal client")
+	page := mainpage.New(mediaHandler)
+	err = mediaHandler.Start(page.Run)
+	if err != nil {
+		log.Print(log.LVL_PANIC, err.Error())
+		model.PrettyExit(err, 6)
+	}
 }
