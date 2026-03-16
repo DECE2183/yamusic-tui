@@ -19,7 +19,7 @@ func main() {
 		log.Print(log.LVL_WARNIGN, "config load error: %s", err.Error())
 	}
 
-	style.InitStyles()
+	style.Apply(config.Current.Style)
 
 	if config.Current.Token == "" {
 		err = loginpage.New().Run()

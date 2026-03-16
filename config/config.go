@@ -75,35 +75,42 @@ func load() (Config, error) {
 		controls := *defaultConfig.Controls
 		newConfig.Controls = &controls
 	} else {
-		newControls := reflect.ValueOf(newConfig.Controls).Elem()
-		defaultControls := reflect.ValueOf(defaultConfig.Controls).Elem()
-		for i := 0; i < newControls.NumField(); i++ {
-			newField := newControls.Field(i).Interface().(*Key)
-			defaultField := defaultControls.Field(i)
-			if newField.IsEmpty() {
-				newControls.Field(i).Set(defaultField)
-			}
-		}
+		fillDefault(newConfig.Controls, defaultConfig.Controls)
 		if newConfig.Controls.Quit.IsEmpty() {
 			newConfig.Controls.Quit = defaultConfig.Controls.Quit
 		}
 	}
 
-	if newConfig.Colors == nil {
-		colors := *defaultConfig.Colors
-		newConfig.Colors = &colors
+	if newConfig.Style == nil {
+		style := *defaultConfig.Style
+		newConfig.Style = &style
 	} else {
-		colors := reflect.ValueOf(newConfig.Colors).Elem()
-		defaultConfig := reflect.ValueOf(defaultConfig.Colors).Elem()
-		for i := 0; i < colors.NumField(); i++ {
-			colorField := colors.Field(i)
-			if colorField.String() == "" {
-				colorField.Set(defaultConfig.Field(i))
-			}
+		if newConfig.Style.Icons == nil {
+			icons := *defaultConfig.Style.Icons
+			newConfig.Style.Icons = &icons
+		} else {
+			fillDefault(newConfig.Style.Icons, defaultConfig.Style.Icons)
+		}
+		if newConfig.Style.Colors == nil {
+			colors := *defaultConfig.Style.Colors
+			newConfig.Style.Colors = &colors
+		} else {
+			fillDefault(newConfig.Style.Colors, defaultConfig.Style.Colors)
 		}
 	}
 
 	return newConfig, nil
+}
+
+func fillDefault(target, values any) {
+	targetStruct := reflect.ValueOf(target).Elem()
+	defaultStruct := reflect.ValueOf(values).Elem()
+	for i := 0; i < targetStruct.NumField(); i++ {
+		field := targetStruct.Field(i)
+		if field.String() == "" {
+			field.Set(defaultStruct.Field(i))
+		}
+	}
 }
 
 func save(conf Config) error {

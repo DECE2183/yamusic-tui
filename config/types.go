@@ -38,16 +38,37 @@ func (t CacheType) MarshalYAML() (interface{}, error) {
 	return cacheEnumToValue[t], nil
 }
 
+type Icons struct {
+	Play      string `yaml:"play"`
+	Stop      string `yaml:"stop"`
+	Liked     string `yaml:"liked"`
+	NotLiked  string `yaml:"not-liked"`
+	Cached    string `yaml:"cached"`
+	LyricsDot string `yaml:"lyrics-dot"`
+}
+
 type Colors struct {
-	Accent         string `yaml:"accent"`
-	Error          string `yaml:"error"`
-	Background     string `yaml:"background"`
-	ActiveText     string `yaml:"active-text"`
-	NormalText     string `yaml:"normal-text"`
-	InactiveText   string `yaml:"inactive-text"`
-	LyricsPrevious string `yaml:"lyrics-previous"`
-	LyricsCurrent  string `yaml:"lyrics-current"`
-	LyricsNext     string `yaml:"lyrics-next"`
+	Accent            string `yaml:"accent"`
+	Error             string `yaml:"error"`
+	Border            string `yaml:"border"`
+	Background        string `yaml:"background"`
+	PlaylistSelection string `yaml:"playlist-selection"`
+	ActiveText        string `yaml:"active-text"`
+	NormalText        string `yaml:"normal-text"`
+	InactiveText      string `yaml:"inactive-text"`
+	TrackTitleText    string `yaml:"track-title-text"`
+	TrackVersionText  string `yaml:"track-version-text"`
+	TrackArtistText   string `yaml:"track-artist-text"`
+	LyricsPrevious    string `yaml:"lyrics-previous"`
+	LyricsCurrent     string `yaml:"lyrics-current"`
+	LyricsNext        string `yaml:"lyrics-next"`
+}
+
+type Style struct {
+	SidePanelWidth   int     `yaml:"side-panel-width"`
+	SearchModalWidth int     `yaml:"search-modal-width"`
+	Icons            *Icons  `yaml:"icons"`
+	Colors           *Colors `yaml:"colors"`
 }
 
 type Controls struct {
@@ -104,7 +125,7 @@ type Config struct {
 	CacheDir       string    `yaml:"cache-dir"`
 	Search         *Search   `yaml:"search"`
 	Controls       *Controls `yaml:"controls"`
-	Colors         *Colors   `yaml:"colors"`
+	Style          *Style    `yaml:"style"`
 }
 
 var defaultConfig = Config{
@@ -152,16 +173,33 @@ var defaultConfig = Config{
 		PlayerVolDown:            NewKey("-"),
 		PlayerHide:               NewKey("ctrl+p"),
 	},
-	Colors: &Colors{
-		Accent:         "#FC0",
-		Error:          "#F33",
-		Background:     "#6b6b6b",
-		ActiveText:     "#EEE",
-		NormalText:     "#CCC",
-		InactiveText:   "#888",
-		LyricsPrevious: "#444",
-		LyricsCurrent:  "#EEE",
-		LyricsNext:     "#777",
+	Style: &Style{
+		SidePanelWidth:   32,
+		SearchModalWidth: 56,
+		Icons: &Icons{
+			Play:      "▶",
+			Stop:      "■",
+			Liked:     "💛",
+			NotLiked:  "🤍",
+			Cached:    "💿",
+			LyricsDot: "•",
+		},
+		Colors: &Colors{
+			Accent:            "#FC0",
+			Error:             "#F33",
+			Border:            "#444",
+			Background:        "#6b6b6b",
+			PlaylistSelection: "#4a3c00",
+			ActiveText:        "#EEE",
+			NormalText:        "#CCC",
+			InactiveText:      "#888",
+			TrackTitleText:    "#dcdcdc",
+			TrackVersionText:  "#999",
+			TrackArtistText:   "#bbb",
+			LyricsPrevious:    "#444",
+			LyricsCurrent:     "#EEE",
+			LyricsNext:        "#777",
+		},
 	},
 }
 

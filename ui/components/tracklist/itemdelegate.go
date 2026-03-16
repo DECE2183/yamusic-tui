@@ -47,7 +47,7 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 
 	trackVersion := style.TrackVersionStyle.Render(" " + item.Track.Version)
 	trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackVersion)
-	trackArtist := style.TrackVersionStyle.Render(item.Artists)
+	trackArtist := style.TrackArtistStyle.Render(item.Artists)
 
 	durTotal := time.Millisecond * time.Duration(item.Track.DurationMs)
 	trackTime := style.TrackVersionStyle.Render(fmt.Sprintf("%d:%02d",

@@ -89,7 +89,7 @@ func (m *Model) View() string {
 
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
-		style.AccentTextStyle.MaxWidth(m.width).MarginBottom(1).Render(m.Title),
+		style.DialogTitleStyle.Render(m.Title),
 		style.DialogBoxStyle.MaxWidth(m.width).Render(m.input.View()),
 		lipgloss.NewStyle().MaxWidth(m.width).Render(listView),
 	)

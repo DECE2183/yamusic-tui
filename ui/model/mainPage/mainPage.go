@@ -331,9 +331,9 @@ func (m *Model) View() string {
 func (m *Model) resize(width, height int) {
 	m.width, m.height = width, height
 
-	m.playlists.SetSize(style.PlaylistsSidePanelWidth, height-4)
+	m.playlists.SetSize(style.SidePanelWidth, height-4)
 	if !m.isPlaylistHideOverride {
-		m.playlists.Hidden = m.width < style.PlaylistsSidePanelWidth*3
+		m.playlists.Hidden = m.width < style.SidePanelWidth*3
 	}
 
 	m.resizeComponents()

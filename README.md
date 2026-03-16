@@ -85,12 +85,14 @@ controls:
    playlists-up: ctrl+up
    playlists-down: ctrl+down
    playlists-rename: ctrl+r
+   playlists-hide: ctrl+b
    tracks-like: l
    tracks-add-to-playlist: a
    tracks-remove-from-playlist: ctrl+a
    tracks-share: ctrl+s
    tracks-shuffle: ctrl+x
    tracks-search: ctrl+f
+   tracks-hide: ctrl+t
    player-pause: space
    player-next: right
    player-previous: left
@@ -100,6 +102,33 @@ controls:
    player-cache: S
    player-vol-up: +,=
    player-vol-down: '-'
+   player-toggle-lyrics: t
+   player-hide: ctrl+p
+style:
+   side-panel-width: 32
+   search-modal-width: 56
+   icons:
+      play: ▶
+      stop: ■
+      liked: 💛
+      not-liked: 🤍
+      cached: 💿
+      lyrics-dot: •
+   colors:
+      accent: '#FC0'
+      error: '#F33'
+      border: '#444'
+      background: '#6b6b6b'
+      playlist-selection: '#4a3c00'
+      active-text: '#EEE'
+      normal-text: '#CCC'
+      inactive-text: '#888'
+      track-title-text: '#dcdcdc'
+      track-version-text: '#999'
+      track-artist-text: '#bbb'
+      lyrics-previous: '#444'
+      lyrics-current: '#EEE'
+      lyrics-next: '#777'
 ```
 
 By default, all cached tracks are stored in the system cache directory. `~/.cache/yamusic-tui` on Linux and `~/AppData/Local/yamusic-tui` on Windows.

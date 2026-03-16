@@ -45,11 +45,10 @@ func (m *Model) Init() tea.Cmd {
 
 func (m *Model) View() string {
 	m.helpKeys.Action = m.Action
-	title := style.DialogTitleStyle.Render(m.Title)
-	content := lipgloss.JoinVertical(lipgloss.Left, title, m.input.View())
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
-		style.DialogBoxStyle.Render(content),
+		style.DialogTitleStyle.Render(m.Title),
+		style.DialogBoxStyle.Render(m.input.View()),
 		style.DialogHelpStyle.Render(m.help.View(m.helpKeys)),
 	)
 }

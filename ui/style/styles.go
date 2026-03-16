@@ -5,18 +5,23 @@ import (
 	"github.com/dece2183/yamusic-tui/config"
 )
 
-const (
-	PlaylistsSidePanelWidth = 32
-	SearchModalWidth        = 56
+var (
+	SidePanelWidth   = 32
+	SearchModalWidth = 56
 )
 
 var (
 	AccentColor            lipgloss.Color
 	ErrorColor             lipgloss.Color
+	BorderColor            lipgloss.Color
 	BackgroundColor        lipgloss.Color
+	PlaylistSelectionColor lipgloss.Color
 	ActiveTextColor        lipgloss.Color
 	NormalTextColor        lipgloss.Color
 	InactiveTextColor      lipgloss.Color
+	TrackTitleTextColor    lipgloss.Color
+	TrackVersionTextColor  lipgloss.Color
+	TrackArtistTextColor   lipgloss.Color
 	LyricsPreviosTextColor lipgloss.Color
 	LyricsCurrentTextColor lipgloss.Color
 	LyricsNextTextColor    lipgloss.Color
@@ -28,8 +33,8 @@ var (
 	IconLiked    = "💛"
 	IconNotLiked = "🤍"
 	IconCached   = "💿"
-	IconDotLight = lipgloss.NewStyle().Foreground(LyricsCurrentTextColor).Render("•")
-	IconDotDark  = lipgloss.NewStyle().Foreground(LyricsPreviosTextColor).Render("•")
+	IconDotLight = "•"
+	IconDotDark  = "•"
 )
 
 var (
@@ -72,22 +77,39 @@ var (
 	TrackListActiveStyle lipgloss.Style
 )
 
-func InitStyles() {
-	AccentColor = lipgloss.Color(config.Current.Colors.Accent)
-	ErrorColor = lipgloss.Color(config.Current.Colors.Error)
-	BackgroundColor = lipgloss.Color(config.Current.Colors.Background)
-	ActiveTextColor = lipgloss.Color(config.Current.Colors.ActiveText)
-	NormalTextColor = lipgloss.Color(config.Current.Colors.NormalText)
-	InactiveTextColor = lipgloss.Color(config.Current.Colors.InactiveText)
-	LyricsPreviosTextColor = lipgloss.Color(config.Current.Colors.LyricsPrevious)
-	LyricsCurrentTextColor = lipgloss.Color(config.Current.Colors.LyricsCurrent)
-	LyricsNextTextColor = lipgloss.Color(config.Current.Colors.LyricsNext)
+func Apply(style *config.Style) {
+	SidePanelWidth = style.SidePanelWidth
+	SearchModalWidth = style.SearchModalWidth
+
+	AccentColor = lipgloss.Color(style.Colors.Accent)
+	ErrorColor = lipgloss.Color(style.Colors.Error)
+	BorderColor = lipgloss.Color(style.Colors.Border)
+	BackgroundColor = lipgloss.Color(style.Colors.Background)
+	PlaylistSelectionColor = lipgloss.Color(style.Colors.PlaylistSelection)
+	ActiveTextColor = lipgloss.Color(style.Colors.ActiveText)
+	NormalTextColor = lipgloss.Color(style.Colors.NormalText)
+	InactiveTextColor = lipgloss.Color(style.Colors.InactiveText)
+	TrackTitleTextColor = lipgloss.Color(style.Colors.TrackTitleText)
+	TrackVersionTextColor = lipgloss.Color(style.Colors.TrackVersionText)
+	TrackArtistTextColor = lipgloss.Color(style.Colors.TrackArtistText)
+	LyricsPreviosTextColor = lipgloss.Color(style.Colors.LyricsPrevious)
+	LyricsCurrentTextColor = lipgloss.Color(style.Colors.LyricsCurrent)
+	LyricsNextTextColor = lipgloss.Color(style.Colors.LyricsNext)
+
+	IconPlay = style.Icons.Play
+	IconStop = style.Icons.Stop
+	IconLiked = style.Icons.Liked
+	IconNotLiked = style.Icons.NotLiked
+	IconCached = style.Icons.Cached
+	IconDotLight = lipgloss.NewStyle().Foreground(LyricsCurrentTextColor).Render(style.Icons.LyricsDot)
+	IconDotDark = lipgloss.NewStyle().Foreground(LyricsPreviosTextColor).Render(style.Icons.LyricsDot)
 
 	AccentTextStyle = lipgloss.NewStyle().Foreground(AccentColor)
 	ErrorTextStyle = lipgloss.NewStyle().Foreground(ErrorColor)
 
 	DialogTitleStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#F4F4F4")).
+		Foreground(AccentColor).
+		MarginLeft(2).
 		MarginBottom(1)
 	DialogBoxStyle = lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
@@ -112,17 +134,17 @@ func InitStyles() {
 
 	SideBoxStyle = lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("#444")).
-		Width(PlaylistsSidePanelWidth).
+		BorderForeground(BorderColor).
+		Width(SidePanelWidth).
 		Padding(1, 0)
 	SideBoxItemStyle = lipgloss.NewStyle().
 		Foreground(NormalTextColor).
 		PaddingLeft(2).
-		Width(PlaylistsSidePanelWidth).
-		MaxWidth(PlaylistsSidePanelWidth)
+		Width(SidePanelWidth).
+		MaxWidth(SidePanelWidth)
 	SideBoxSelItemStyle = SideBoxItemStyle.
 		Foreground(ActiveTextColor).
-		Background(BackgroundColor).
+		Background(PlaylistSelectionColor).
 		PaddingLeft(1).
 		Border(lipgloss.InnerHalfBlockBorder()).
 		BorderForeground(AccentColor).
@@ -140,15 +162,15 @@ func InitStyles() {
 
 	TrackBoxStyle = lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("#444")).
+		BorderForeground(BorderColor).
 		Padding(1, 2)
 	TrackTitleStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#dcdcdc")).
+		Foreground(TrackTitleTextColor).
 		Bold(true)
 	TrackVersionStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#999999"))
+		Foreground(TrackVersionTextColor)
 	TrackArtistStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#dcdcdc"))
+		Foreground(TrackArtistTextColor)
 	TrackProgressStyle = lipgloss.NewStyle().
 		PaddingLeft(2).
 		PaddingBottom(1)
