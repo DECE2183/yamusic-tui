@@ -107,7 +107,7 @@ func fillDefault(target, values any) {
 	defaultStruct := reflect.ValueOf(values).Elem()
 	for i := 0; i < targetStruct.NumField(); i++ {
 		field := targetStruct.Field(i)
-		if field.String() == "" {
+		if field.IsZero() || field.String() == "" {
 			field.Set(defaultStruct.Field(i))
 		}
 	}
