@@ -34,13 +34,21 @@ func (m *Model) likeTrack(track *api.Track) tea.Cmd {
 		delete(m.likedTracksMap, track.Id)
 
 		likedPlaylist, index := m.playlists.GetFirst(playlist.LIKES)
-		trackIndex := likedPlaylist.RemoveTrack(track.Id)
-		if m.playlists.SelectedItem().Kind == playlist.LIKES && trackIndex >= 0 {
-			m.tracklist.RemoveItem(trackIndex)
-			m.tracklist.Select(likedPlaylist.SelectedTrack)
+		likedPlaylist.RemoveTrack(track.Id)
+		cmd := m.playlists.SetItem(index, likedPlaylist)
+
+		if m.playlists.SelectedItem().Kind == playlist.LIKES {
+			m.displayPlaylist(likedPlaylist)
 		}
 
-		return m.playlists.SetItem(index, likedPlaylist)
+		if m.currentPlaylistIndex >= 0 {
+			currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
+			if likedPlaylist.IsSame(currentPlaylist) && m.tracker.IsPlaying() {
+				m.indicateCurrentTrackPlaying(currentPlaylist.CurrentTrack < len(currentPlaylist.Tracks))
+			}
+		}
+
+		return cmd
 	} else {
 		if m.client.LikeTrack(track.Id) != nil {
 			return nil
