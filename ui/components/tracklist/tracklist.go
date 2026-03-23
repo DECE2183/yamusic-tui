@@ -55,7 +55,11 @@ func New(p *tea.Program, likesMap *map[string]bool, cacheMap *map[string]bool) *
 	m.list.KeyMap = list.KeyMap{
 		CursorUp:   key.NewBinding(controls.CursorUp.Binding(), controls.CursorUp.Help("up")),
 		CursorDown: key.NewBinding(controls.CursorDown.Binding(), controls.CursorDown.Help("down")),
+		NextPage:   key.NewBinding(controls.PageDown.Binding(), controls.PageDown.Help("pgdn")),
+		PrevPage:   key.NewBinding(controls.PageUp.Binding(), controls.PageUp.Help("pgup")),
 	}
+	m.list.Paginator.KeyMap.NextPage.SetEnabled(false)
+	m.list.Paginator.KeyMap.PrevPage.SetEnabled(false)
 	m.list.SetShowHelp(false)
 
 	m.help.Ellipsis = "…"
@@ -81,16 +85,9 @@ func (m *Model) View() string {
 	}
 
 	m.helpMap.Shafflable = m.Shufflable
-	listHeight := m.height
-
-	if m.help.ShowAll {
-		listHeight -= 7
-	} else {
-		listHeight -= 5
-	}
 
 	listView := m.list.View()
-	if lipgloss.Height(listView) <= listHeight {
+	if lipgloss.Height(listView) <= m.list.Height() {
 		lastLine := strings.LastIndex(listView[:len(listView)-1], "\n")
 		listView = listView[:lastLine] + "\n" + listView[lastLine:]
 	}
@@ -115,11 +112,7 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 		switch {
 		case controls.ShowAllKeys.Contains(keypress):
 			m.help.ShowAll = !m.help.ShowAll
-			if m.help.ShowAll {
-				m.list.SetHeight(m.height - 7)
-			} else {
-				m.list.SetHeight(m.height - 5)
-			}
+			m.updateListHeight()
 		case controls.Apply.Contains(keypress):
 			cmds = append(cmds, model.Cmd(PLAY))
 		case controls.CursorUp.Contains(keypress):
@@ -210,11 +203,12 @@ func (m *Model) Width() int {
 
 func (m *Model) SetHeight(h int) {
 	m.height = h
-	if m.help.ShowAll {
-		m.list.SetHeight(m.height - 7)
-	} else {
-		m.list.SetHeight(m.height - 5)
-	}
+	m.updateListHeight()
+}
+
+func (m *Model) updateListHeight() {
+	helpHeight := lipgloss.Height(m.help.View(m.helpMap))
+	m.list.SetHeight(m.height - helpHeight - 2)
 }
 
 func (m *Model) Height() int {

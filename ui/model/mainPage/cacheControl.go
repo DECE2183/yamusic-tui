@@ -55,12 +55,21 @@ func (m *Model) removeCache(track *api.Track) tea.Cmd {
 	}
 
 	cachePlaylist, index := m.playlists.GetFirst(playlist.LOCAL)
-	trackIndex := cachePlaylist.RemoveTrack(track.Id)
-	if m.playlists.SelectedItem().Kind == playlist.LOCAL && trackIndex >= 0 {
-		m.tracklist.RemoveItem(trackIndex)
-		m.tracklist.Select(cachePlaylist.SelectedTrack)
-	}
+	cachePlaylist.RemoveTrack(track.Id)
 
 	delete(m.cachedTracksMap, track.Id)
-	return m.playlists.SetItem(index, cachePlaylist)
+	cmd := m.playlists.SetItem(index, cachePlaylist)
+
+	if m.playlists.SelectedItem().Kind == playlist.LOCAL {
+		m.displayPlaylist(cachePlaylist)
+	}
+
+	if m.currentPlaylistIndex >= 0 {
+		currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
+		if cachePlaylist.IsSame(currentPlaylist) && m.tracker.IsPlaying() {
+			m.indicateCurrentTrackPlaying(currentPlaylist.CurrentTrack < len(currentPlaylist.Tracks))
+		}
+	}
+
+	return cmd
 }

@@ -46,7 +46,10 @@ func (p ProgressControl) Value() float64 {
 }
 
 const (
-	_VOLUME_FADE_STEPS = 2
+	_VOLUME_FADE_STEPS      = 2
+	_VOLUME_BAR_WIDTH       = 10
+	_VOLUME_INDICATOR_WIDTH = 20    // " Vol ██████████ 100%"
+	_VOLUME_SNAP_THRESHOLD  = 0.005 // snap to 0/1 when close enough
 )
 
 var rewindAmount = time.Duration(config.Current.RewindDuration) * time.Second
@@ -65,6 +68,7 @@ type Model struct {
 
 	volume         float64
 	volumeIncremet float64
+	lastVolumeKey  time.Time
 	playerContext  *oto.Context
 	player         *oto.Player
 	trackWrapper   *readWrapper
@@ -130,8 +134,14 @@ func (m *Model) View() string {
 		playButton = style.ActiveButtonStyle.Padding(0, 1).Margin(0).Render(style.IconStop)
 	}
 
+	volumePercent := int(math.Round(m.volume * 100))
+	filledBars := int(math.Round(m.volume * _VOLUME_BAR_WIDTH))
+	filled := lipgloss.NewStyle().Foreground(style.AccentColor).Render(strings.Repeat("█", filledBars))
+	empty := lipgloss.NewStyle().Foreground(style.BackgroundColor).Render(strings.Repeat("░", _VOLUME_BAR_WIDTH-filledBars))
+	volumeIndicator := style.TrackVersionStyle.Render(" Vol ") + filled + empty + style.TrackVersionStyle.Render(fmt.Sprintf(" %3d%%", volumePercent))
+
 	tracker := style.TrackProgressStyle.Render(m.progress.View())
-	tracker = lipgloss.JoinHorizontal(lipgloss.Top, playButton, tracker)
+	tracker = lipgloss.JoinHorizontal(lipgloss.Top, playButton, tracker, volumeIndicator)
 
 	if m.showLyrics {
 		tracker = lipgloss.JoinVertical(lipgloss.Left, m.renderLyrics(), "", tracker)
@@ -255,11 +265,11 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 			}
 
 		case controls.PlayerVolUp.Contains(keypress):
-			m.SetVolume(m.volume + config.Current.VolumeStep)
+			m.SetVolume(m.volume + m.dynamicVolumeStep())
 			cmds = append(cmds, model.Cmd(VOLUME))
 
 		case controls.PlayerVolDown.Contains(keypress):
-			m.SetVolume(m.volume - config.Current.VolumeStep)
+			m.SetVolume(m.volume - m.dynamicVolumeStep())
 			cmds = append(cmds, model.Cmd(VOLUME))
 
 		case controls.PlayerToggleLyrics.Contains(keypress):
@@ -299,7 +309,7 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 
 func (m *Model) SetWidth(width int) {
 	m.width = width
-	m.progress.Width = width - 9
+	m.progress.Width = width - 9 - _VOLUME_INDICATOR_WIDTH
 	m.help.Width = width - 4
 }
 
@@ -327,9 +337,9 @@ func (m *Model) Position() time.Duration {
 }
 
 func (m *Model) SetVolume(v float64) {
-	if v < config.Current.VolumeStep/2 {
+	if v < _VOLUME_SNAP_THRESHOLD {
 		v = 0
-	} else if v > 1-config.Current.VolumeStep/2 {
+	} else if v > 1-_VOLUME_SNAP_THRESHOLD {
 		v = 1
 	}
 	m.volume = v
@@ -471,6 +481,22 @@ func (m *Model) ShowError(text string) {
 
 func (m *Model) HideError() {
 	m.showError = false
+}
+
+func (m *Model) dynamicVolumeStep() float64 {
+	now := time.Now()
+	delta := now.Sub(m.lastVolumeKey)
+	m.lastVolumeKey = now
+
+	step := config.Current.VolumeStep
+	switch {
+	case delta < 80*time.Millisecond:
+		return step
+	case delta < 200*time.Millisecond:
+		return step * 0.4
+	default:
+		return step * 0.2
+	}
 }
 
 func (m *Model) volumeFadeTick() {

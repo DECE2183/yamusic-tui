@@ -8,6 +8,8 @@ import (
 type helpKeyMap struct {
 	CursorUp           key.Binding
 	CursorDown         key.Binding
+	PageUp             key.Binding
+	PageDown           key.Binding
 	Play               key.Binding
 	LikeUnlike         key.Binding
 	AddToPlaylist      key.Binding
@@ -28,6 +30,8 @@ func newHelpMap() *helpKeyMap {
 	return &helpKeyMap{
 		CursorUp:           key.NewBinding(controls.CursorUp.Binding(), controls.CursorUp.Help("up")),
 		CursorDown:         key.NewBinding(controls.CursorDown.Binding(), controls.CursorDown.Help("down")),
+		PageUp:             key.NewBinding(controls.PageUp.Binding(), controls.PageUp.Help("page up")),
+		PageDown:           key.NewBinding(controls.PageDown.Binding(), controls.PageDown.Help("page down")),
 		Play:               key.NewBinding(controls.Apply.Binding(), controls.Apply.Help("play")),
 		LikeUnlike:         key.NewBinding(controls.TracksLike.Binding(), controls.TracksLike.Help("like/unlike")),
 		AddToPlaylist:      key.NewBinding(controls.TracksAddToPlaylist.Binding(), controls.TracksAddToPlaylist.Help("add to")),
@@ -48,8 +52,8 @@ func (k helpKeyMap) ShortHelp() []key.Binding {
 
 func (k helpKeyMap) FullHelp() [][]key.Binding {
 	bindings := [][]key.Binding{
-		{k.CursorUp, k.CursorDown, k.Play},
-		{k.LikeUnlike, k.AddToPlaylist, k.RemoveFromPlaylist},
+		{k.CursorUp, k.CursorDown, k.PageUp, k.PageDown},
+		{k.Play, k.LikeUnlike, k.AddToPlaylist, k.RemoveFromPlaylist},
 		{k.Search, k.Share},
 	}
 

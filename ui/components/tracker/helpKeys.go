@@ -72,7 +72,7 @@ func newHelpMap() *helpKeyMap {
 }
 
 func (k helpKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.PlayPause, k.NextTrack, k.PrevTrack, k.LikeUnlike}
+	return []key.Binding{k.PlayPause, k.NextTrack, k.PrevTrack, k.LikeUnlike, k.VolUp, k.VolDown}
 }
 
 func (k helpKeyMap) FullHelp() [][]key.Binding {

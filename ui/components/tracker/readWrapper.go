@@ -19,6 +19,7 @@ type readWrapper struct {
 	decoder        *mp3.Decoder
 	trackBuffer    *stream.BufferedStream
 	trackBuffered  bool
+	trackDone      bool
 	lastUpdateTime time.Time
 }
 
@@ -26,6 +27,7 @@ func (w *readWrapper) NewReader(reader *stream.BufferedStream) {
 	var err error
 
 	w.trackBuffered = false
+	w.trackDone = false
 	w.trackBuffer = reader
 	w.decoder, err = mp3.NewDecoder(w.trackBuffer)
 	if err != nil {
@@ -70,11 +72,12 @@ func (w *readWrapper) Read(dest []byte) (n int, err error) {
 		go w.program.Send(BUFFERING_COMPLETE)
 	}
 
-	if w.trackBuffer.IsDone() {
+	if w.trackBuffer.IsDone() && !w.trackDone {
+		w.trackDone = true
 		w.decoder.Seek(0, io.SeekStart)
 		w.trackBuffer.Close()
 		go w.program.Send(NEXT)
-	} else if time.Since(w.lastUpdateTime) > _PROGRESS_UPDATE_PERIOD {
+	} else if !w.trackDone && time.Since(w.lastUpdateTime) > _PROGRESS_UPDATE_PERIOD {
 		w.lastUpdateTime = time.Now()
 		fraction := ProgressControl(w.trackBuffer.Progress())
 		go w.program.Send(fraction)

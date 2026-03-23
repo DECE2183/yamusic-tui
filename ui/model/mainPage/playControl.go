@@ -33,21 +33,28 @@ func (m *Model) prevTrack() {
 		return
 	}
 
+	selectedPlaylist := m.playlists.SelectedItem()
+	shouldFollow := currentPlaylist.IsSame(selectedPlaylist) && m.tracklist.Index() == currentPlaylist.CurrentTrack
+
 	m.indicateCurrentTrackPlaying(false)
 
 	currentPlaylist.CurrentTrack--
+	for currentPlaylist.CurrentTrack > 0 && !currentPlaylist.Tracks[currentPlaylist.CurrentTrack].Available {
+		currentPlaylist.CurrentTrack--
+	}
 	m.playlists.SetItem(m.currentPlaylistIndex, currentPlaylist)
 
 	track := &currentPlaylist.Tracks[currentPlaylist.CurrentTrack]
 	if !track.Available {
-		m.Send(tracker.PREV)
+		m.Send(tracker.STOP)
 		return
 	}
 
 	m.playTrack(track)
-	selectedPlaylist := m.playlists.SelectedItem()
-	if currentPlaylist.IsSame(selectedPlaylist) && m.tracklist.Index() == currentPlaylist.CurrentTrack+1 {
+	if shouldFollow {
 		m.tracklist.Select(currentPlaylist.CurrentTrack)
+		currentPlaylist.SelectedTrack = currentPlaylist.CurrentTrack
+		m.playlists.SetItem(m.currentPlaylistIndex, currentPlaylist)
 	}
 }
 
@@ -110,19 +117,26 @@ func (m *Model) nextTrack() {
 		return
 	}
 
+	selectedPlaylist := m.playlists.SelectedItem()
+	shouldFollow := currentPlaylist.IsSame(selectedPlaylist) && m.tracklist.Index() == currentPlaylist.CurrentTrack
+
 	currentPlaylist.CurrentTrack++
+	for currentPlaylist.CurrentTrack < len(currentPlaylist.Tracks)-1 && !currentPlaylist.Tracks[currentPlaylist.CurrentTrack].Available {
+		currentPlaylist.CurrentTrack++
+	}
 	m.playlists.SetItem(m.currentPlaylistIndex, currentPlaylist)
 
 	track := &currentPlaylist.Tracks[currentPlaylist.CurrentTrack]
 	if !track.Available {
-		m.Send(tracker.NEXT)
+		m.Send(tracker.STOP)
 		return
 	}
 
 	m.playTrack(track)
-	selectedPlaylist := m.playlists.SelectedItem()
-	if currentPlaylist.IsSame(selectedPlaylist) && m.tracklist.Index() == currentPlaylist.CurrentTrack-1 {
+	if shouldFollow {
 		m.tracklist.Select(currentPlaylist.CurrentTrack)
+		currentPlaylist.SelectedTrack = currentPlaylist.CurrentTrack
+		m.playlists.SetItem(m.currentPlaylistIndex, currentPlaylist)
 	}
 }
 

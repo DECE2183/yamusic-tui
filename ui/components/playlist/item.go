@@ -29,6 +29,10 @@ func (i *Item) IsSame(other *Item) bool {
 
 func (pl *Item) AddTrack(track *api.Track) {
 	pl.Tracks = append([]api.Track{*track}, pl.Tracks...)
+	pl.SelectedTrack++
+	if pl.CurrentTrack < len(pl.Tracks)-1 {
+		pl.CurrentTrack++
+	}
 }
 
 func (pl *Item) AddTrackToEnd(track *api.Track) {
@@ -43,9 +47,24 @@ func (pl *Item) RemoveTrack(trackId string) int {
 			} else {
 				pl.Tracks = pl.Tracks[:i]
 			}
-			if pl.SelectedTrack == len(pl.Tracks) && len(pl.Tracks) > 0 {
-				pl.SelectedTrack--
+
+			if len(pl.Tracks) == 0 {
+				pl.SelectedTrack = 0
+				pl.CurrentTrack = 0
+			} else {
+				if pl.SelectedTrack > i {
+					pl.SelectedTrack--
+				} else if pl.SelectedTrack >= len(pl.Tracks) {
+					pl.SelectedTrack = len(pl.Tracks) - 1
+				}
+
+				if pl.CurrentTrack == i {
+					pl.CurrentTrack = len(pl.Tracks)
+				} else if pl.CurrentTrack > i {
+					pl.CurrentTrack--
+				}
 			}
+
 			return i
 		}
 	}
