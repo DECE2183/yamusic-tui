@@ -56,6 +56,8 @@ func New(p *tea.Program, likesMap *map[string]bool, cacheMap *map[string]bool) *
 		CursorUp:   key.NewBinding(controls.CursorUp.Binding(), controls.CursorUp.Help("up")),
 		CursorDown: key.NewBinding(controls.CursorDown.Binding(), controls.CursorDown.Help("down")),
 	}
+	m.list.Paginator.KeyMap.NextPage.SetEnabled(false)
+	m.list.Paginator.KeyMap.PrevPage.SetEnabled(false)
 	m.list.SetShowHelp(false)
 
 	m.help.Ellipsis = "…"
