@@ -53,6 +53,8 @@ func (m *Model) prevTrack() {
 	m.playTrack(track)
 	if shouldFollow {
 		m.tracklist.Select(currentPlaylist.CurrentTrack)
+		currentPlaylist.SelectedTrack = currentPlaylist.CurrentTrack
+		m.playlists.SetItem(m.currentPlaylistIndex, currentPlaylist)
 	}
 }
 
@@ -133,6 +135,8 @@ func (m *Model) nextTrack() {
 	m.playTrack(track)
 	if shouldFollow {
 		m.tracklist.Select(currentPlaylist.CurrentTrack)
+		currentPlaylist.SelectedTrack = currentPlaylist.CurrentTrack
+		m.playlists.SetItem(m.currentPlaylistIndex, currentPlaylist)
 	}
 }
 
