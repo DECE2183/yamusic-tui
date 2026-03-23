@@ -46,10 +46,8 @@ func (p ProgressControl) Value() float64 {
 }
 
 const (
-	_VOLUME_FADE_STEPS      = 2
-	_VOLUME_BAR_WIDTH       = 10
-	_VOLUME_INDICATOR_WIDTH = 20    // " Vol ██████████ 100%"
-	_VOLUME_SNAP_THRESHOLD  = 0.005 // snap to 0/1 when close enough
+	_VOLUME_FADE_STEPS     = 2
+	_VOLUME_SNAP_THRESHOLD = 0.005 // snap to 0/1 when close enough
 )
 
 var rewindAmount = time.Duration(config.Current.RewindDuration) * time.Second
@@ -59,6 +57,7 @@ type Model struct {
 	track      api.Track
 	lyrics     []api.LyricPair
 	progress   progress.Model
+	volumeBar  progress.Model
 	help       help.Model
 	helpMap    *helpKeyMap
 	Hidden     bool
@@ -66,6 +65,7 @@ type Model struct {
 	showError  bool
 	errorText  string
 
+	paused         bool
 	volume         float64
 	volumeIncremet float64
 	lastVolumeKey  time.Time
@@ -82,8 +82,10 @@ func New(p *tea.Program, likesMap *map[string]bool) *Model {
 		program:    p,
 		likesMap:   likesMap,
 		progress:   progress.New(),
+		volumeBar:  progress.New(),
 		help:       help.New(),
 		helpMap:    newHelpMap(),
+		paused:     true,
 		volume:     config.Current.Volume,
 		showLyrics: config.Current.ShowLyrics,
 	}
@@ -95,6 +97,10 @@ func New(p *tea.Program, likesMap *map[string]bool) *Model {
 	m.progress.FullColor = string(style.AccentColor)
 	m.progress.EmptyColor = string(style.BackgroundColor)
 	m.progress.SetSpringOptions(60, 1)
+
+	m.volumeBar.FullColor = string(style.AccentColor)
+	m.volumeBar.EmptyColor = string(style.BackgroundColor)
+	m.volumeBar.Width = style.VolumeIndicatorWidth
 
 	m.help.Ellipsis = "…"
 	m.trackWrapper = &readWrapper{program: m.program}
@@ -134,12 +140,24 @@ func (m *Model) View() string {
 		playButton = style.ActiveButtonStyle.Padding(0, 1).Margin(0).Render(style.IconStop)
 	}
 
-	volumePercent := int(math.Round(m.volume * 100))
-	filledBars := int(math.Round(m.volume * _VOLUME_BAR_WIDTH))
-	filled := lipgloss.NewStyle().Foreground(style.AccentColor).Render(strings.Repeat("█", filledBars))
-	empty := lipgloss.NewStyle().Foreground(style.BackgroundColor).Render(strings.Repeat("░", _VOLUME_BAR_WIDTH-filledBars))
-	volumeIndicator := style.TrackVersionStyle.Render(" Vol ") + filled + empty + style.TrackVersionStyle.Render(fmt.Sprintf(" %3d%%", volumePercent))
+	var volumeIndicator string
+	var volumeIndicatorWidth int
+	if style.VolumeIndicatorWidth > 0 && m.width > style.VolumeIndicatorAutohide {
+		var volumeIcon string
+		if m.volume <= 0 {
+			volumeIcon = style.IconVolumeOff
+		} else if m.volume < 0.1 {
+			volumeIcon = style.IconVolumeLow
+		} else if m.volume < 0.5 {
+			volumeIcon = style.IconVolumeMid
+		} else {
+			volumeIcon = style.IconVolumeHigh
+		}
+		volumeIndicator = " " + volumeIcon + " " + m.volumeBar.ViewAs(m.volume)
+		volumeIndicatorWidth = lipgloss.Width(volumeIndicator)
+	}
 
+	m.progress.Width = m.width - volumeIndicatorWidth - 9
 	tracker := style.TrackProgressStyle.Render(m.progress.View())
 	tracker = lipgloss.JoinHorizontal(lipgloss.Top, playButton, tracker, volumeIndicator)
 
@@ -309,7 +327,6 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 
 func (m *Model) SetWidth(width int) {
 	m.width = width
-	m.progress.Width = width - 9 - _VOLUME_INDICATOR_WIDTH
 	m.help.Width = width - 4
 }
 
@@ -373,6 +390,7 @@ func (m *Model) StartTrack(track *api.Track, reader *stream.BufferedStream, lyri
 	m.player.SetVolume(0)
 	m.player.Play()
 	m.lyrics = lyrics
+	m.paused = false
 }
 
 func (m *Model) Stop() {
@@ -392,6 +410,7 @@ func (m *Model) Stop() {
 	m.trackWrapper.Close()
 	m.player.Close()
 	m.player = nil
+	m.paused = true
 }
 
 func (m *Model) IsPlaying() bool {
@@ -417,6 +436,7 @@ func (m *Model) Play() {
 	m.volumeIncremet = m.volume / _VOLUME_FADE_STEPS
 	m.player.SetVolume(0)
 	m.player.Play()
+	m.paused = false
 }
 
 func (m *Model) Pause() {
@@ -426,7 +446,7 @@ func (m *Model) Pause() {
 	if !m.player.IsPlaying() {
 		return
 	}
-	m.volume = 0
+	m.paused = true
 }
 
 func (m *Model) Rewind(amount time.Duration) tea.Cmd {
@@ -509,14 +529,21 @@ func (m *Model) volumeFadeTick() {
 		return
 	}
 
+	var targetVolume float64
+	if m.paused {
+		targetVolume = 0
+	} else {
+		targetVolume = m.volume
+	}
+
 	currVol := m.player.Volume()
-	if currVol >= m.volume+m.volumeIncremet {
+	if currVol >= targetVolume+m.volumeIncremet {
 		m.player.SetVolume(currVol - m.volumeIncremet/2)
-	} else if currVol <= m.volume-m.volumeIncremet {
+	} else if currVol <= targetVolume-m.volumeIncremet {
 		m.player.SetVolume(currVol + m.volumeIncremet/2)
-	} else if currVol != m.volume {
-		m.player.SetVolume(m.volume)
-		if m.volume == 0 {
+	} else if currVol != targetVolume {
+		m.player.SetVolume(targetVolume)
+		if m.paused {
 			m.player.Pause()
 		}
 	}

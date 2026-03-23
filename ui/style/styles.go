@@ -6,8 +6,11 @@ import (
 )
 
 var (
-	SidePanelWidth   = 32
-	SearchModalWidth = 56
+	VolumeIndicatorWidth    = 16
+	VolumeIndicatorAutohide = 64
+	SidePanelWidth          = 32
+	SidePanelAutohide       = 64
+	SearchModalWidth        = 56
 )
 
 var (
@@ -28,13 +31,17 @@ var (
 )
 
 var (
-	IconPlay     = "▶"
-	IconStop     = "■"
-	IconLiked    = "💛"
-	IconNotLiked = "🤍"
-	IconCached   = "💿"
-	IconDotLight = "•"
-	IconDotDark  = "•"
+	IconPlay       = "▶"
+	IconStop       = "■"
+	IconLiked      = "💛"
+	IconNotLiked   = "🤍"
+	IconCached     = "💿"
+	IconDotLight   = "•"
+	IconDotDark    = "•"
+	IconVolumeOff  = "🔇"
+	IconVolumeLow  = "🔈"
+	IconVolumeMid  = "🔉"
+	IconVolumeHigh = "🔊"
 )
 
 var (
@@ -78,7 +85,10 @@ var (
 )
 
 func Apply(style *config.Style) {
+	VolumeIndicatorWidth = style.VolumeIndicatorWidth
+	VolumeIndicatorAutohide = style.VolumeIndicatorAutohide
 	SidePanelWidth = style.SidePanelWidth
+	SidePanelAutohide = style.SidePanelAutohide
 	SearchModalWidth = style.SearchModalWidth
 
 	AccentColor = lipgloss.Color(style.Colors.Accent)
@@ -103,6 +113,10 @@ func Apply(style *config.Style) {
 	IconCached = style.Icons.Cached
 	IconDotLight = lipgloss.NewStyle().Foreground(LyricsCurrentTextColor).Render(style.Icons.LyricsDot)
 	IconDotDark = lipgloss.NewStyle().Foreground(LyricsPreviosTextColor).Render(style.Icons.LyricsDot)
+	IconVolumeOff = style.Icons.VolumeOff
+	IconVolumeLow = style.Icons.VolumeLow
+	IconVolumeMid = style.Icons.VolumeMid
+	IconVolumeHigh = style.Icons.VolumeHigh
 
 	AccentTextStyle = lipgloss.NewStyle().Foreground(AccentColor)
 	ErrorTextStyle = lipgloss.NewStyle().Foreground(ErrorColor)

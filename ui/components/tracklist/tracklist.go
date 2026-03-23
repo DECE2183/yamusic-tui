@@ -20,6 +20,8 @@ const (
 	PLAY Control = iota
 	CURSOR_UP
 	CURSOR_DOWN
+	PAGE_UP
+	PAGE_DOWN
 	SEARCH
 	SHUFFLE
 	SHARE
@@ -55,8 +57,8 @@ func New(p *tea.Program, likesMap *map[string]bool, cacheMap *map[string]bool) *
 	m.list.KeyMap = list.KeyMap{
 		CursorUp:   key.NewBinding(controls.CursorUp.Binding(), controls.CursorUp.Help("up")),
 		CursorDown: key.NewBinding(controls.CursorDown.Binding(), controls.CursorDown.Help("down")),
-		NextPage:   key.NewBinding(controls.PageDown.Binding(), controls.PageDown.Help("pgdn")),
-		PrevPage:   key.NewBinding(controls.PageUp.Binding(), controls.PageUp.Help("pgup")),
+		NextPage:   key.NewBinding(controls.TracksPrevPage.Binding(), controls.TracksPrevPage.Help("next page")),
+		PrevPage:   key.NewBinding(controls.TracksNextPage.Binding(), controls.TracksNextPage.Help("prev page")),
 	}
 	m.list.Paginator.KeyMap.NextPage.SetEnabled(false)
 	m.list.Paginator.KeyMap.PrevPage.SetEnabled(false)
@@ -85,6 +87,8 @@ func (m *Model) View() string {
 	}
 
 	m.helpMap.Shafflable = m.Shufflable
+	helpView := m.help.View(m.helpMap)
+	m.list.SetHeight(m.height - lipgloss.Height(helpView) - 4)
 
 	listView := m.list.View()
 	if lipgloss.Height(listView) <= m.list.Height() {
@@ -92,7 +96,7 @@ func (m *Model) View() string {
 		listView = listView[:lastLine] + "\n" + listView[lastLine:]
 	}
 
-	return style.TrackBoxStyle.Width(m.width).Render(lipgloss.JoinVertical(lipgloss.Left, listView, "", m.help.View(m.helpMap)))
+	return style.TrackBoxStyle.Width(m.width).Render(lipgloss.JoinVertical(lipgloss.Left, listView, "", helpView))
 }
 
 func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
@@ -112,13 +116,16 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 		switch {
 		case controls.ShowAllKeys.Contains(keypress):
 			m.help.ShowAll = !m.help.ShowAll
-			m.updateListHeight()
 		case controls.Apply.Contains(keypress):
 			cmds = append(cmds, model.Cmd(PLAY))
 		case controls.CursorUp.Contains(keypress):
 			cmds = append(cmds, model.Cmd(CURSOR_UP))
 		case controls.CursorDown.Contains(keypress):
 			cmds = append(cmds, model.Cmd(CURSOR_DOWN))
+		case controls.TracksNextPage.Contains(keypress):
+			cmds = append(cmds, model.Cmd(PAGE_UP))
+		case controls.TracksPrevPage.Contains(keypress):
+			cmds = append(cmds, model.Cmd(PAGE_DOWN))
 		case controls.TracksSearch.Contains(keypress):
 			cmds = append(cmds, model.Cmd(SEARCH))
 		case controls.TracksShuffle.Contains(keypress):
@@ -203,12 +210,6 @@ func (m *Model) Width() int {
 
 func (m *Model) SetHeight(h int) {
 	m.height = h
-	m.updateListHeight()
-}
-
-func (m *Model) updateListHeight() {
-	helpHeight := lipgloss.Height(m.help.View(m.helpMap))
-	m.list.SetHeight(m.height - helpHeight - 2)
 }
 
 func (m *Model) Height() int {

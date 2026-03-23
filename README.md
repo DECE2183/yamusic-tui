@@ -71,6 +71,7 @@ show-errors: false
 show-lyrics: false
 cache-tracks: likes # none/likes/all
 cache-dir: ""
+proxy: "" # proxy server URL; if not specified, uses the HTTP_PROXY and HTTPS_PROXY environment variables
 search:
     artists: true
     albums: false
@@ -86,6 +87,8 @@ controls:
    playlists-down: ctrl+down
    playlists-rename: ctrl+r
    playlists-hide: ctrl+b
+   tracks-next-page: pgup
+   tracks-previous-page: pgdown
    tracks-like: l
    tracks-add-to-playlist: a
    tracks-remove-from-playlist: ctrl+a
@@ -105,7 +108,10 @@ controls:
    player-toggle-lyrics: t
    player-hide: ctrl+p
 style:
+   volume-indicator-width: 16
+   volume-indicator-autohide-at: 64
    side-panel-width: 32
+   side-panel-autohide-at: 96
    search-modal-width: 56
    icons:
       play: ▶
@@ -114,6 +120,10 @@ style:
       not-liked: 🤍
       cached: 💿
       lyrics-dot: •
+      volume-off: 🔇
+      volume-low: 🔈
+      volume-mid: 🔉
+      volume-high: 🔊
    colors:
       accent: '#FC0'
       error: '#F33'

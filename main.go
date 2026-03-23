@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/dece2183/yamusic-tui/api"
 	"github.com/dece2183/yamusic-tui/config"
 	"github.com/dece2183/yamusic-tui/log"
 	"github.com/dece2183/yamusic-tui/media"
@@ -20,6 +21,7 @@ func main() {
 	}
 
 	style.Apply(config.Current.Style)
+	api.SetupClient(config.Current.Proxy)
 
 	if config.Current.Token == "" {
 		err = loginpage.New().Run()

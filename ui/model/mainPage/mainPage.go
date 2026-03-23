@@ -164,10 +164,7 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			m.displayPlaylist(selectedPlaylist)
-
-			if m.tracker.IsPlaying() {
-				m.indicateCurrentTrackPlaying(true)
-			}
+			m.indicateCurrentTrackPlaying(m.tracker.IsPlaying())
 
 			m.tracklist.Shufflable = (selectedPlaylist.Kind != playlist.NONE && selectedPlaylist.Kind != playlist.MYWAVE && len(selectedPlaylist.Tracks) > 0)
 		case playlist.RENAME:
@@ -180,7 +177,6 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			m.isRenamePlaylistActive = true
 		case playlist.TOGGLE_VIEW:
 			m.isPlaylistHideOverride = !m.isPlaylistHideOverride
-			m.resizeComponents()
 		}
 
 	// tracklist control update
@@ -224,8 +220,6 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			if link != "" {
 				m.clipboard.CopyText(link)
 			}
-		case tracklist.TOGGLE_VIEW:
-			m.resizeComponents()
 		}
 
 	// player control update
@@ -255,8 +249,6 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				cmd = m.cacheCurrentTrack()
 				cmds = append(cmds, cmd)
 			}
-		case tracker.TOGGLE_LYRICS, tracker.TOGGLE_VIEW:
-			m.resizeComponents()
 		}
 
 		m.tracker, cmd = m.tracker.Update(message)
@@ -312,16 +304,28 @@ func (m *Model) View() string {
 		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, m.inputDialog.View())
 	}
 
+	playlistView := m.playlists.View()
+	playlistWidth := lipgloss.Width(playlistView)
+
+	m.tracker.SetWidth(m.width - playlistWidth - 2)
+	m.tracklist.SetWidth(m.width - playlistWidth - 2)
+
+	trackerView := m.tracker.View()
+	trackerHeight := lipgloss.Height(trackerView)
+	m.tracklist.SetHeight(m.height - trackerHeight - 2)
+
+	tracklistView := m.tracklist.View()
+
 	var midPanel string
 	if m.tracklist.Hidden {
-		midPanel = m.tracker.View()
+		midPanel = trackerView
 	} else if m.tracker.Hidden {
-		midPanel = m.tracklist.View()
+		midPanel = tracklistView
 	} else {
-		midPanel = lipgloss.JoinVertical(lipgloss.Left, m.tracklist.View(), m.tracker.View())
+		midPanel = lipgloss.JoinVertical(lipgloss.Left, tracklistView, trackerView)
 	}
 
-	return lipgloss.JoinHorizontal(lipgloss.Bottom, m.playlists.View(), midPanel)
+	return lipgloss.JoinHorizontal(lipgloss.Bottom, playlistView, midPanel)
 }
 
 //
@@ -333,29 +337,14 @@ func (m *Model) resize(width, height int) {
 
 	m.playlists.SetSize(style.SidePanelWidth, height-4)
 	if !m.isPlaylistHideOverride {
-		m.playlists.Hidden = m.width < style.SidePanelWidth*3
+		m.playlists.Hidden = m.width < style.SidePanelAutohide
 	}
-
-	m.resizeComponents()
-}
-
-func (m *Model) resizeComponents() {
-	contentWidth := m.width - 2
-	tracklistHeight := m.height - 2
-	if !m.playlists.Hidden {
-		contentWidth -= m.playlists.Width() + 2
-	}
-	if !m.tracker.Hidden {
-		tracklistHeight -= m.tracker.Height() + 6
-	}
-
-	m.tracklist.SetSize(contentWidth, tracklistHeight)
-	m.tracker.SetWidth(contentWidth)
 
 	searchWidth := style.SearchModalWidth
 	if searchWidth > m.width {
 		searchWidth = m.width - 2
 	}
+
 	m.searchDialog.SetSize(searchWidth, m.height-4)
 	m.inputDialog.SetWidth(searchWidth)
 }

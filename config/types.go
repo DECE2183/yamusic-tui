@@ -39,12 +39,16 @@ func (t CacheType) MarshalYAML() (interface{}, error) {
 }
 
 type Icons struct {
-	Play      string `yaml:"play"`
-	Stop      string `yaml:"stop"`
-	Liked     string `yaml:"liked"`
-	NotLiked  string `yaml:"not-liked"`
-	Cached    string `yaml:"cached"`
-	LyricsDot string `yaml:"lyrics-dot"`
+	Play       string `yaml:"play"`
+	Stop       string `yaml:"stop"`
+	Liked      string `yaml:"liked"`
+	NotLiked   string `yaml:"not-liked"`
+	Cached     string `yaml:"cached"`
+	LyricsDot  string `yaml:"lyrics-dot"`
+	VolumeOff  string `yaml:"volume-off"`
+	VolumeLow  string `yaml:"volume-low"`
+	VolumeMid  string `yaml:"volume-mid"`
+	VolumeHigh string `yaml:"volume-high"`
 }
 
 type Colors struct {
@@ -65,10 +69,13 @@ type Colors struct {
 }
 
 type Style struct {
-	SidePanelWidth   int     `yaml:"side-panel-width"`
-	SearchModalWidth int     `yaml:"search-modal-width"`
-	Icons            *Icons  `yaml:"icons"`
-	Colors           *Colors `yaml:"colors"`
+	VolumeIndicatorWidth    int     `yaml:"volume-indicator-width"`
+	VolumeIndicatorAutohide int     `yaml:"volume-indicator-autohide-at"`
+	SidePanelWidth          int     `yaml:"side-panel-width"`
+	SidePanelAutohide       int     `yaml:"side-panel-autohide-at"`
+	SearchModalWidth        int     `yaml:"search-modal-width"`
+	Icons                   *Icons  `yaml:"icons"`
+	Colors                  *Colors `yaml:"colors"`
 }
 
 type Controls struct {
@@ -86,8 +93,8 @@ type Controls struct {
 	PlaylistsRename *Key `yaml:"playlists-rename"`
 	PlaylistsHide   *Key `yaml:"playlists-hide"`
 	// Track list control
-	PageUp                   *Key `yaml:"page-up"`
-	PageDown                 *Key `yaml:"page-down"`
+	TracksNextPage           *Key `yaml:"tracks-next-page"`
+	TracksPrevPage           *Key `yaml:"tracks-previous-page"`
 	TracksLike               *Key `yaml:"tracks-like"`
 	TracksAddToPlaylist      *Key `yaml:"tracks-add-to-playlist"`
 	TracksRemoveFromPlaylist *Key `yaml:"tracks-remove-from-playlist"`
@@ -125,6 +132,7 @@ type Config struct {
 	ShowLyrics     bool      `yaml:"show-lyrics"`
 	CacheTracks    CacheType `yaml:"cache-tracks"`
 	CacheDir       string    `yaml:"cache-dir"`
+	Proxy          string    `yaml:"proxy"`
 	Search         *Search   `yaml:"search"`
 	Controls       *Controls `yaml:"controls"`
 	Style          *Style    `yaml:"style"`
@@ -156,8 +164,8 @@ var defaultConfig = Config{
 		PlaylistsDown:            NewKey("ctrl+down"),
 		PlaylistsRename:          NewKey("ctrl+r"),
 		PlaylistsHide:            NewKey("ctrl+b"),
-		PageUp:                   NewKey("pgup"),
-		PageDown:                 NewKey("pgdown"),
+		TracksNextPage:           NewKey("pgup"),
+		TracksPrevPage:           NewKey("pgdown"),
 		TracksLike:               NewKey("l"),
 		TracksAddToPlaylist:      NewKey("a"),
 		TracksRemoveFromPlaylist: NewKey("ctrl+a"),
@@ -178,15 +186,22 @@ var defaultConfig = Config{
 		PlayerHide:               NewKey("ctrl+p"),
 	},
 	Style: &Style{
-		SidePanelWidth:   32,
-		SearchModalWidth: 56,
+		VolumeIndicatorWidth:    16,
+		VolumeIndicatorAutohide: 58,
+		SidePanelWidth:          32,
+		SidePanelAutohide:       96,
+		SearchModalWidth:        56,
 		Icons: &Icons{
-			Play:      "▶",
-			Stop:      "■",
-			Liked:     "💛",
-			NotLiked:  "🤍",
-			Cached:    "💿",
-			LyricsDot: "•",
+			Play:       "▶",
+			Stop:       "■",
+			Liked:      "💛",
+			NotLiked:   "🤍",
+			Cached:     "💿",
+			LyricsDot:  "•",
+			VolumeOff:  "🔇",
+			VolumeLow:  "🔈",
+			VolumeMid:  "🔉",
+			VolumeHigh: "🔊",
 		},
 		Colors: &Colors{
 			Accent:            "#FC0",

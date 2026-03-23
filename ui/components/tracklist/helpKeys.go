@@ -30,8 +30,8 @@ func newHelpMap() *helpKeyMap {
 	return &helpKeyMap{
 		CursorUp:           key.NewBinding(controls.CursorUp.Binding(), controls.CursorUp.Help("up")),
 		CursorDown:         key.NewBinding(controls.CursorDown.Binding(), controls.CursorDown.Help("down")),
-		PageUp:             key.NewBinding(controls.PageUp.Binding(), controls.PageUp.Help("page up")),
-		PageDown:           key.NewBinding(controls.PageDown.Binding(), controls.PageDown.Help("page down")),
+		PageUp:             key.NewBinding(controls.TracksNextPage.Binding(), controls.TracksNextPage.Help("page up")),
+		PageDown:           key.NewBinding(controls.TracksPrevPage.Binding(), controls.TracksPrevPage.Help("page down")),
 		Play:               key.NewBinding(controls.Apply.Binding(), controls.Apply.Help("play")),
 		LikeUnlike:         key.NewBinding(controls.TracksLike.Binding(), controls.TracksLike.Help("like/unlike")),
 		AddToPlaylist:      key.NewBinding(controls.TracksAddToPlaylist.Binding(), controls.TracksAddToPlaylist.Help("add to")),
@@ -62,4 +62,15 @@ func (k helpKeyMap) FullHelp() [][]key.Binding {
 	}
 
 	return append(bindings, []key.Binding{k.Reload, k.HideTracklist, k.CloseHelp})
+}
+
+func (k helpKeyMap) HelpHeight() int {
+	maxLines := 0
+	keys := k.FullHelp()
+	for i := range keys {
+		if len(keys[i]) > maxLines {
+			maxLines = len(keys[i])
+		}
+	}
+	return maxLines
 }

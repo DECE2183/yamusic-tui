@@ -97,6 +97,9 @@ func load() (Config, error) {
 		} else {
 			fillDefault(newConfig.Style.Colors, defaultConfig.Style.Colors)
 		}
+		if newConfig.Style.SidePanelWidth == 0 {
+			newConfig.Style.SidePanelWidth = defaultConfig.Style.SidePanelWidth
+		}
 	}
 
 	return newConfig, nil

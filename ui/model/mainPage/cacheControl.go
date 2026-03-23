@@ -43,10 +43,22 @@ func (m *Model) cacheCurrentTrack() tea.Cmd {
 	m.cachedTracksMap[currentTrack.Id] = true
 	cachePlaylist, index := m.playlists.GetFirst(playlist.LOCAL)
 	cachePlaylist.AddTrack(currentTrack)
-	return m.playlists.SetItem(index, cachePlaylist)
+	cmd := m.playlists.SetItem(index, cachePlaylist)
+
+	if m.playlists.SelectedItem().Kind == playlist.LOCAL {
+		m.displayPlaylist(cachePlaylist)
+	}
+
+	m.indicateCurrentTrackPlaying(m.tracker.IsPlaying())
+	return cmd
 }
 
 func (m *Model) removeCache(track *api.Track) tea.Cmd {
+	if m.tracker.CurrentTrack().Id == track.Id && len(m.tracker.CurrentTrack().RealId) == 0 {
+		m.tracker.ShowError("can't remove currently playing track")
+		return nil
+	}
+
 	err := cache.Remove(track.Id)
 	if err != nil {
 		log.Print(log.LVL_ERROR, "failed to remove cached file: %s", err)
@@ -64,12 +76,6 @@ func (m *Model) removeCache(track *api.Track) tea.Cmd {
 		m.displayPlaylist(cachePlaylist)
 	}
 
-	if m.currentPlaylistIndex >= 0 {
-		currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
-		if cachePlaylist.IsSame(currentPlaylist) && m.tracker.IsPlaying() {
-			m.indicateCurrentTrackPlaying(currentPlaylist.CurrentTrack < len(currentPlaylist.Tracks))
-		}
-	}
-
+	m.indicateCurrentTrackPlaying(m.tracker.IsPlaying())
 	return cmd
 }

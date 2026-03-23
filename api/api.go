@@ -199,6 +199,26 @@ func createTrackUrl(info fullDownloadInfo, codec string) string {
 	return "https://" + info.Host + "/get-" + codec + "/" + hashedUrl + "/" + info.Ts + info.Path
 }
 
+func SetupClient(proxyUrl string) {
+	transport := &http.Transport{
+		TLSClientConfig:       mTLSConfig,
+		ResponseHeaderTimeout: _RESPONSE_TIMEOUT,
+	}
+
+	if len(proxyUrl) > 0 {
+		parsedUrl, err := url.Parse(proxyUrl)
+		if err == nil {
+			transport.Proxy = http.ProxyURL(parsedUrl)
+		}
+	}
+
+	if transport.Proxy == nil {
+		transport.Proxy = http.ProxyFromEnvironment
+	}
+
+	httpClient = http.Client{Transport: transport}
+}
+
 // Deprecated: doesn't work in most cases
 func Token(username, password string) (token string, err error) {
 	params := url.Values{
