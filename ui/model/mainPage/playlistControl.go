@@ -249,9 +249,12 @@ func (m *Model) displayPlaylist(pl *playlist.Item) {
 	trackList := make([]tracklist.Item, len(pl.Tracks))
 	for i := range pl.Tracks {
 		trackList[i] = tracklist.NewItem(&pl.Tracks[i])
+		trackList[i].IsSuggestion = pl.Rotor && i > pl.CurrentTrack
 	}
+
 	m.tracklist.SetItems(trackList)
 	m.tracklist.Select(pl.SelectedTrack)
+
 	switch pl.Kind {
 	case playlist.MYWAVE:
 		m.tracklist.Title = "My wave"

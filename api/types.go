@@ -202,6 +202,10 @@ type StationId struct {
 	Tag  string `json:"tag"`
 }
 
+func (s *StationId) String() string {
+	return s.Type + ":" + s.Tag
+}
+
 type Station struct {
 	Id   StationId `json:"id"`
 	Name string    `json:"name"`

@@ -33,7 +33,7 @@ const (
 )
 
 var defaultPlaylists = []list.Item{
-	&Item{Name: "my wave", Kind: MYWAVE, Active: true, Subitem: false, Infinite: true},
+	&Item{Name: "my wave", Kind: MYWAVE, Active: true, Subitem: false, Rotor: true},
 	&Item{Name: "likes", Kind: LIKES, Active: true, Subitem: false},
 	&Item{Name: "local", Kind: LOCAL, Active: true, Subitem: false},
 

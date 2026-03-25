@@ -35,19 +35,33 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 		return
 	}
 
-	var trackTitle string
+	var (
+		trackTitle       string
+		trackTitleStyle  lipgloss.Style
+		trackArtistStyle lipgloss.Style
+	)
+
+	if item.IsSuggestion {
+		trackTitleStyle = style.TrackTitleStyle.Foreground(style.InactiveTextColor)
+		trackArtistStyle = style.TrackArtistStyle.Foreground(style.InactiveTextColor)
+		trackTitle += "~ "
+	} else {
+		trackTitleStyle = style.TrackTitleStyle
+		trackArtistStyle = style.TrackArtistStyle
+	}
+
 	if item.IsPlaying {
 		trackTitle = style.AccentTextStyle.Render(style.IconPlay) + " "
 	}
 	if item.Track.Available {
-		trackTitle += style.TrackTitleStyle.Render(item.Track.Title)
+		trackTitle += trackTitleStyle.Render(item.Track.Title)
 	} else {
-		trackTitle += style.TrackTitleStyle.Strikethrough(true).Render(item.Track.Title)
+		trackTitle += trackTitleStyle.Strikethrough(true).Render(item.Track.Title)
 	}
 
 	trackVersion := style.TrackVersionStyle.Render(" " + item.Track.Version)
 	trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackVersion)
-	trackArtist := style.TrackArtistStyle.Render(item.Artists)
+	trackArtist := trackArtistStyle.Render(item.Artists)
 
 	durTotal := time.Millisecond * time.Duration(item.Track.DurationMs)
 	trackTime := style.TrackVersionStyle.Render(fmt.Sprintf("%d:%02d",

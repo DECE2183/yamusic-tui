@@ -22,6 +22,59 @@ const (
 	_TRACK_DOWNLOAD_TRIES = 3
 )
 
+func (m *Model) rotateTracks() {
+	currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
+	if !currentPlaylist.Rotor {
+		return
+	}
+
+	currTrack := &currentPlaylist.Tracks[currentPlaylist.CurrentTrack]
+
+	var (
+		nextTracks api.StationTracks
+		err        error
+	)
+
+	if m.tracker.TrackBuffer().IsBuffered() {
+		nextTracks, err = m.client.RotorSessionNextTrack(
+			currentPlaylist.SessionId, currentPlaylist.SessionBatch,
+			currTrack, m.tracker.Playtime().Seconds(),
+			currentPlaylist.Tracks,
+		)
+	} else {
+		nextTracks, err = m.client.RotorSessionSkipTrack(
+			currentPlaylist.SessionId, currentPlaylist.SessionBatch,
+			currTrack, m.tracker.Playtime().Seconds(),
+			currentPlaylist.Tracks,
+		)
+	}
+
+	if err != nil {
+		log.Print(log.LVL_ERROR, "failed to obtain more rotor tracks: %s", err)
+		m.tracker.ShowError("next track obtain failure")
+		m.Send(tracker.STOP)
+		return
+	}
+
+	currentPlaylist.SessionBatch = nextTracks.BatchId
+	currentPlaylist.Tracks = currentPlaylist.Tracks[:currentPlaylist.CurrentTrack+1]
+	for _, tr := range nextTracks.Sequence {
+		currentPlaylist.Tracks = append(currentPlaylist.Tracks, tr.Track)
+	}
+
+	if m.playlists.SelectedItem().IsSame(currentPlaylist) {
+		listItems := make([]tracklist.Item, len(currentPlaylist.Tracks))
+		for i := range currentPlaylist.Tracks {
+			listItems[i] = tracklist.Item{
+				Track:        &currentPlaylist.Tracks[i],
+				Artists:      helpers.ArtistList(currentPlaylist.Tracks[i].Artists),
+				IsSuggestion: i > currentPlaylist.CurrentTrack,
+			}
+		}
+		m.tracklist.SetItems(listItems)
+	}
+}
+
 func (m *Model) prevTrack() {
 	if m.currentPlaylistIndex < 0 {
 		return
@@ -42,6 +95,8 @@ func (m *Model) prevTrack() {
 	for currentPlaylist.CurrentTrack > 0 && !currentPlaylist.Tracks[currentPlaylist.CurrentTrack].Available {
 		currentPlaylist.CurrentTrack--
 	}
+
+	m.rotateTracks()
 	m.playlists.SetItem(m.currentPlaylistIndex, currentPlaylist)
 
 	track := &currentPlaylist.Tracks[currentPlaylist.CurrentTrack]
@@ -71,46 +126,7 @@ func (m *Model) nextTrack() {
 
 	m.indicateCurrentTrackPlaying(false)
 
-	if currentPlaylist.Infinite {
-		currTrack := currentPlaylist.Tracks[currentPlaylist.CurrentTrack]
-
-		if m.tracker.Progress() == 1 {
-			go m.client.StationFeedback(
-				api.ROTOR_TRACK_FINISHED,
-				currentPlaylist.StationId,
-				currentPlaylist.StationBatch,
-				currTrack.Id,
-				currTrack.DurationMs*1000,
-			)
-		} else {
-			go m.client.StationFeedback(
-				api.ROTOR_SKIP,
-				currentPlaylist.StationId,
-				currentPlaylist.StationBatch,
-				currTrack.Id,
-				int(float64(currTrack.DurationMs*1000)*m.tracker.Progress()),
-			)
-		}
-
-		if currentPlaylist.CurrentTrack+2 >= len(currentPlaylist.Tracks) {
-			tracks, err := m.client.StationTracks(api.MyWaveId, &currTrack)
-			if err != nil {
-				log.Print(log.LVL_ERROR, "failed to obtain more station tracks: %s", err)
-				m.tracker.ShowError("station tracks")
-				m.Send(tracker.STOP)
-				return
-			}
-
-			for _, tr := range tracks.Sequence {
-				// automatic append new tracks to the track list if this playlist is selected
-				currentPlaylist.Tracks = append(currentPlaylist.Tracks, tr.Track)
-				if m.playlists.SelectedItem().IsSame(currentPlaylist) {
-					newTrack := &currentPlaylist.Tracks[len(currentPlaylist.Tracks)-1]
-					m.tracklist.InsertItem(-1, tracklist.NewItem(newTrack))
-				}
-			}
-		}
-	} else if currentPlaylist.CurrentTrack+1 >= len(currentPlaylist.Tracks) {
+	if currentPlaylist.CurrentTrack+1 >= len(currentPlaylist.Tracks) {
 		currentPlaylist.CurrentTrack = 0
 		m.playlists.SetItem(m.currentPlaylistIndex, currentPlaylist)
 		m.Send(tracker.STOP)
@@ -124,6 +140,8 @@ func (m *Model) nextTrack() {
 	for currentPlaylist.CurrentTrack < len(currentPlaylist.Tracks)-1 && !currentPlaylist.Tracks[currentPlaylist.CurrentTrack].Available {
 		currentPlaylist.CurrentTrack++
 	}
+
+	m.rotateTracks()
 	m.playlists.SetItem(m.currentPlaylistIndex, currentPlaylist)
 
 	track := &currentPlaylist.Tracks[currentPlaylist.CurrentTrack]
@@ -260,14 +278,8 @@ skipcover:
 
 	if m.currentPlaylistIndex >= 0 {
 		currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
-		if currentPlaylist.Infinite {
-			go m.client.StationFeedback(
-				api.ROTOR_TRACK_STARTED,
-				currentPlaylist.StationId,
-				currentPlaylist.StationBatch,
-				track.Id,
-				0,
-			)
+		if currentPlaylist.Rotor {
+			go m.client.RotorSessionTrackStarted(currentPlaylist.SessionId, track)
 		}
 	}
 
@@ -305,35 +317,23 @@ func (m *Model) playSelectedPlaylist(trackIndex int) {
 	m.indicateCurrentTrackPlaying(false)
 	selectedPlaylist.CurrentTrack = trackIndex
 
-	if selectedPlaylist.Infinite {
-		if m.tracker.IsPlaying() {
-			currentTrack := m.tracker.CurrentTrack()
-			go m.client.StationFeedback(
-				api.ROTOR_SKIP,
-				selectedPlaylist.StationId,
-				selectedPlaylist.StationBatch,
-				currentTrack.Id,
-				int(float64(currentTrack.DurationMs*1000)*m.tracker.Progress()),
-			)
-			go m.client.StationFeedback(
-				api.ROTOR_TRACK_STARTED,
-				selectedPlaylist.StationId,
-				selectedPlaylist.StationBatch,
-				trackToPlay.Id,
-				0,
-			)
-		} else {
-			go m.client.StationFeedback(
-				api.ROTOR_RADIO_STARTED,
-				selectedPlaylist.StationId,
-				"",
-				"",
-				0,
-			)
+	if m.currentPlaylistIndex >= 0 {
+		currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
+		if currentPlaylist.Rotor && !currentPlaylist.IsSame(selectedPlaylist) {
+			go m.client.RotorSessionRadioFinished(selectedPlaylist.SessionId)
 		}
 	}
 
+	if selectedPlaylist.Rotor {
+		if m.currentPlaylistIndex != m.playlists.Index() {
+			go m.client.RotorSessionRadioStarted(selectedPlaylist.SessionId)
+		}
+		go m.client.RotorSessionTrackStarted(selectedPlaylist.SessionId, trackToPlay)
+	}
+
 	m.currentPlaylistIndex = m.playlists.Index()
+	m.rotateTracks()
+
 	m.playlists.SetItem(m.currentPlaylistIndex, selectedPlaylist)
 	m.playTrack(trackToPlay)
 }

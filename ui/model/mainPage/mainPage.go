@@ -377,18 +377,19 @@ func (m *Model) initialLoad() {
 				continue
 			}
 
-			tracks, err := m.client.StationTracks(api.MyWaveId, nil)
+			session, err := m.client.RotorNewSession(api.MyWaveId)
 			if err != nil {
-				log.Print(log.LVL_ERROR, "failed to obtain station tracks for the first time: %s", err)
-				m.tracker.ShowError("station tracks")
-				continue
+				log.Print(log.LVL_ERROR, "unable to init rotor session: %s", err)
+				m.tracker.ShowError("unable to init rotor session")
+				return
 			}
 
-			station.StationId = tracks.Id
-			station.StationBatch = tracks.BatchId
-			station.Tracks = make([]api.Track, len(tracks.Sequence))
-			for i := range tracks.Sequence {
-				station.Tracks[i] = tracks.Sequence[i].Track
+			station.StationId = session.Id
+			station.SessionId = session.RadioSessionId
+			station.SessionBatch = session.BatchId
+			station.Tracks = make([]api.Track, len(session.Sequence))
+			for i := range session.Sequence {
+				station.Tracks[i] = session.Sequence[i].Track
 			}
 
 			m.playlists.SetItem(i, station)

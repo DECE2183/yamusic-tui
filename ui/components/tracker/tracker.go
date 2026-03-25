@@ -66,6 +66,8 @@ type Model struct {
 	errorText  string
 
 	paused         bool
+	playtime       time.Duration
+	playStarted    time.Time
 	volume         float64
 	volumeIncremet float64
 	lastVolumeKey  time.Time
@@ -391,6 +393,8 @@ func (m *Model) StartTrack(track *api.Track, reader *stream.BufferedStream, lyri
 	m.player.Play()
 	m.lyrics = lyrics
 	m.paused = false
+	m.playtime = 0
+	m.playStarted = time.Now()
 }
 
 func (m *Model) Stop() {
@@ -410,6 +414,7 @@ func (m *Model) Stop() {
 	m.trackWrapper.Close()
 	m.player.Close()
 	m.player = nil
+	m.playtime += time.Since(m.playStarted)
 	m.paused = true
 }
 
@@ -437,6 +442,7 @@ func (m *Model) Play() {
 	m.player.SetVolume(0)
 	m.player.Play()
 	m.paused = false
+	m.playStarted = time.Now()
 }
 
 func (m *Model) Pause() {
@@ -446,6 +452,7 @@ func (m *Model) Pause() {
 	if !m.player.IsPlaying() {
 		return
 	}
+	m.playtime += time.Since(m.playStarted)
 	m.paused = true
 }
 
@@ -492,6 +499,13 @@ func (m *Model) SetPos(pos time.Duration) {
 
 func (m *Model) TrackBuffer() *stream.BufferedStream {
 	return m.trackWrapper.trackBuffer
+}
+
+func (m *Model) Playtime() time.Duration {
+	if m.paused {
+		return m.playtime
+	}
+	return m.playtime + time.Since(m.playStarted)
 }
 
 func (m *Model) ShowError(text string) {

@@ -6,9 +6,10 @@ import (
 )
 
 type Item struct {
-	Track     *api.Track
-	Artists   string
-	IsPlaying bool
+	Track        *api.Track
+	Artists      string
+	IsPlaying    bool
+	IsSuggestion bool
 }
 
 func NewItem(track *api.Track) Item {

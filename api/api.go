@@ -401,10 +401,11 @@ func (client *YaMusicClient) StationTracks(id StationId, lastTrack *Track) (trac
 	if lastTrack != nil {
 		params.Add("queue", fmt.Sprint(lastTrack.Id))
 	}
-	tracks, _, err = getRequest[StationTracks](client.token, fmt.Sprintf("/rotor/station/%s:%s/tracks", id.Type, id.Tag), nil)
+	tracks, _, err = getRequest[StationTracks](client.token, fmt.Sprintf("/rotor/station/%s/tracks", id), nil)
 	return
 }
 
+// Deprecated: It looks broken; Use RotorSession methods instead
 func (client *YaMusicClient) StationFeedback(feedType string, stationId StationId, batchId, trackId string, playedSeconds int) (err error) {
 	queryParams := url.Values{}
 	if len(batchId) > 0 {
@@ -419,8 +420,143 @@ func (client *YaMusicClient) StationFeedback(feedType string, stationId StationI
 		"totalPlayedSeconds": playedSeconds,
 	}
 	_, _, err = postRequestJson[interface{}](client.token,
-		fmt.Sprintf("/rotor/station/%s:%s/feedback", stationId.Type, stationId.Tag),
+		fmt.Sprintf("/rotor/station/%s/feedback", stationId),
 		queryParams,
+		body,
+	)
+	return
+}
+
+func (client *YaMusicClient) RotorNewSession(id StationId) (tracks StationTracks, err error) {
+	body := map[string]interface{}{
+		"includeTracksInResponse": true,
+		"includeWaveModel":        false,
+		"interactive":             true,
+		"seeds":                   []string{id.String()},
+	}
+	tracks, _, err = postRequestJson[StationTracks](client.token,
+		"/rotor/session/new",
+		nil,
+		body,
+	)
+	return
+}
+
+func (client *YaMusicClient) RotorSessionSkipTrack(sessionId, batchId string, currentTrack *Track, playedSeconds float64, trackQueue []Track) (tracks StationTracks, err error) {
+	var event map[string]interface{}
+	if currentTrack != nil {
+		event = map[string]interface{}{
+			"timestamp":          nowTimestamp(),
+			"totalPlayedSeconds": playedSeconds,
+			"trackId":            fmt.Sprintf("%s:%d", currentTrack.Id, currentTrack.Albums[0].Id),
+			"type":               ROTOR_SKIP,
+		}
+	}
+
+	queue := make([]string, len(trackQueue))
+	for i := range trackQueue {
+		queue[i] = fmt.Sprintf("%s:%d", trackQueue[i].Id, trackQueue[i].Albums[0].Id)
+	}
+
+	body := map[string]interface{}{
+		"feedbacks": []interface{}{
+			map[string]interface{}{
+				"batchId": batchId,
+				"event":   event,
+				"from":    "web-home-rup_main-radio-default",
+			},
+		},
+		"queue": queue,
+	}
+	tracks, _, err = postRequestJson[StationTracks](client.token,
+		fmt.Sprintf("/rotor/session/%s/tracks", sessionId),
+		nil,
+		body,
+	)
+	return
+}
+
+func (client *YaMusicClient) RotorSessionNextTrack(sessionId, batchId string, currentTrack *Track, playedSeconds float64, trackQueue []Track) (tracks StationTracks, err error) {
+	var event map[string]interface{}
+	if currentTrack != nil {
+		event = map[string]interface{}{
+			"timestamp":          nowTimestamp(),
+			"totalPlayedSeconds": playedSeconds,
+			"trackLengthSeconds": float64(currentTrack.DurationMs) * 1000.0,
+			"trackId":            fmt.Sprintf("%s:%d", currentTrack.Id, currentTrack.Albums[0].Id),
+			"type":               ROTOR_TRACK_FINISHED,
+		}
+	}
+
+	queue := make([]string, len(trackQueue))
+	for i := range trackQueue {
+		queue[i] = fmt.Sprintf("%s:%d", trackQueue[i].Id, trackQueue[i].Albums[0].Id)
+	}
+
+	body := map[string]interface{}{
+		"feedbacks": []interface{}{
+			map[string]interface{}{
+				"batchId": batchId,
+				"event":   event,
+				"from":    "web-home-rup_main-radio-default",
+			},
+		},
+		"queue": queue,
+	}
+	tracks, _, err = postRequestJson[StationTracks](client.token,
+		fmt.Sprintf("/rotor/session/%s/tracks", sessionId),
+		nil,
+		body,
+	)
+	return
+}
+
+func (client *YaMusicClient) RotorSessionRadioStarted(sessionId string) (err error) {
+	body := map[string]interface{}{
+		"from": "web-home-rup_main-radio-default",
+		"event": map[string]interface{}{
+			"from":      "web-home-rup_main-radio-default",
+			"timestamp": nowTimestamp(),
+			"type":      ROTOR_RADIO_STARTED,
+		},
+	}
+	_, _, err = postRequestJson[interface{}](client.token,
+		fmt.Sprintf("/rotor/session/%s/feedback", sessionId),
+		nil,
+		body,
+	)
+	return
+}
+
+func (client *YaMusicClient) RotorSessionRadioFinished(sessionId string) (err error) {
+	body := map[string]interface{}{
+		"from": "web-home-rup_main-radio-default",
+		"event": map[string]interface{}{
+			"from":      "web-home-rup_main-radio-default",
+			"timestamp": nowTimestamp(),
+			"type":      ROTOR_RADIO_FINISHED,
+		},
+	}
+	_, _, err = postRequestJson[interface{}](client.token,
+		fmt.Sprintf("/rotor/session/%s/feedback", sessionId),
+		nil,
+		body,
+	)
+	return
+}
+
+func (client *YaMusicClient) RotorSessionTrackStarted(sessionId string, track *Track) (err error) {
+	body := map[string]interface{}{
+		"from": "web-home-rup_main-radio-default",
+		"event": map[string]interface{}{
+			"timestamp": nowTimestamp(),
+			"trackId":   fmt.Sprintf("%s:%d", track.Id, track.Albums[0].Id),
+			"type":      ROTOR_TRACK_STARTED,
+		},
+	}
+	_, _, err = postRequestJson[interface{}](client.token,
+		fmt.Sprintf("/rotor/session/%s/feedback", sessionId),
+		nil,
 		body,
 	)
 	return

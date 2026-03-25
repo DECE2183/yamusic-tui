@@ -9,10 +9,11 @@ type Item struct {
 	Kind         uint64
 	Revision     int
 	StationId    api.StationId
-	StationBatch string
+	SessionBatch string
+	SessionId    string
 	Active       bool
 	Subitem      bool
-	Infinite     bool
+	Rotor        bool
 
 	Tracks        []api.Track
 	CurrentTrack  int
