@@ -143,7 +143,7 @@ func (m *Model) removeFromPlaylist(pl *playlist.Item, index int) tea.Cmd {
 		return nil
 	case playlist.LIKES:
 		selectedTrack := pl.Tracks[index]
-		return m.likeTrack(&selectedTrack)
+		return m.likeTrack(&selectedTrack, pl)
 	case playlist.LOCAL:
 		selectedTrack := pl.Tracks[index]
 		return m.removeCache(&selectedTrack)
@@ -249,7 +249,9 @@ func (m *Model) displayPlaylist(pl *playlist.Item) {
 	trackList := make([]tracklist.Item, len(pl.Tracks))
 	for i := range pl.Tracks {
 		trackList[i] = tracklist.NewItem(&pl.Tracks[i])
-		trackList[i].IsSuggestion = pl.Rotor && i > pl.CurrentTrack
+	}
+	if pl.Rotor && len(trackList) > 0 {
+		trackList[len(trackList)-1].IsSuggestion = true
 	}
 
 	m.tracklist.SetItems(trackList)

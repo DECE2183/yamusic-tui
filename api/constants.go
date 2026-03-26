@@ -14,11 +14,13 @@ const (
 
 // Rotor feedback types
 const (
-	ROTOR_RADIO_STARTED  = "radioStarted"
-	ROTOR_RADIO_FINISHED = "radioFinished"
-	ROTOR_TRACK_STARTED  = "trackStarted"
-	ROTOR_TRACK_FINISHED = "trackFinished"
-	ROTOR_SKIP           = "skip"
+	ROTOR_RADIO_STARTED  string = "radioStarted"
+	ROTOR_RADIO_FINISHED string = "radioFinished"
+	ROTOR_TRACK_STARTED  string = "trackStarted"
+	ROTOR_TRACK_FINISHED string = "trackFinished"
+	ROTOR_SKIP           string = "skip"
+	ROTOR_LIKE           string = "like"
+	ROTOR_UNLIKE         string = "unlike"
 )
 
 var (

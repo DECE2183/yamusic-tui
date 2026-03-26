@@ -175,6 +175,11 @@ func (m *Model) RemoveItem(index int) {
 	m.list.RemoveItem(index)
 }
 
+func (m *Model) RemoveItemAfter(index int) tea.Cmd {
+	items := m.list.Items()[:index+1]
+	return m.list.SetItems(items)
+}
+
 func (m *Model) SetItem(index int, item Item) tea.Cmd {
 	return m.list.SetItem(index, item)
 }

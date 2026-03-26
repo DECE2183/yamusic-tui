@@ -13,42 +13,40 @@ import (
 	"github.com/dece2183/yamusic-tui/cache"
 	"github.com/dece2183/yamusic-tui/log"
 	"github.com/dece2183/yamusic-tui/stream"
+	"github.com/dece2183/yamusic-tui/ui/components/playlist"
 	"github.com/dece2183/yamusic-tui/ui/components/tracker"
 	"github.com/dece2183/yamusic-tui/ui/components/tracklist"
 	"github.com/dece2183/yamusic-tui/ui/helpers"
 )
 
 const (
-	_TRACK_DOWNLOAD_TRIES = 3
+	_TRACK_DOWNLOAD_TRIES     = 3
+	_TRACK_FINISHED_THRESHOLD = 0.8
 )
 
-func (m *Model) rotateTracks() {
-	currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
+func (m *Model) feedbackOnTrack(batch string) *api.RotorFeedback {
+	currTrack := m.tracker.CurrentTrack()
+	if currTrack == nil {
+		return nil
+	}
+	var evType api.TrackEventType
+	if m.tracker.Progress() > _TRACK_FINISHED_THRESHOLD {
+		evType = api.EV_TRACK_FINISHED
+	} else {
+		evType = api.EV_TRACK_SKIPED
+	}
+	ev := api.NewTrackFeedbackEvent(evType, currTrack, m.tracker.Playtime().Seconds())
+	fb := api.NewFeedback(batch, ev)
+	log.Print(log.LVL_INFO, "feedback event sended: "+ev.Type+" track: "+currTrack.Title)
+	return fb
+}
+
+func (m *Model) rotateTracks(currentPlaylist *playlist.Item) {
 	if !currentPlaylist.Rotor {
 		return
 	}
 
-	currTrack := &currentPlaylist.Tracks[currentPlaylist.CurrentTrack]
-
-	var (
-		nextTracks api.StationTracks
-		err        error
-	)
-
-	if m.tracker.TrackBuffer().IsBuffered() {
-		nextTracks, err = m.client.RotorSessionNextTrack(
-			currentPlaylist.SessionId, currentPlaylist.SessionBatch,
-			currTrack, m.tracker.Playtime().Seconds(),
-			currentPlaylist.Tracks,
-		)
-	} else {
-		nextTracks, err = m.client.RotorSessionSkipTrack(
-			currentPlaylist.SessionId, currentPlaylist.SessionBatch,
-			currTrack, m.tracker.Playtime().Seconds(),
-			currentPlaylist.Tracks,
-		)
-	}
-
+	suggestedTracks, err := m.client.RotorSessionTracks(currentPlaylist.SessionId, []*api.RotorFeedback{}, currentPlaylist.Tracks)
 	if err != nil {
 		log.Print(log.LVL_ERROR, "failed to obtain more rotor tracks: %s", err)
 		m.tracker.ShowError("next track obtain failure")
@@ -56,22 +54,19 @@ func (m *Model) rotateTracks() {
 		return
 	}
 
-	currentPlaylist.SessionBatch = nextTracks.BatchId
-	currentPlaylist.Tracks = currentPlaylist.Tracks[:currentPlaylist.CurrentTrack+1]
-	for _, tr := range nextTracks.Sequence {
-		currentPlaylist.Tracks = append(currentPlaylist.Tracks, tr.Track)
-	}
+	currentPlaylist.SessionBatch = suggestedTracks.BatchId
+	currentPlaylist.Tracks = append(currentPlaylist.Tracks, suggestedTracks.Sequence[0].Track)
 
 	if m.playlists.SelectedItem().IsSame(currentPlaylist) {
-		listItems := make([]tracklist.Item, len(currentPlaylist.Tracks))
-		for i := range currentPlaylist.Tracks {
-			listItems[i] = tracklist.Item{
-				Track:        &currentPlaylist.Tracks[i],
-				Artists:      helpers.ArtistList(currentPlaylist.Tracks[i].Artists),
-				IsSuggestion: i > currentPlaylist.CurrentTrack,
-			}
-		}
-		m.tracklist.SetItems(listItems)
+		tackItems := m.tracklist.Items()
+		lastTrack := tackItems[len(tackItems)-1]
+		lastTrack.IsSuggestion = false
+		m.tracklist.SetItem(len(tackItems)-1, lastTrack)
+		m.tracklist.InsertItem(-1, tracklist.Item{
+			Track:        &currentPlaylist.Tracks[len(currentPlaylist.Tracks)-1],
+			Artists:      helpers.ArtistList(suggestedTracks.Sequence[0].Track.Artists),
+			IsSuggestion: true,
+		})
 	}
 }
 
@@ -81,6 +76,11 @@ func (m *Model) prevTrack() {
 	}
 
 	currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
+
+	if currentPlaylist.Rotor && m.tracker.IsPlaying() {
+		go m.client.RotorSessionFeedback(currentPlaylist.SessionId, m.feedbackOnTrack(currentPlaylist.SessionBatch))
+	}
+
 	if len(currentPlaylist.Tracks) == 0 || currentPlaylist.CurrentTrack == 0 {
 		m.Send(tracker.STOP)
 		return
@@ -96,9 +96,7 @@ func (m *Model) prevTrack() {
 		currentPlaylist.CurrentTrack--
 	}
 
-	m.rotateTracks()
 	m.playlists.SetItem(m.currentPlaylistIndex, currentPlaylist)
-
 	track := &currentPlaylist.Tracks[currentPlaylist.CurrentTrack]
 	if !track.Available {
 		m.Send(tracker.STOP)
@@ -119,6 +117,11 @@ func (m *Model) nextTrack() {
 	}
 
 	currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
+
+	if currentPlaylist.Rotor && m.tracker.IsPlaying() {
+		go m.client.RotorSessionFeedback(currentPlaylist.SessionId, m.feedbackOnTrack(currentPlaylist.SessionBatch))
+	}
+
 	if len(currentPlaylist.Tracks) == 0 {
 		m.Send(tracker.STOP)
 		return
@@ -141,13 +144,15 @@ func (m *Model) nextTrack() {
 		currentPlaylist.CurrentTrack++
 	}
 
-	m.rotateTracks()
 	m.playlists.SetItem(m.currentPlaylistIndex, currentPlaylist)
-
 	track := &currentPlaylist.Tracks[currentPlaylist.CurrentTrack]
 	if !track.Available {
 		m.Send(tracker.STOP)
 		return
+	}
+
+	if currentPlaylist.CurrentTrack == len(currentPlaylist.Tracks)-1 {
+		m.rotateTracks(currentPlaylist)
 	}
 
 	m.playTrack(track)
@@ -279,7 +284,9 @@ skipcover:
 	if m.currentPlaylistIndex >= 0 {
 		currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
 		if currentPlaylist.Rotor {
-			go m.client.RotorSessionTrackStarted(currentPlaylist.SessionId, track)
+			ev := api.NewTrackFeedbackEvent(api.EV_TRACK_STARTED, track, 0)
+			go m.client.RotorSessionFeedback(currentPlaylist.SessionId, api.NewFeedback(currentPlaylist.SessionBatch, ev))
+			log.Print(log.LVL_INFO, "feedback event sended: "+ev.Type+" track: "+track.Title)
 		}
 	}
 
@@ -312,28 +319,33 @@ func (m *Model) playSelectedPlaylist(trackIndex int) {
 				return
 			}
 		}
+		if currentPlaylist.Rotor {
+			if m.tracker.IsPlaying() {
+				go m.client.RotorSessionFeedback(currentPlaylist.SessionId, m.feedbackOnTrack(currentPlaylist.SessionBatch))
+			}
+			if !currentPlaylist.IsSame(selectedPlaylist) {
+				ev := api.NewRadioFeedbackEvent(api.EV_RADIO_FINISHED)
+				go m.client.RotorSessionFeedback(currentPlaylist.SessionId, api.NewFeedback(currentPlaylist.SessionBatch, ev))
+				log.Print(log.LVL_INFO, "feedback event sended: "+ev.Type)
+			}
+		}
 	}
 
 	m.indicateCurrentTrackPlaying(false)
-	selectedPlaylist.CurrentTrack = trackIndex
-
-	if m.currentPlaylistIndex >= 0 {
-		currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
-		if currentPlaylist.Rotor && !currentPlaylist.IsSame(selectedPlaylist) {
-			go m.client.RotorSessionRadioFinished(selectedPlaylist.SessionId)
-		}
-	}
 
 	if selectedPlaylist.Rotor {
-		if m.currentPlaylistIndex != m.playlists.Index() {
-			go m.client.RotorSessionRadioStarted(selectedPlaylist.SessionId)
+		if trackIndex == len(selectedPlaylist.Tracks)-1 {
+			m.rotateTracks(selectedPlaylist)
 		}
-		go m.client.RotorSessionTrackStarted(selectedPlaylist.SessionId, trackToPlay)
+		if m.currentPlaylistIndex != m.playlists.Index() {
+			ev := api.NewRadioFeedbackEvent(api.EV_RADIO_STARTED)
+			go m.client.RotorSessionFeedback(selectedPlaylist.SessionId, api.NewFeedback("", ev))
+			log.Print(log.LVL_INFO, "feedback event sended: "+ev.Type)
+		}
 	}
 
+	selectedPlaylist.CurrentTrack = trackIndex
 	m.currentPlaylistIndex = m.playlists.Index()
-	m.rotateTracks()
-
 	m.playlists.SetItem(m.currentPlaylistIndex, selectedPlaylist)
 	m.playTrack(trackToPlay)
 }

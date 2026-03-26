@@ -387,10 +387,7 @@ func (m *Model) initialLoad() {
 			station.StationId = session.Id
 			station.SessionId = session.RadioSessionId
 			station.SessionBatch = session.BatchId
-			station.Tracks = make([]api.Track, len(session.Sequence))
-			for i := range session.Sequence {
-				station.Tracks[i] = session.Sequence[i].Track
-			}
+			station.Tracks = []api.Track{session.Sequence[0].Track}
 
 			m.playlists.SetItem(i, station)
 		case playlist.LIKES:

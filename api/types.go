@@ -1,6 +1,8 @@
 package api
 
-import "time"
+import (
+	"time"
+)
 
 type fullDownloadInfo struct {
 	Host string `json:"host"`
