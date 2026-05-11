@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/dece2183/yamusic-tui/api"
@@ -30,6 +31,19 @@ type LoadingMsg uint
 const (
 	LOADING_DONE LoadingMsg = iota
 )
+
+type LikedTracksRefreshedMsg struct {
+	Ids    []string
+	Tracks []api.Track
+}
+
+type MyWaveRefreshedMsg struct {
+	Session api.StationTracks
+}
+
+type PlaylistsRefreshedMsg struct {
+	Entries []cache.PlaylistEntry
+}
 
 type Model struct {
 	program       *tea.Program
@@ -111,6 +125,70 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	case LoadingMsg:
 		m.isLoading = false
 		return m, model.Cmd(playlist.CURSOR_UP)
+
+	case LikedTracksRefreshedMsg:
+		for k := range m.likedTracksMap {
+			delete(m.likedTracksMap, k)
+		}
+		for _, id := range msg.Ids {
+			m.likedTracksMap[id] = true
+		}
+		for i, st := range m.playlists.Items() {
+			if st.Kind == playlist.LIKES {
+				st.Tracks = msg.Tracks
+				m.playlists.SetItem(i, st)
+				if m.playlists.SelectedItem().Kind == playlist.LIKES {
+					m.displayPlaylist(st)
+				}
+				break
+			}
+		}
+		return m, nil
+
+	case MyWaveRefreshedMsg:
+		for i, st := range m.playlists.Items() {
+			if st.Kind == playlist.MYWAVE {
+				st.StationId = msg.Session.Id
+				st.SessionId = msg.Session.RadioSessionId
+				st.SessionBatch = msg.Session.BatchId
+				existing := make(map[string]bool, len(st.Tracks))
+				for _, t := range st.Tracks {
+					existing[t.Id] = true
+				}
+				for _, item := range msg.Session.Sequence {
+					if !existing[item.Track.Id] {
+						st.Tracks = append(st.Tracks, item.Track)
+						existing[item.Track.Id] = true
+					}
+				}
+				m.playlists.SetItem(i, st)
+				if m.playlists.SelectedItem().Kind == playlist.MYWAVE {
+					m.displayPlaylist(st)
+				}
+				break
+			}
+		}
+		return m, nil
+
+	case PlaylistsRefreshedMsg:
+		entryByKind := make(map[uint64]cache.PlaylistEntry, len(msg.Entries))
+		for _, e := range msg.Entries {
+			entryByKind[e.Playlist.Kind] = e
+		}
+		for i, st := range m.playlists.Items() {
+			if !st.Subitem {
+				continue
+			}
+			if e, ok := entryByKind[st.Kind]; ok {
+				st.Tracks = e.Tracks
+				st.Revision = e.Playlist.Revision
+				m.playlists.SetItem(i, st)
+				if m.playlists.SelectedItem().Kind == st.Kind {
+					m.displayPlaylist(st)
+				}
+			}
+		}
+		return m, nil
 
 	case tea.WindowSizeMsg:
 		m.resize(msg.Width, msg.Height)
@@ -350,117 +428,382 @@ func (m *Model) resize(width, height int) {
 }
 
 func (m *Model) initialLoad() {
-	var err error
-
 	m.tracker.HideError()
+
 	if len(config.Current.Token) == 0 {
 		log.Print(log.LVL_ERROR, "missing client token, check the config file at '%s'", config.Path())
 		m.tracker.ShowError("missing token")
 		m.client = nil
 	} else {
-		m.client, err = api.NewClient(config.DirName, config.Current.Token)
-		if err != nil {
-			if _, ok := err.(*url.Error); ok {
-				log.Print(log.LVL_ERROR, "failed to connect to the Yandex server: %s", err)
-				m.tracker.ShowError("unable to connect to the Yandex server")
-			} else {
-				log.Print(log.LVL_ERROR, "client init error: %s", err)
-				m.tracker.ShowError("unable to login: " + err.Error())
+		var usedCache bool
+		if config.MetaCacheEnabled() {
+			if acc, accErr := cache.ReadAccount(); accErr == nil && acc != nil && acc.Uid != 0 {
+				m.client = api.NewClientWithUid(config.DirName, config.Current.Token, acc.Uid)
+				usedCache = true
+			}
+		}
+		if !usedCache {
+			c, err := api.NewClient(config.DirName, config.Current.Token)
+			m.client = c
+			if err != nil {
+				if _, ok := err.(*url.Error); ok {
+					log.Print(log.LVL_ERROR, "failed to connect to the Yandex server: %s", err)
+					m.tracker.ShowError("unable to connect to the Yandex server")
+				} else {
+					log.Print(log.LVL_ERROR, "client init error: %s", err)
+					m.tracker.ShowError("unable to login: " + err.Error())
+				}
+			} else if c != nil && config.MetaCacheEnabled() {
+				if werr := cache.WriteAccount(&cache.AccountData{Uid: c.UserId()}); werr != nil {
+					log.Print(log.LVL_WARNIGN, "failed to write account cache: %s", werr)
+				}
 			}
 		}
 	}
 
-	for i, station := range m.playlists.Items() {
-		switch station.Kind {
+	myWaveIdx, likesIdx, localIdx := -1, -1, -1
+	for i, st := range m.playlists.Items() {
+		switch st.Kind {
 		case playlist.MYWAVE:
-			if m.client == nil {
-				continue
-			}
-
-			session, err := m.client.RotorNewSession(api.MyWaveId)
-			if err != nil {
-				log.Print(log.LVL_ERROR, "unable to init rotor session: %s", err)
-				m.tracker.ShowError("unable to init rotor session")
-				return
-			}
-
-			station.StationId = session.Id
-			station.SessionId = session.RadioSessionId
-			station.SessionBatch = session.BatchId
-			station.Tracks = []api.Track{session.Sequence[0].Track}
-
-			m.playlists.SetItem(i, station)
+			myWaveIdx = i
 		case playlist.LIKES:
-			if m.client == nil {
-				continue
-			}
-
-			likes, err := m.client.LikedTracks()
-			if err != nil {
-				log.Print(log.LVL_ERROR, "failed to obtain liked tracks for the first time: %s", err)
-				m.tracker.ShowError("liked tracks")
-				continue
-			}
-
-			likedTracksId := make([]string, len(likes))
-			for l, track := range likes {
-				m.likedTracksMap[track.Id] = true
-				likedTracksId[l] = track.Id
-			}
-
-			likedTracks, err := m.client.Tracks(likedTracksId)
-			if err != nil {
-				log.Print(log.LVL_ERROR, "failed to obtain liked tracks full info: %s", err)
-				m.tracker.ShowError("liked tracks info")
-				continue
-			}
-
-			station.Tracks = likedTracks
-			m.playlists.SetItem(i, station)
+			likesIdx = i
 		case playlist.LOCAL:
-			station.Tracks, err = cache.ListTracks()
-			if err != nil {
-				log.Print(log.LVL_ERROR, "failed to list cached tracks: %s", err)
-				m.tracker.ShowError("cache list")
-				continue
-			}
-			for i := range station.Tracks {
-				m.cachedTracksMap[station.Tracks[i].Id] = true
-			}
-			m.playlists.SetItem(i, station)
-		default:
+			localIdx = i
 		}
+	}
+
+	var (
+		wg sync.WaitGroup
+
+		myWaveSession     api.StationTracks
+		myWaveErr         error
+		myWaveCachedTrack *api.Track
+
+		likedTracksFull []api.Track
+		likedTracksIds  []string
+		likedErr        error
+
+		localTracks []api.Track
+		localErr    error
+
+		userPlaylists      []api.Playlist
+		userPlaylistsErr   error
+		userPlaylistTracks [][]api.Track
+	)
+
+	if m.client != nil && myWaveIdx >= 0 {
+		var cached *cache.MyWaveData
+		if config.MetaCacheEnabled() {
+			cached, _ = cache.ReadMyWave()
+		}
+		if cached != nil {
+			myWaveSession = api.StationTracks{
+				Id:             cached.StationId,
+				RadioSessionId: cached.SessionId,
+				BatchId:        cached.SessionBatch,
+			}
+			cachedTrack := cached.Track
+			myWaveCachedTrack = &cachedTrack
+			go func() {
+				session, err := m.client.RotorNewSession(api.MyWaveId)
+				if err != nil {
+					log.Print(log.LVL_ERROR, "refresh rotor session: %s", err)
+					return
+				}
+				m.Send(MyWaveRefreshedMsg{Session: session})
+			}()
+		} else {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				session, err := m.client.RotorNewSession(api.MyWaveId)
+				myWaveSession = session
+				myWaveErr = err
+			}()
+		}
+	}
+
+	if m.client != nil && likesIdx >= 0 {
+		var cached *cache.LikedTracksData
+		if config.MetaCacheEnabled() {
+			cached, _ = cache.ReadLikedTracks()
+		}
+		if cached != nil && len(cached.Tracks) > 0 {
+			likedTracksIds = cached.Ids
+			likedTracksFull = cached.Tracks
+			go m.refreshLikedTracks(cached.Ids)
+		} else {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				likes, err := m.client.LikedTracks()
+				if err != nil {
+					likedErr = err
+					return
+				}
+				ids := make([]string, len(likes))
+				for i, tr := range likes {
+					ids[i] = tr.Id
+				}
+				likedTracksIds = ids
+				full, err := m.client.Tracks(ids)
+				likedTracksFull = full
+				likedErr = err
+				if err == nil && config.MetaCacheEnabled() {
+					if werr := cache.WriteLikedTracks(&cache.LikedTracksData{Ids: ids, Tracks: full}); werr != nil {
+						log.Print(log.LVL_WARNIGN, "failed to write liked tracks cache: %s", werr)
+					}
+				}
+			}()
+		}
+	}
+
+	if localIdx >= 0 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			tracks, err := cache.ListTracks()
+			localTracks = tracks
+			localErr = err
+		}()
 	}
 
 	if m.client != nil {
-		playlists, err := m.client.ListPlaylists()
-		if err == nil {
-			for _, pl := range playlists {
-				playlistTracks, err := m.client.PlaylistTracks(pl.Kind, pl.Owner.Uid, false)
-				if err != nil {
-					log.Print(log.LVL_ERROR, "failed to obtain playlist [%s] tracks: %s", pl.Title, err)
-					m.tracker.ShowError("playlist tracks")
-					continue
-				}
-
-				m.playlists.InsertItem(-1, &playlist.Item{
-					Name:     pl.Title,
-					Kind:     pl.Kind,
-					Revision: pl.Revision,
-					Active:   true,
-					Subitem:  true,
-					Tracks:   playlistTracks,
-				})
-			}
-		} else {
-			log.Print(log.LVL_ERROR, "failed to obtain user playlists: %s", err)
-			m.tracker.ShowError("playlists")
+		var cachedPls *cache.PlaylistsData
+		if config.MetaCacheEnabled() {
+			cachedPls, _ = cache.ReadPlaylists()
 		}
+		hit := cachedPls != nil && len(cachedPls.Entries) > 0
+		if hit {
+			userPlaylists = make([]api.Playlist, len(cachedPls.Entries))
+			userPlaylistTracks = make([][]api.Track, len(cachedPls.Entries))
+			for i, e := range cachedPls.Entries {
+				userPlaylists[i] = e.Playlist
+				userPlaylistTracks[i] = e.Tracks
+			}
+			go m.refreshPlaylists(cachedPls)
+		} else {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				pls, err := m.client.ListPlaylists()
+				if err != nil {
+					userPlaylistsErr = err
+					return
+				}
+				userPlaylists = pls
+				userPlaylistTracks = make([][]api.Track, len(pls))
+
+				var innerWg sync.WaitGroup
+				for i, pl := range pls {
+					innerWg.Add(1)
+					go func(i int, pl api.Playlist) {
+						defer innerWg.Done()
+						tracks, terr := m.client.PlaylistTracks(pl.Kind, pl.Owner.Uid, false)
+						if terr != nil {
+							log.Print(log.LVL_ERROR, "failed to obtain playlist [%s] tracks: %s", pl.Title, terr)
+							return
+						}
+						userPlaylistTracks[i] = tracks
+					}(i, pl)
+				}
+				innerWg.Wait()
+
+				if config.MetaCacheEnabled() {
+					entries := make([]cache.PlaylistEntry, 0, len(pls))
+					for i, pl := range pls {
+						if userPlaylistTracks[i] == nil {
+							continue
+						}
+						entries = append(entries, cache.PlaylistEntry{Playlist: pl, Tracks: userPlaylistTracks[i]})
+					}
+					if werr := cache.WritePlaylists(&cache.PlaylistsData{Entries: entries}); werr != nil {
+						log.Print(log.LVL_WARNIGN, "failed to write playlists cache: %s", werr)
+					}
+				}
+			}()
+		}
+	}
+
+	wg.Wait()
+
+	if myWaveIdx >= 0 && myWaveErr == nil && m.client != nil {
+		st := m.playlists.Items()[myWaveIdx]
+		st.StationId = myWaveSession.Id
+		st.SessionId = myWaveSession.RadioSessionId
+		st.SessionBatch = myWaveSession.BatchId
+		if myWaveCachedTrack != nil {
+			st.Tracks = []api.Track{*myWaveCachedTrack}
+		} else if len(myWaveSession.Sequence) > 0 {
+			st.Tracks = make([]api.Track, 0, len(myWaveSession.Sequence))
+			for _, item := range myWaveSession.Sequence {
+				st.Tracks = append(st.Tracks, item.Track)
+			}
+		}
+		m.playlists.SetItem(myWaveIdx, st)
+	} else if myWaveErr != nil {
+		log.Print(log.LVL_ERROR, "unable to init rotor session: %s", myWaveErr)
+		m.tracker.ShowError("unable to init rotor session")
+		return
+	}
+
+	if likesIdx >= 0 && likedErr == nil && m.client != nil {
+		for _, id := range likedTracksIds {
+			m.likedTracksMap[id] = true
+		}
+		st := m.playlists.Items()[likesIdx]
+		st.Tracks = likedTracksFull
+		m.playlists.SetItem(likesIdx, st)
+	} else if likedErr != nil {
+		log.Print(log.LVL_ERROR, "failed to obtain liked tracks: %s", likedErr)
+		m.tracker.ShowError("liked tracks")
+	}
+
+	if localIdx >= 0 && localErr == nil {
+		st := m.playlists.Items()[localIdx]
+		st.Tracks = localTracks
+		for _, tr := range localTracks {
+			m.cachedTracksMap[tr.Id] = true
+		}
+		m.playlists.SetItem(localIdx, st)
+	} else if localErr != nil {
+		log.Print(log.LVL_ERROR, "failed to list cached tracks: %s", localErr)
+		m.tracker.ShowError("cache list")
+	}
+
+	if m.client != nil && userPlaylistsErr == nil {
+		for i, pl := range userPlaylists {
+			tracks := userPlaylistTracks[i]
+			if tracks == nil {
+				m.tracker.ShowError("playlist tracks")
+				continue
+			}
+			m.playlists.InsertItem(-1, &playlist.Item{
+				Name:     pl.Title,
+				Kind:     pl.Kind,
+				Revision: pl.Revision,
+				Active:   true,
+				Subitem:  true,
+				Tracks:   tracks,
+			})
+		}
+	} else if userPlaylistsErr != nil {
+		log.Print(log.LVL_ERROR, "failed to obtain user playlists: %s", userPlaylistsErr)
+		m.tracker.ShowError("playlists")
 	}
 
 	m.currentPlaylistIndex = -1
 	m.playlists.Select(0)
 	m.Send(LOADING_DONE)
+}
+
+func (m *Model) refreshLikedTracks(cachedIds []string) {
+	if m.client == nil {
+		return
+	}
+	likes, err := m.client.LikedTracks()
+	if err != nil {
+		log.Print(log.LVL_ERROR, "refresh liked tracks ids: %s", err)
+		return
+	}
+
+	newIds := make([]string, len(likes))
+	for i, tr := range likes {
+		newIds[i] = tr.Id
+	}
+
+	if sameStringSet(cachedIds, newIds) {
+		return
+	}
+
+	full, err := m.client.Tracks(newIds)
+	if err != nil {
+		log.Print(log.LVL_ERROR, "refresh liked tracks full info: %s", err)
+		return
+	}
+
+	if config.MetaCacheEnabled() {
+		if werr := cache.WriteLikedTracks(&cache.LikedTracksData{Ids: newIds, Tracks: full}); werr != nil {
+			log.Print(log.LVL_WARNIGN, "failed to write liked tracks cache: %s", werr)
+		}
+	}
+	m.Send(LikedTracksRefreshedMsg{Ids: newIds, Tracks: full})
+}
+
+func (m *Model) refreshPlaylists(cached *cache.PlaylistsData) {
+	if m.client == nil {
+		return
+	}
+	pls, err := m.client.ListPlaylists()
+	if err != nil {
+		log.Print(log.LVL_ERROR, "refresh list playlists: %s", err)
+		return
+	}
+
+	cachedMap := make(map[uint64]int, len(cached.Entries))
+	for _, e := range cached.Entries {
+		cachedMap[e.Playlist.Kind] = e.Playlist.Revision
+	}
+
+	changed := len(pls) != len(cached.Entries)
+	if !changed {
+		for _, pl := range pls {
+			if rev, ok := cachedMap[pl.Kind]; !ok || rev != pl.Revision {
+				changed = true
+				break
+			}
+		}
+	}
+	if !changed {
+		return
+	}
+
+	results := make([][]api.Track, len(pls))
+	var innerWg sync.WaitGroup
+	for i, pl := range pls {
+		innerWg.Add(1)
+		go func(i int, pl api.Playlist) {
+			defer innerWg.Done()
+			tracks, terr := m.client.PlaylistTracks(pl.Kind, pl.Owner.Uid, false)
+			if terr != nil {
+				log.Print(log.LVL_ERROR, "refresh playlist [%s] tracks: %s", pl.Title, terr)
+				return
+			}
+			results[i] = tracks
+		}(i, pl)
+	}
+	innerWg.Wait()
+
+	entries := make([]cache.PlaylistEntry, 0, len(pls))
+	for i, pl := range pls {
+		if results[i] == nil {
+			continue
+		}
+		entries = append(entries, cache.PlaylistEntry{Playlist: pl, Tracks: results[i]})
+	}
+	if config.MetaCacheEnabled() {
+		if werr := cache.WritePlaylists(&cache.PlaylistsData{Entries: entries}); werr != nil {
+			log.Print(log.LVL_WARNIGN, "failed to write playlists cache: %s", werr)
+		}
+	}
+	m.Send(PlaylistsRefreshedMsg{Entries: entries})
+}
+
+func sameStringSet(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	set := make(map[string]struct{}, len(a))
+	for _, s := range a {
+		set[s] = struct{}{}
+	}
+	for _, s := range b {
+		if _, ok := set[s]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 func (m *Model) mediaHandle() {
@@ -574,11 +917,30 @@ func (m *Model) mediaHandle() {
 }
 
 func (m *Model) coverFilePath(track *api.Track) string {
+	if m.shouldCacheTrackMeta(track.Id) {
+		if p, err := cache.CoverPath(track.Id); err == nil {
+			return p
+		}
+	}
 	tempDir := filepath.Join(os.TempDir(), config.DirName)
 	if os.MkdirAll(tempDir, 0755) != nil {
 		return ""
 	}
 	return filepath.Join(tempDir, track.Id+".jpg")
+}
+
+// shouldCacheTrackMeta reports whether per-track metadata (cover, lyrics)
+// should be persisted to disk for the given track, based on cache-tracks scope.
+func (m *Model) shouldCacheTrackMeta(trackId string) bool {
+	switch config.Current.CacheTracks {
+	case config.CACHE_NONE:
+		return false
+	case config.CACHE_LIKED_ONLY:
+		return m.likedTracksMap[trackId]
+	case config.CACHE_ALL:
+		return true
+	}
+	return false
 }
 
 func (m *Model) metadataFilePath() string {

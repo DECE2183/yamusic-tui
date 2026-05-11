@@ -305,6 +305,22 @@ func NewClient(name, token string) (*YaMusicClient, error) {
 	return client, nil
 }
 
+// NewClientWithUid returns a client without performing the synchronous
+// account/status HTTP roundtrip. Use when uid is known (e.g. from disk cache).
+func NewClientWithUid(name, token string, uid uint64) *YaMusicClient {
+	return &YaMusicClient{
+		name:      name,
+		token:     token,
+		userid:    uid,
+		sessionid: nowTimestamp(),
+	}
+}
+
+// UserId returns the cached account uid.
+func (client *YaMusicClient) UserId() uint64 {
+	return client.userid
+}
+
 func (client *YaMusicClient) Tracks(trackIds []string) (tracks []Track, err error) {
 	tracks, _, err = postRequest[[]Track](client.token, "/tracks", url.Values{"track-ids": trackIds, "with-positions": {"false"}})
 	return

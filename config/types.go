@@ -2,6 +2,17 @@ package config
 
 import "gopkg.in/yaml.v3"
 
+func boolPtr(b bool) *bool { return &b }
+
+// MetaCacheEnabled reports whether session-level metadata caching is enabled.
+// Returns true when the cache-metadata option is unset (default behavior).
+func MetaCacheEnabled() bool {
+	if Current.CacheMetadata == nil {
+		return true
+	}
+	return *Current.CacheMetadata
+}
+
 type CacheType uint
 
 const (
@@ -131,6 +142,7 @@ type Config struct {
 	SuppressErrors bool      `yaml:"suppress-errors"`
 	ShowLyrics     bool      `yaml:"show-lyrics"`
 	CacheTracks    CacheType `yaml:"cache-tracks"`
+	CacheMetadata  *bool     `yaml:"cache-metadata,omitempty"`
 	CacheDir       string    `yaml:"cache-dir"`
 	Proxy          string    `yaml:"proxy"`
 	Search         *Search   `yaml:"search"`
@@ -145,6 +157,7 @@ var defaultConfig = Config{
 	VolumeStep:     0.05,
 	ShowLyrics:     false,
 	CacheTracks:    CACHE_LIKED_ONLY,
+	CacheMetadata:  boolPtr(true),
 	CacheDir:       "",
 	SuppressErrors: false,
 	Search: &Search{
