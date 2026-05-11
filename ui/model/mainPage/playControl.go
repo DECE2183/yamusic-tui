@@ -12,6 +12,7 @@ import (
 	"github.com/bogem/id3v2/v2"
 	"github.com/dece2183/yamusic-tui/api"
 	"github.com/dece2183/yamusic-tui/cache"
+	"github.com/dece2183/yamusic-tui/config"
 	"github.com/dece2183/yamusic-tui/log"
 	"github.com/dece2183/yamusic-tui/stream"
 	"github.com/dece2183/yamusic-tui/ui/components/playlist"
@@ -235,6 +236,10 @@ func (m *Model) playTrack(track *api.Track) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			if cached, cerr := cache.ReadLyrics(track.Id); cerr == nil && len(cached) > 0 {
+				lyrics = cached
+				return
+			}
 			lyr, lerr := m.client.TrackLyricsRequest(track.Id)
 			if lerr != nil {
 				log.Print(log.LVL_WARNIGN, "failed to obtain track [%s] lyrics: %s", track.Id, lerr)
@@ -242,6 +247,11 @@ func (m *Model) playTrack(track *api.Track) {
 				return
 			}
 			lyrics = lyr
+			if m.shouldCacheTrackMeta(track.Id) {
+				if werr := cache.WriteLyrics(track.Id, lyr); werr != nil {
+					log.Print(log.LVL_WARNIGN, "failed to write lyrics cache: %s", werr)
+				}
+			}
 		}()
 	}
 
@@ -293,8 +303,9 @@ func (m *Model) playTrack(track *api.Track) {
 	}
 
 	trackBuffer := stream.NewBufferedStream(trackReader, trackSize)
-	metadataFile, err := os.OpenFile(m.metadataFilePath(), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0755)
-	if err == nil {
+
+	metadataFile, merr := os.OpenFile(m.metadataFilePath(), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0755)
+	if merr == nil {
 		tag := id3v2.NewEmptyTag()
 		if trackFromCache {
 			tag.Reset(trackBuffer, id3v2.Options{Parse: true})
@@ -321,7 +332,7 @@ func (m *Model) playTrack(track *api.Track) {
 		tag.WriteTo(metadataFile)
 		metadataFile.Close()
 	} else {
-		log.Print(log.LVL_WARNIGN, "failed to create metadata file: %s", err)
+		log.Print(log.LVL_WARNIGN, "failed to create metadata file: %s", merr)
 	}
 
 	if m.currentPlaylistIndex >= 0 {
@@ -330,6 +341,22 @@ func (m *Model) playTrack(track *api.Track) {
 			ev := api.NewTrackFeedbackEvent(api.EV_TRACK_STARTED, track, 0)
 			go m.client.RotorSessionFeedback(currentPlaylist.SessionId, api.NewFeedback(currentPlaylist.SessionBatch, ev))
 			log.Print(log.LVL_INFO, "feedback event sended: "+ev.Type+" track: "+track.Title)
+		}
+		if currentPlaylist.Kind == playlist.MYWAVE && config.MetaCacheEnabled() {
+			trackCopy := *track
+			stationId := currentPlaylist.StationId
+			sessionId := currentPlaylist.SessionId
+			sessionBatch := currentPlaylist.SessionBatch
+			go func() {
+				if werr := cache.WriteMyWave(&cache.MyWaveData{
+					StationId:    stationId,
+					SessionId:    sessionId,
+					SessionBatch: sessionBatch,
+					Track:        trackCopy,
+				}); werr != nil {
+					log.Print(log.LVL_WARNIGN, "failed to write mywave cache: %s", werr)
+				}
+			}()
 		}
 	}
 

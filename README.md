@@ -69,7 +69,8 @@ volume: 0.5
 volume-step: 0.05
 show-errors: false
 show-lyrics: false
-cache-tracks: likes # none/likes/all
+cache-tracks: likes # none/likes/all (also gates per-track cover/lyrics caching)
+cache-metadata: true # cache account, likes, my wave, playlists to disk for fast startup
 cache-dir: ""
 proxy: "" # proxy server URL; if not specified, uses the HTTP_PROXY and HTTPS_PROXY environment variables
 search:
@@ -143,6 +144,10 @@ style:
 
 By default, all cached tracks are stored in the system cache directory. `~/.cache/yamusic-tui` on Linux and `~/AppData/Local/yamusic-tui` on Windows.
 You can change this behavior by specifying a preferred cache directory in the `cache-dir` field.
+
+When `cache-tracks` is set to `likes` or `all`, track covers and synced lyrics are also persisted under the cache directory (`.covers/`, `.lyrics/`) so subsequent plays don't re-download them. With `cache-tracks: none` covers are kept only in a temporary directory and lyrics are not persisted.
+
+The `cache-metadata` option toggles disk caching of session-level data (account uid, liked tracks, the last played "my wave" track, and the list of user playlists). It enables a near-instant startup: cached data is shown immediately, and a background refresh updates it from the server. Files are stored alongside the config (`~/.config/yamusic-tui/account.json`, `liked_tracks.json`, `mywave.json`, `playlists.json`). Set to `false` to disable.
 
 You can list multiple keys for the same control, separated by commas.
 
