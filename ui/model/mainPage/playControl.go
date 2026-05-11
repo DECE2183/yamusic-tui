@@ -208,7 +208,7 @@ func (m *Model) playTrack(track *api.Track) {
 	go func() {
 		defer wg.Done()
 		coverPath := m.coverFilePath(track)
-		coverFile, ferr := os.OpenFile(coverPath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0755)
+		coverFile, ferr := os.OpenFile(coverPath, os.O_CREATE|os.O_RDWR, 0755)
 		if ferr != nil {
 			log.Print(log.LVL_WARNIGN, "unable to open cover file [%s]: %s", coverPath, ferr)
 			return
@@ -319,8 +319,6 @@ func (m *Model) playTrack(track *api.Track) {
 			})
 		}
 		tag.WriteTo(metadataFile)
-		io.CopyN(metadataFile, trackBuffer, 32*1024)
-		trackBuffer.Seek(0, io.SeekStart)
 		metadataFile.Close()
 	} else {
 		log.Print(log.LVL_WARNIGN, "failed to create metadata file: %s", err)
