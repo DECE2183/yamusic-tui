@@ -478,7 +478,10 @@ func (m *Model) initialLoad() {
 		st.SessionId = myWaveSession.RadioSessionId
 		st.SessionBatch = myWaveSession.BatchId
 		if len(myWaveSession.Sequence) > 0 {
-			st.Tracks = []api.Track{myWaveSession.Sequence[0].Track}
+			st.Tracks = make([]api.Track, 0, len(myWaveSession.Sequence))
+			for _, item := range myWaveSession.Sequence {
+				st.Tracks = append(st.Tracks, item.Track)
+			}
 		}
 		m.playlists.SetItem(myWaveIdx, st)
 	} else if myWaveErr != nil {

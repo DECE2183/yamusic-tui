@@ -56,18 +56,41 @@ func (m *Model) rotateTracks(currentPlaylist *playlist.Item) {
 	}
 
 	currentPlaylist.SessionBatch = suggestedTracks.BatchId
-	currentPlaylist.Tracks = append(currentPlaylist.Tracks, suggestedTracks.Sequence[0].Track)
+
+	existing := make(map[string]bool, len(currentPlaylist.Tracks))
+	for _, t := range currentPlaylist.Tracks {
+		existing[t.Id] = true
+	}
+	addedStart := len(currentPlaylist.Tracks)
+	for _, item := range suggestedTracks.Sequence {
+		if existing[item.Track.Id] {
+			continue
+		}
+		existing[item.Track.Id] = true
+		currentPlaylist.Tracks = append(currentPlaylist.Tracks, item.Track)
+	}
+
+	if len(currentPlaylist.Tracks) == addedStart {
+		return
+	}
 
 	if m.playlists.SelectedItem().IsSame(currentPlaylist) {
 		tackItems := m.tracklist.Items()
-		lastTrack := tackItems[len(tackItems)-1]
-		lastTrack.IsSuggestion = false
-		m.tracklist.SetItem(len(tackItems)-1, lastTrack)
-		m.tracklist.InsertItem(-1, tracklist.Item{
-			Track:        &currentPlaylist.Tracks[len(currentPlaylist.Tracks)-1],
-			Artists:      helpers.ArtistList(suggestedTracks.Sequence[0].Track.Artists),
-			IsSuggestion: true,
-		})
+		if len(tackItems) > 0 {
+			lastTrack := tackItems[len(tackItems)-1]
+			lastTrack.IsSuggestion = false
+			m.tracklist.SetItem(len(tackItems)-1, lastTrack)
+		}
+		for i := addedStart; i < len(currentPlaylist.Tracks); i++ {
+			item := tracklist.Item{
+				Track:   &currentPlaylist.Tracks[i],
+				Artists: helpers.ArtistList(currentPlaylist.Tracks[i].Artists),
+			}
+			if i == len(currentPlaylist.Tracks)-1 {
+				item.IsSuggestion = true
+			}
+			m.tracklist.InsertItem(-1, item)
+		}
 	}
 }
 
