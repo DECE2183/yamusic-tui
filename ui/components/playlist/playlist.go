@@ -28,14 +28,20 @@ const (
 	MYWAVE
 	LIKES
 	LOCAL
+	ALBUMS
 	// Should be the last to detect downloaded user playlists
 	USER
 )
 
 var defaultPlaylists = []list.Item{
 	&Item{Name: "my wave", Kind: MYWAVE, Active: true, Subitem: false, Rotor: true},
-	&Item{Name: "likes", Kind: LIKES, Active: true, Subitem: false},
+	&Item{Name: "likes:", Kind: NONE, Active: false, Subitem: false},
+	&Item{Name: "tracks", Kind: LIKES, Active: true, Subitem: true},
+	&Item{Name: "albums", Kind: NONE, Active: false, Subitem: true},
 	&Item{Name: "local", Kind: LOCAL, Active: true, Subitem: false},
+
+	&Item{Name: "", Kind: NONE, Active: false, Subitem: false},
+	&Item{Name: "pins:", Kind: NONE, Active: false, Subitem: false},
 
 	&Item{Name: "", Kind: NONE, Active: false, Subitem: false},
 	&Item{Name: "playlists:", Kind: NONE, Active: false, Subitem: false},

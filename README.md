@@ -32,7 +32,7 @@ The easiest way to get a token is to use a browser extension ([Chrome](https://c
     - [x] Liked tracks
     - [ ] Liked playlists
     - [ ] Liked artists
-    - [ ] Liked albums
+    - [x] Liked albums
  - [x] Playlists
     - [x] Display user playlists
     - [x] Play from playlist
@@ -95,6 +95,7 @@ controls:
    tracks-share: ctrl+s
    tracks-shuffle: ctrl+x
    tracks-search: ctrl+f
+   tracks-back: backspace
    tracks-hide: ctrl+t
    player-pause: space
    player-next: right

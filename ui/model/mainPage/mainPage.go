@@ -155,6 +155,10 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case playlist.CURSOR_UP, playlist.CURSOR_DOWN:
 			selectedPlaylist := m.playlists.SelectedItem()
 
+			if selectedPlaylist.Kind == playlist.ALBUMS && len(selectedPlaylist.Albums) > 0 {
+				selectedPlaylist.SelectedAlbum = -1
+			}
+
 			if m.currentPlaylistIndex >= 0 {
 				currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
 				if selectedPlaylist.IsSame(currentPlaylist) && len(selectedPlaylist.Tracks) > 0 {
@@ -187,7 +191,12 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			if !playlistItem.Active {
 				break
 			}
-			m.playSelectedPlaylist(m.tracklist.Index())
+			if m.albumListActive() {
+				cmd = m.openAlbum(m.tracklist.Index())
+				cmds = append(cmds, cmd)
+			} else {
+				m.playSelectedPlaylist(m.tracklist.Index())
+			}
 		case tracklist.CURSOR_UP, tracklist.CURSOR_DOWN:
 			currentPlaylist := m.playlists.SelectedItem()
 			cursorIndex := m.tracklist.Index()
@@ -195,9 +204,14 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			cmd = m.playlists.SetItem(m.playlists.Index(), currentPlaylist)
 			cmds = append(cmds, cmd)
 		case tracklist.LIKE:
-			cmd = m.likeSelectedTrack()
-			cmds = append(cmds, cmd)
+			if !m.albumListActive() {
+				cmd = m.likeSelectedTrack()
+				cmds = append(cmds, cmd)
+			}
 		case tracklist.ADD_TO_PLAYLIST:
+			if m.albumListActive() {
+				break
+			}
 			selectedTrack := m.tracklist.SelectedItem()
 			m.searchDialog.Title = "Add " + selectedTrack.Track.Title + " to"
 			m.searchDialog.Action = "add"
@@ -216,9 +230,20 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			cmd = m.shufflePlaylist(m.playlists.SelectedItem())
 			cmds = append(cmds, cmd)
 		case tracklist.SHARE:
+			if m.albumListActive() {
+				break
+			}
 			link := api.ShareTrackLink(m.tracklist.SelectedItem().Track)
 			if link != "" {
 				m.clipboard.CopyText(link)
+			}
+		case tracklist.BACK:
+			selectedPlaylist := m.playlists.SelectedItem()
+			if selectedPlaylist.Kind == playlist.ALBUMS && len(selectedPlaylist.Albums) > 0 && selectedPlaylist.SelectedAlbum >= 0 {
+				selectedPlaylist.SelectedAlbum = -1
+				m.displayPlaylist(selectedPlaylist)
+				cmd = m.playlists.SetItem(m.playlists.Index(), selectedPlaylist)
+				cmds = append(cmds, cmd)
 			}
 		}
 
@@ -408,11 +433,17 @@ func (m *Model) initialLoad() {
 				likedTracksId[l] = track.Id
 			}
 
-			likedTracks, err := m.client.Tracks(likedTracksId)
-			if err != nil {
-				log.Print(log.LVL_ERROR, "failed to obtain liked tracks full info: %s", err)
-				m.tracker.ShowError("liked tracks info")
-				continue
+			// Skip the request when there are no liked tracks: an empty
+			// list omits the required track-ids parameter and the server
+			// rejects the call.
+			var likedTracks []api.Track
+			if len(likedTracksId) > 0 {
+				likedTracks, err = m.client.Tracks(likedTracksId)
+				if err != nil {
+					log.Print(log.LVL_ERROR, "failed to obtain liked tracks full info: %s", err)
+					m.tracker.ShowError("liked tracks info")
+					continue
+				}
 			}
 
 			station.Tracks = likedTracks
@@ -433,6 +464,75 @@ func (m *Model) initialLoad() {
 	}
 
 	if m.client != nil {
+		var likedAlbums []api.Album
+		if la, err := m.client.LikedAlbums(); err != nil {
+			log.Print(log.LVL_ERROR, "failed to obtain liked albums: %s", err)
+			m.tracker.ShowError("liked albums")
+		} else {
+			for _, likedAlbum := range la {
+				album, err := m.client.Album(likedAlbum.Id, true)
+				if err != nil {
+					log.Print(log.LVL_ERROR, "failed to obtain album [%d] info: %s", likedAlbum.Id, err)
+					m.tracker.ShowError("liked albums")
+					continue
+				}
+				likedAlbums = append(likedAlbums, album)
+			}
+		}
+
+		for _, item := range m.playlists.Items() {
+			if item.Name == "albums" {
+				item.Kind = playlist.ALBUMS
+				item.Active = len(likedAlbums) > 0
+				item.Albums = likedAlbums
+				item.SelectedAlbum = -1
+				break
+			}
+		}
+
+		headerIndex := -1
+		for i, item := range m.playlists.Items() {
+			if item.Name == "pins:" {
+				headerIndex = i
+				break
+			}
+		}
+
+		if headerIndex >= 0 {
+			pinnedAlbums, err := m.client.PinnedAlbums()
+			if err != nil {
+				log.Print(log.LVL_ERROR, "failed to obtain pinned albums: %s", err)
+				m.tracker.ShowError("pinned albums")
+			} else {
+				insertIndex := headerIndex + 1
+				for _, pinnedAlbum := range pinnedAlbums {
+					album, err := m.client.Album(pinnedAlbum.Data.Id, true)
+					if err != nil {
+						log.Print(log.LVL_ERROR, "failed to obtain album [%d] info: %s", pinnedAlbum.Data.Id, err)
+						m.tracker.ShowError("pinned albums")
+						continue
+					}
+
+					var albumTracks []api.Track
+					for _, volume := range album.Volumes {
+						albumTracks = append(albumTracks, volume...)
+					}
+					if len(albumTracks) == 0 {
+						continue
+					}
+
+					m.playlists.InsertItem(insertIndex, &playlist.Item{
+						Name:    album.Title,
+						Kind:    playlist.ALBUMS,
+						Active:  true,
+						Subitem: true,
+						Tracks:  albumTracks,
+					})
+					insertIndex++
+				}
+			}
+		}
+
 		playlists, err := m.client.ListPlaylists()
 		if err == nil {
 			for _, pl := range playlists {

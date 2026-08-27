@@ -101,6 +101,7 @@ type Controls struct {
 	TracksShare              *Key `yaml:"tracks-share"`
 	TracksShuffle            *Key `yaml:"tracks-shuffle"`
 	TracksSearch             *Key `yaml:"tracks-search"`
+	TracksBack               *Key `yaml:"tracks-back"`
 	TracksHide               *Key `yaml:"tracks-hide"`
 	// Player control
 	PlayerPause          *Key `yaml:"player-pause"`
@@ -172,6 +173,7 @@ var defaultConfig = Config{
 		TracksSearch:             NewKey("ctrl+f"),
 		TracksShuffle:            NewKey("ctrl+x"),
 		TracksShare:              NewKey("ctrl+s"),
+		TracksBack:               NewKey("backspace"),
 		TracksHide:               NewKey("ctrl+t"),
 		PlayerPause:              NewKey("space"),
 		PlayerNext:               NewKey("right"),

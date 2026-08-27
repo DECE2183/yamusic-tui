@@ -18,6 +18,9 @@ type Item struct {
 	Tracks        []api.Track
 	CurrentTrack  int
 	SelectedTrack int
+
+	Albums        []api.Album
+	SelectedAlbum int
 }
 
 func (i *Item) FilterValue() string {

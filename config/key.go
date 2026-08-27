@@ -48,12 +48,21 @@ func (k *Key) UnmarshalYAML(val *yaml.Node) error {
 }
 
 func prepareToProccess(key string) []string {
-	var s = strings.ReplaceAll(key, "space", " ")
-	s = strings.ReplaceAll(s, "↑", "up")
-	s = strings.ReplaceAll(s, "↓", "down")
-	s = strings.ReplaceAll(s, "←", "left")
-	s = strings.ReplaceAll(s, "→", "right")
-	return strings.Split(s, ",")
+	names := make([]string, 0)
+	for _, part := range strings.Split(key, ",") {
+		if part == "backspace" {
+			// contains the substring "space", which must not be substituted.
+			names = append(names, "backspace")
+			continue
+		}
+		s := strings.ReplaceAll(part, "space", " ")
+		s = strings.ReplaceAll(s, "↑", "up")
+		s = strings.ReplaceAll(s, "↓", "down")
+		s = strings.ReplaceAll(s, "←", "left")
+		s = strings.ReplaceAll(s, "→", "right")
+		names = append(names, s)
+	}
+	return names
 }
 
 func prepareToDisplay(key string) string {
