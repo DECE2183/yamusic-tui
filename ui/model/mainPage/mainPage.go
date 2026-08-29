@@ -384,10 +384,19 @@ func (m *Model) initialLoad() {
 				return
 			}
 
-			station.StationId = session.Id
 			station.SessionId = session.RadioSessionId
 			station.SessionBatch = session.BatchId
-			station.Tracks = []api.Track{session.Sequence[0].Track}
+
+			if len(session.AcceptedSeeds) > 0 {
+				station.StationId = session.AcceptedSeeds[0]
+			} else {
+				station.StationId = session.Id
+			}
+			if len(session.Sequence) > 0 {
+				station.Tracks = []api.Track{session.Sequence[0].Track}
+			} else {
+				m.tracker.ShowError("unable to get session tracks")
+			}
 
 			m.playlists.SetItem(i, station)
 		case playlist.LIKES:
