@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 
 	_ "image/jpeg"
 	_ "image/png"
@@ -167,87 +168,108 @@ func (m *Model) playTrack(track *api.Track) {
 	m.tracker.Stop()
 
 	var (
-		coverFile  *os.File
-		coverStat  os.FileInfo
+		wg sync.WaitGroup
+
 		coverType  string
 		coverBytes []byte
-		err        error
+
+		lyrics []api.LyricPair
+
+		trackReader    io.ReadCloser
+		trackSize      int64
+		trackFromCache bool
+		downloadErr    error
 	)
 
-	coverPath := m.coverFilePath(track)
-	coverFile, err = os.OpenFile(coverPath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0755)
-	if err != nil {
-		log.Print(log.LVL_WARNIGN, "unable to open cover file [%s]: %s", coverPath, err)
-		goto skipcover
-	}
-
-	defer coverFile.Close()
-
-	coverStat, err = coverFile.Stat()
-	if err != nil || coverStat.Size() == 0 {
-		coverType, err = api.DownloadTrackCover(coverFile, track, 200)
-		if err != nil {
-			log.Print(log.LVL_WARNIGN, "unable to download track [%s] cover: %s", track.Id, err)
-			goto skipcover
-		}
-		coverFile.Sync()
-		stat, _ := coverFile.Stat()
-		coverBytes = make([]byte, stat.Size())
-		coverFile.Seek(0, io.SeekStart)
-		coverFile.Read(coverBytes)
-	}
-
-skipcover:
-	var trackFromCache bool
-	var trackBuffer *stream.BufferedStream
-	var trackReader io.ReadCloser
-	var trackSize int64
-	var lyrics []api.LyricPair
-	if track.LyricsInfo.HasAvailableSyncLyrics {
-		lyrics, err = m.client.TrackLyricsRequest(track.Id)
-		if err != nil {
-			log.Print(log.LVL_WARNIGN, "failed to obtain track [%s] lyrics: %s", track.Id, err)
-			m.tracker.ShowError("track lyrics")
-		}
-	}
-	trackReader, trackSize, err = cache.Read(track.Id)
-	if err == nil {
-		trackFromCache = true
-	} else {
-		var trackInfos []api.TrackDownloadInfo
-		var bestTrackInfo api.TrackDownloadInfo
-
-		for i := 0; i < _TRACK_DOWNLOAD_TRIES; i++ {
-			trackInfos, err = m.client.TrackDownloadInfo(track.Id)
-			if err != nil {
-				log.Print(log.LVL_ERROR, "failed to obtain track [%s] info: %s", track.Id, err)
-				continue
-			}
-
-			var bestBitrate int
-			for _, t := range trackInfos {
-				if t.BbitrateInKbps > bestBitrate {
-					bestBitrate = t.BbitrateInKbps
-					bestTrackInfo = t
-				}
-			}
-
-			trackReader, trackSize, err = m.client.DownloadTrack(bestTrackInfo)
-			if err != nil {
-				log.Print(log.LVL_ERROR, "failed to download track [%s]: %s", track.Id, err)
-				continue
-			}
-
-			break
-		}
-
-		if err != nil {
-			m.tracker.ShowError("track download")
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		coverPath := m.coverFilePath(track)
+		coverFile, ferr := os.OpenFile(coverPath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0755)
+		if ferr != nil {
+			log.Print(log.LVL_WARNIGN, "unable to open cover file [%s]: %s", coverPath, ferr)
 			return
 		}
+		defer coverFile.Close()
+		stat, serr := coverFile.Stat()
+		if serr != nil || stat.Size() == 0 {
+			cType, derr := api.DownloadTrackCover(coverFile, track, 200)
+			if derr != nil {
+				log.Print(log.LVL_WARNIGN, "unable to download track [%s] cover: %s", track.Id, derr)
+				return
+			}
+			coverType = cType
+			coverFile.Sync()
+			s, _ := coverFile.Stat()
+			buf := make([]byte, s.Size())
+			coverFile.Seek(0, io.SeekStart)
+			coverFile.Read(buf)
+			coverBytes = buf
+		}
+	}()
+
+	if track.LyricsInfo.HasAvailableSyncLyrics {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			lyr, lerr := m.client.TrackLyricsRequest(track.Id)
+			if lerr != nil {
+				log.Print(log.LVL_WARNIGN, "failed to obtain track [%s] lyrics: %s", track.Id, lerr)
+				m.tracker.ShowError("track lyrics")
+				return
+			}
+			lyrics = lyr
+		}()
 	}
 
-	trackBuffer = stream.NewBufferedStream(trackReader, trackSize)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		tr, ts, cerr := cache.Read(track.Id)
+		if cerr == nil {
+			trackReader = tr
+			trackSize = ts
+			trackFromCache = true
+			return
+		}
+		var lastErr error
+		for i := 0; i < _TRACK_DOWNLOAD_TRIES; i++ {
+			trackInfos, ierr := m.client.TrackDownloadInfo(track.Id)
+			if ierr != nil {
+				log.Print(log.LVL_ERROR, "failed to obtain track [%s] info: %s", track.Id, ierr)
+				lastErr = ierr
+				continue
+			}
+			var bestBitrate int
+			var bestTrackInfo api.TrackDownloadInfo
+			for _, ti := range trackInfos {
+				if ti.BbitrateInKbps > bestBitrate {
+					bestBitrate = ti.BbitrateInKbps
+					bestTrackInfo = ti
+				}
+			}
+			tr2, ts2, derr := m.client.DownloadTrack(bestTrackInfo)
+			if derr != nil {
+				log.Print(log.LVL_ERROR, "failed to download track [%s]: %s", track.Id, derr)
+				lastErr = derr
+				continue
+			}
+			trackReader = tr2
+			trackSize = ts2
+			lastErr = nil
+			break
+		}
+		downloadErr = lastErr
+	}()
+
+	wg.Wait()
+
+	if downloadErr != nil && trackReader == nil {
+		m.tracker.ShowError("track download")
+		return
+	}
+
+	trackBuffer := stream.NewBufferedStream(trackReader, trackSize)
 	metadataFile, err := os.OpenFile(m.metadataFilePath(), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0755)
 	if err == nil {
 		tag := id3v2.NewEmptyTag()

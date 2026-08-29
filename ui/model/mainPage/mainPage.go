@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/dece2183/yamusic-tui/api"
@@ -375,15 +376,15 @@ func (m *Model) resize(width, height int) {
 }
 
 func (m *Model) initialLoad() {
-	var err error
-
 	m.tracker.HideError()
+
 	if len(config.Current.Token) == 0 {
 		log.Print(log.LVL_ERROR, "missing client token, check the config file at '%s'", config.Path())
 		m.tracker.ShowError("missing token")
 		m.client = nil
 	} else {
-		m.client, err = api.NewClient(config.DirName, config.Current.Token)
+		c, err := api.NewClient(config.DirName, config.Current.Token)
+		m.client = c
 		if err != nil {
 			if _, ok := err.(*url.Error); ok {
 				log.Print(log.LVL_ERROR, "failed to connect to the Yandex server: %s", err)
@@ -395,167 +396,252 @@ func (m *Model) initialLoad() {
 		}
 	}
 
-	for i, station := range m.playlists.Items() {
-		switch station.Kind {
+	myWaveIdx, likesIdx, localIdx, albumsIdx, pinsIdx := -1, -1, -1, -1, -1
+	for i, st := range m.playlists.Items() {
+		switch st.Kind {
 		case playlist.MYWAVE:
-			if m.client == nil {
-				continue
-			}
-
-			session, err := m.client.RotorNewSession(api.MyWaveId)
-			if err != nil {
-				log.Print(log.LVL_ERROR, "unable to init rotor session: %s", err)
-				m.tracker.ShowError("unable to init rotor session")
-				return
-			}
-
-			station.StationId = session.Id
-			station.SessionId = session.RadioSessionId
-			station.SessionBatch = session.BatchId
-			station.Tracks = []api.Track{session.Sequence[0].Track}
-
-			m.playlists.SetItem(i, station)
+			myWaveIdx = i
 		case playlist.LIKES:
-			if m.client == nil {
-				continue
-			}
-
-			likes, err := m.client.LikedTracks()
-			if err != nil {
-				log.Print(log.LVL_ERROR, "failed to obtain liked tracks for the first time: %s", err)
-				m.tracker.ShowError("liked tracks")
-				continue
-			}
-
-			likedTracksId := make([]string, len(likes))
-			for l, track := range likes {
-				m.likedTracksMap[track.Id] = true
-				likedTracksId[l] = track.Id
-			}
-
-			// Skip the request when there are no liked tracks: an empty
-			// list omits the required track-ids parameter and the server
-			// rejects the call.
-			var likedTracks []api.Track
-			if len(likedTracksId) > 0 {
-				likedTracks, err = m.client.Tracks(likedTracksId)
-				if err != nil {
-					log.Print(log.LVL_ERROR, "failed to obtain liked tracks full info: %s", err)
-					m.tracker.ShowError("liked tracks info")
-					continue
-				}
-			}
-
-			station.Tracks = likedTracks
-			m.playlists.SetItem(i, station)
+			likesIdx = i
 		case playlist.LOCAL:
-			station.Tracks, err = cache.ListTracks()
-			if err != nil {
-				log.Print(log.LVL_ERROR, "failed to list cached tracks: %s", err)
-				m.tracker.ShowError("cache list")
-				continue
-			}
-			for i := range station.Tracks {
-				m.cachedTracksMap[station.Tracks[i].Id] = true
-			}
-			m.playlists.SetItem(i, station)
+			localIdx = i
 		default:
+			switch st.Name {
+			case "albums":
+				albumsIdx = i
+			case "pins":
+				pinsIdx = i
+			}
 		}
 	}
 
-	if m.client != nil {
-		var likedAlbums []api.Album
-		if la, err := m.client.LikedAlbums(); err != nil {
-			log.Print(log.LVL_ERROR, "failed to obtain liked albums: %s", err)
-			m.tracker.ShowError("liked albums")
-		} else {
+	var (
+		wg sync.WaitGroup
+
+		myWaveSession api.StationTracks
+		myWaveErr     error
+
+		likedAlbums    []api.Album
+		likedAlbumsErr error
+
+		likedTracksFull []api.Track
+		likedTracksIds  []string
+		likedErr        error
+
+		pinnedAlbums    []api.Album
+		pinnedAlbumsErr error
+
+		localTracks []api.Track
+		localErr    error
+
+		userPlaylists      []api.Playlist
+		userPlaylistsErr   error
+		userPlaylistTracks [][]api.Track
+	)
+
+	if m.client != nil && myWaveIdx >= 0 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			session, err := m.client.RotorNewSession(api.MyWaveId)
+			myWaveSession = session
+			myWaveErr = err
+		}()
+	}
+
+	if m.client != nil && likesIdx >= 0 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			likes, err := m.client.LikedTracks()
+			if err != nil {
+				likedErr = err
+				return
+			}
+			ids := make([]string, len(likes))
+			for i, tr := range likes {
+				ids[i] = tr.Id
+			}
+			likedTracksIds = ids
+			full, err := m.client.Tracks(ids)
+			likedTracksFull = full
+			likedErr = err
+		}()
+	}
+
+	if m.client != nil && albumsIdx >= 0 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			la, err := m.client.LikedAlbums()
+			if err != nil {
+				likedAlbumsErr = err
+				return
+			}
 			for _, likedAlbum := range la {
 				album, err := m.client.Album(likedAlbum.Id, true)
 				if err != nil {
 					log.Print(log.LVL_ERROR, "failed to obtain album [%d] info: %s", likedAlbum.Id, err)
-					m.tracker.ShowError("liked albums")
 					continue
 				}
 				likedAlbums = append(likedAlbums, album)
 			}
-		}
+			likedAlbumsErr = err
+		}()
+	}
 
-		for _, item := range m.playlists.Items() {
-			if item.Name == "albums" {
-				item.Kind = playlist.ALBUMS
-				item.Active = len(likedAlbums) > 0
-				item.Albums = likedAlbums
-				item.SelectedAlbum = -1
-				break
-			}
+	if m.client != nil && pinsIdx >= 0 {
+		pa, err := m.client.PinnedAlbums()
+		if err != nil {
+			pinnedAlbumsErr = err
+			return
 		}
-
-		headerIndex := -1
-		for i, item := range m.playlists.Items() {
-			if item.Name == "pins:" {
-				headerIndex = i
-				break
-			}
-		}
-
-		if headerIndex >= 0 {
-			pinnedAlbums, err := m.client.PinnedAlbums()
+		for _, pinnedAlbum := range pa {
+			album, err := m.client.Album(pinnedAlbum.Data.Id, true)
 			if err != nil {
-				log.Print(log.LVL_ERROR, "failed to obtain pinned albums: %s", err)
-				m.tracker.ShowError("pinned albums")
-			} else {
-				insertIndex := headerIndex + 1
-				for _, pinnedAlbum := range pinnedAlbums {
-					album, err := m.client.Album(pinnedAlbum.Data.Id, true)
-					if err != nil {
-						log.Print(log.LVL_ERROR, "failed to obtain album [%d] info: %s", pinnedAlbum.Data.Id, err)
-						m.tracker.ShowError("pinned albums")
-						continue
-					}
-
-					var albumTracks []api.Track
-					for _, volume := range album.Volumes {
-						albumTracks = append(albumTracks, volume...)
-					}
-					if len(albumTracks) == 0 {
-						continue
-					}
-
-					m.playlists.InsertItem(insertIndex, &playlist.Item{
-						Name:    album.Title,
-						Kind:    playlist.ALBUMS,
-						Active:  true,
-						Subitem: true,
-						Tracks:  albumTracks,
-					})
-					insertIndex++
-				}
+				log.Print(log.LVL_ERROR, "failed to obtain album [%d] info: %s", pinnedAlbum.Data.Id, err)
+				continue
 			}
+			pinnedAlbums = append(pinnedAlbums, album)
 		}
+		pinnedAlbumsErr = err
+	}
 
-		playlists, err := m.client.ListPlaylists()
-		if err == nil {
-			for _, pl := range playlists {
-				playlistTracks, err := m.client.PlaylistTracks(pl.Kind, pl.Owner.Uid, false)
-				if err != nil {
-					log.Print(log.LVL_ERROR, "failed to obtain playlist [%s] tracks: %s", pl.Title, err)
-					m.tracker.ShowError("playlist tracks")
-					continue
-				}
+	if localIdx >= 0 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			tracks, err := cache.ListTracks()
+			localTracks = tracks
+			localErr = err
+		}()
+	}
 
-				m.playlists.InsertItem(-1, &playlist.Item{
-					Name:     pl.Title,
-					Kind:     pl.Kind,
-					Revision: pl.Revision,
-					Active:   true,
-					Subitem:  true,
-					Tracks:   playlistTracks,
-				})
+	if m.client != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			pls, err := m.client.ListPlaylists()
+			if err != nil {
+				userPlaylistsErr = err
+				return
 			}
-		} else {
-			log.Print(log.LVL_ERROR, "failed to obtain user playlists: %s", err)
-			m.tracker.ShowError("playlists")
+			userPlaylists = pls
+			userPlaylistTracks = make([][]api.Track, len(pls))
+
+			var innerWg sync.WaitGroup
+			for i, pl := range pls {
+				innerWg.Add(1)
+				go func(i int, pl api.Playlist) {
+					defer innerWg.Done()
+					tracks, terr := m.client.PlaylistTracks(pl.Kind, pl.Owner.Uid, false)
+					if terr != nil {
+						log.Print(log.LVL_ERROR, "failed to obtain playlist [%s] tracks: %s", pl.Title, terr)
+						return
+					}
+					userPlaylistTracks[i] = tracks
+				}(i, pl)
+			}
+			innerWg.Wait()
+		}()
+	}
+
+	wg.Wait()
+
+	if myWaveIdx >= 0 && myWaveErr == nil && m.client != nil {
+		st := m.playlists.Items()[myWaveIdx]
+		st.StationId = myWaveSession.Id
+		st.SessionId = myWaveSession.RadioSessionId
+		st.SessionBatch = myWaveSession.BatchId
+		if len(myWaveSession.Sequence) > 0 {
+			st.Tracks = []api.Track{myWaveSession.Sequence[0].Track}
 		}
+		m.playlists.SetItem(myWaveIdx, st)
+	} else if myWaveErr != nil {
+		log.Print(log.LVL_ERROR, "unable to init rotor session: %s", myWaveErr)
+		m.tracker.ShowError("unable to init rotor session")
+		return
+	}
+
+	if likesIdx >= 0 && likedErr == nil && m.client != nil {
+		for _, id := range likedTracksIds {
+			m.likedTracksMap[id] = true
+		}
+		st := m.playlists.Items()[likesIdx]
+		st.Tracks = likedTracksFull
+		m.playlists.SetItem(likesIdx, st)
+	} else if likedErr != nil {
+		log.Print(log.LVL_ERROR, "failed to obtain liked tracks: %s", likedErr)
+		m.tracker.ShowError("liked tracks")
+	}
+
+	if albumsIdx >= 0 && likedAlbumsErr == nil && m.client != nil {
+		st := m.playlists.Items()[albumsIdx]
+		st.Kind = playlist.ALBUMS
+		st.Active = len(likedAlbums) > 0
+		st.Albums = likedAlbums
+		st.SelectedAlbum = -1
+		m.playlists.SetItem(albumsIdx, st)
+	} else if likedAlbumsErr != nil {
+		log.Print(log.LVL_ERROR, "failed to obtain liked albums: %s", likedAlbumsErr)
+		m.tracker.ShowError("liked albums")
+	}
+
+	if pinsIdx >= 0 && pinnedAlbumsErr == nil && m.client != nil {
+		for _, album := range pinnedAlbums {
+			var albumTracks []api.Track
+			for _, volume := range album.Volumes {
+				albumTracks = append(albumTracks, volume...)
+			}
+			if len(albumTracks) == 0 {
+				continue
+			}
+			m.playlists.InsertItem(pinsIdx, &playlist.Item{
+				Name:    album.Title,
+				Kind:    playlist.ALBUMS,
+				Active:  true,
+				Subitem: true,
+				Tracks:  albumTracks,
+			})
+			pinsIdx++
+			localIdx++
+		}
+	} else if pinnedAlbumsErr != nil {
+		log.Print(log.LVL_ERROR, "failed to obtain pinned albums: %s", pinnedAlbumsErr)
+		m.tracker.ShowError("pinned albums")
+	}
+
+	if localIdx >= 0 && localErr == nil {
+		st := m.playlists.Items()[localIdx]
+		st.Tracks = localTracks
+		for _, tr := range localTracks {
+			m.cachedTracksMap[tr.Id] = true
+		}
+		m.playlists.SetItem(localIdx, st)
+	} else if localErr != nil {
+		log.Print(log.LVL_ERROR, "failed to list cached tracks: %s", localErr)
+		m.tracker.ShowError("cache list")
+	}
+
+	if m.client != nil && userPlaylistsErr == nil {
+		for i, pl := range userPlaylists {
+			tracks := userPlaylistTracks[i]
+			if tracks == nil {
+				m.tracker.ShowError("playlist tracks")
+				continue
+			}
+			m.playlists.InsertItem(-1, &playlist.Item{
+				Name:     pl.Title,
+				Kind:     pl.Kind,
+				Revision: pl.Revision,
+				Active:   true,
+				Subitem:  true,
+				Tracks:   tracks,
+			})
+		}
+	} else if userPlaylistsErr != nil {
+		log.Print(log.LVL_ERROR, "failed to obtain user playlists: %s", userPlaylistsErr)
+		m.tracker.ShowError("playlists")
 	}
 
 	m.currentPlaylistIndex = -1
