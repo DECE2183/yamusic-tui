@@ -139,7 +139,7 @@ func (m *Model) removeFromPlaylist(pl *playlist.Item, index int) tea.Cmd {
 	}
 
 	switch pl.Kind {
-	case playlist.NONE, playlist.MYWAVE:
+	case playlist.NONE, playlist.MYWAVE, playlist.ALBUMS:
 		return nil
 	case playlist.LIKES:
 		selectedTrack := pl.Tracks[index]
@@ -245,7 +245,42 @@ func (m *Model) shufflePlaylist(pl *playlist.Item) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
+func (m *Model) albumListActive() bool {
+	pl := m.playlists.SelectedItem()
+	return pl.Kind == playlist.ALBUMS && len(pl.Albums) > 0 && pl.SelectedAlbum < 0
+}
+
+func (m *Model) openAlbum(index int) tea.Cmd {
+	pl := m.playlists.SelectedItem()
+	if index >= len(pl.Albums) {
+		return nil
+	}
+
+	var albumTracks []api.Track
+	for _, volume := range pl.Albums[index].Volumes {
+		albumTracks = append(albumTracks, volume...)
+	}
+
+	pl.Tracks = albumTracks
+	pl.SelectedAlbum = index
+	pl.SelectedTrack = 0
+	m.displayPlaylist(pl)
+	return m.playlists.SetItem(m.playlists.Index(), pl)
+}
+
 func (m *Model) displayPlaylist(pl *playlist.Item) {
+	if pl.Kind == playlist.ALBUMS && len(pl.Albums) > 0 && pl.SelectedAlbum < 0 {
+		albumList := make([]tracklist.Item, len(pl.Albums))
+		for i := range pl.Albums {
+			albumList[i] = tracklist.NewAlbumItem(&pl.Albums[i])
+		}
+
+		m.tracklist.SetItems(albumList)
+		m.tracklist.Select(0)
+		m.tracklist.Title = "Liked albums"
+		return
+	}
+
 	trackList := make([]tracklist.Item, len(pl.Tracks))
 	for i := range pl.Tracks {
 		trackList[i] = tracklist.NewItem(&pl.Tracks[i])
@@ -265,7 +300,11 @@ func (m *Model) displayPlaylist(pl *playlist.Item) {
 	case playlist.LOCAL:
 		m.tracklist.Title = "Cached tracks"
 	default:
-		m.tracklist.Title = "Tracks from " + pl.Name
+		if pl.Kind == playlist.ALBUMS && len(pl.Albums) > 0 && pl.SelectedAlbum >= 0 {
+			m.tracklist.Title = "Tracks from " + pl.Albums[pl.SelectedAlbum].Title
+		} else {
+			m.tracklist.Title = "Tracks from " + pl.Name
+		}
 	}
 }
 
@@ -274,6 +313,9 @@ func (m *Model) indicateCurrentTrackPlaying(playing bool) {
 		return
 	}
 	currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
+	if currentPlaylist.Kind == playlist.ALBUMS && len(currentPlaylist.Albums) > 0 && currentPlaylist.SelectedAlbum < 0 {
+		return
+	}
 	if currentPlaylist.IsSame(m.playlists.SelectedItem()) && currentPlaylist.CurrentTrack < len(m.tracklist.Items()) {
 		track := m.tracklist.Items()[currentPlaylist.CurrentTrack]
 		track.IsPlaying = playing

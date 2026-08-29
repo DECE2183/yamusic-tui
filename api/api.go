@@ -493,6 +493,24 @@ func (client *YaMusicClient) LikedTracks() (tracks []LikeTrackInfo, err error) {
 	return
 }
 
+func (client *YaMusicClient) LikedAlbums() (albums []LikeAlbumInfo, err error) {
+	albums, _, err = getRequest[[]LikeAlbumInfo](client.token, fmt.Sprintf("/users/%d/likes/albums", client.userid), nil)
+	return
+}
+
+func (client *YaMusicClient) PinnedAlbums() (albums []PinInfo, err error) {
+	desc, _, err := getRequest[PinsDesc](client.token, "/pins", nil)
+	if err != nil {
+		return
+	}
+	for _, pin := range desc.Pins {
+		if pin.Type == "album_item" {
+			albums = append(albums, pin)
+		}
+	}
+	return
+}
+
 func (client *YaMusicClient) LikeTrack(trackId string) (err error) {
 	_, _, err = postRequest[interface{}](client.token, fmt.Sprintf("/users/%d/likes/tracks/add-multiple", client.userid), url.Values{"track-ids": {trackId}})
 	return

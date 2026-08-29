@@ -28,6 +28,7 @@ const (
 	LIKE
 	ADD_TO_PLAYLIST
 	REMOVE_FROM_PLAYLIST
+	BACK
 	TOGGLE_VIEW
 )
 
@@ -138,6 +139,8 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 			cmds = append(cmds, model.Cmd(ADD_TO_PLAYLIST))
 		case controls.TracksRemoveFromPlaylist.Contains(keypress):
 			cmds = append(cmds, model.Cmd(REMOVE_FROM_PLAYLIST))
+		case controls.TracksBack.Contains(keypress):
+			cmds = append(cmds, model.Cmd(BACK))
 		case controls.TracksHide.Contains(keypress):
 			m.Hidden = !m.Hidden
 			cmds = append(cmds, model.Cmd(TOGGLE_VIEW))

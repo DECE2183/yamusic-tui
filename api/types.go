@@ -302,6 +302,25 @@ type LikesDesc struct {
 	} `json:"library"`
 }
 
+type LikeAlbumInfo struct {
+	Id        uint64 `json:"id"`
+	Timestamp string `json:"timestamp"`
+}
+
+type PinData struct {
+	Id    uint64 `json:"id"`
+	Title string `json:"title"`
+}
+
+type PinInfo struct {
+	Type string  `json:"type"`
+	Data PinData `json:"data"`
+}
+
+type PinsDesc struct {
+	Pins []PinInfo `json:"pins"`
+}
+
 type TrackDownloadInfo struct {
 	Codec           string `json:"codec"`
 	Gain            bool   `json:"gain"`
