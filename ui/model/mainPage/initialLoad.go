@@ -226,7 +226,7 @@ func (m *Model) loadLikedAlbums(wg *sync.WaitGroup, block *menuBlock) {
 		albums = append(albums, album)
 	}
 
-	st := &playlist.Item{Name: "albums", Kind: playlist.ALBUMS, Active: len(albums) > 0, Subitem: true, Albums: albums}
+	st := &playlist.Item{Name: "albums", Kind: playlist.ALBUMS, Active: len(albums) > 0, Subitem: true, Albums: albums, SelectedAlbum: -1}
 	block.items = append(block.items, st)
 }
 

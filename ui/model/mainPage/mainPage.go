@@ -43,8 +43,10 @@ type Model struct {
 	isPlaylistHideOverride bool
 
 	currentPlaylistIndex int
-	likedTracksMap       map[string]bool
-	cachedTracksMap      map[string]bool
+	currentAlbumIndex    int
+
+	likedTracksMap  map[string]bool
+	cachedTracksMap map[string]bool
 }
 
 // mainpage.Model constructor.
@@ -146,20 +148,16 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case playlist.CURSOR_UP, playlist.CURSOR_DOWN:
 			selectedPlaylist := m.playlists.SelectedItem()
 
-			if selectedPlaylist.Kind == playlist.ALBUMS && len(selectedPlaylist.Albums) > 0 {
-				selectedPlaylist.SelectedAlbum = -1
-			}
-
 			if m.currentPlaylistIndex >= 0 {
 				currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
-				if selectedPlaylist.IsSame(currentPlaylist) && len(selectedPlaylist.Tracks) > 0 {
+				if selectedPlaylist.IsSame(currentPlaylist) && len(selectedPlaylist.Tracks) > 0 && m.currentAlbumIndex == selectedPlaylist.SelectedAlbum {
 					selectedPlaylist.SelectedTrack = selectedPlaylist.CurrentTrack
 					m.playlists.SetItem(m.playlists.Index(), selectedPlaylist)
 				}
 			}
 
 			m.displayPlaylist(selectedPlaylist)
-			m.indicateCurrentTrackPlaying(m.tracker.IsPlaying())
+			m.indicateCurrentTrackPlaying(true)
 
 			m.tracklist.Shufflable = (selectedPlaylist.Kind != playlist.NONE && selectedPlaylist.Kind != playlist.MYWAVE && len(selectedPlaylist.Tracks) > 0)
 		case playlist.RENAME:
@@ -231,6 +229,7 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case tracklist.BACK:
 			selectedPlaylist := m.playlists.SelectedItem()
 			if selectedPlaylist.Kind == playlist.ALBUMS && len(selectedPlaylist.Albums) > 0 && selectedPlaylist.SelectedAlbum >= 0 {
+				selectedPlaylist.SelectedTrack = selectedPlaylist.SelectedAlbum
 				selectedPlaylist.SelectedAlbum = -1
 				m.displayPlaylist(selectedPlaylist)
 				cmd = m.playlists.SetItem(m.playlists.Index(), selectedPlaylist)

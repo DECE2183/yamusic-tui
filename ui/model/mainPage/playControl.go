@@ -366,6 +366,12 @@ func (m *Model) playSelectedPlaylist(trackIndex int) {
 		}
 	}
 
+	if len(selectedPlaylist.Albums) > 0 && selectedPlaylist.SelectedAlbum >= 0 {
+		m.currentAlbumIndex = selectedPlaylist.SelectedAlbum
+	} else {
+		m.currentAlbumIndex = -1
+	}
+
 	selectedPlaylist.CurrentTrack = trackIndex
 	m.currentPlaylistIndex = m.playlists.Index()
 	m.playlists.SetItem(m.currentPlaylistIndex, selectedPlaylist)

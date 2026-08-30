@@ -261,35 +261,43 @@ func (m *Model) openAlbum(index int) tea.Cmd {
 		albumTracks = append(albumTracks, volume...)
 	}
 
+	var isCurrentAlbum bool
+	if m.currentPlaylistIndex > 0 {
+		currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
+		if currentPlaylist.IsSame(pl) && index == m.currentAlbumIndex {
+			isCurrentAlbum = true
+		}
+	}
+
 	pl.Tracks = albumTracks
 	pl.SelectedAlbum = index
-	pl.SelectedTrack = 0
+	if !isCurrentAlbum {
+		pl.SelectedTrack = 0
+	}
+
 	m.displayPlaylist(pl)
+	m.indicateCurrentTrackPlaying(isCurrentAlbum)
 	return m.playlists.SetItem(m.playlists.Index(), pl)
 }
 
 func (m *Model) displayPlaylist(pl *playlist.Item) {
-	if pl.Kind == playlist.ALBUMS && len(pl.Albums) > 0 && pl.SelectedAlbum < 0 {
-		albumList := make([]tracklist.Item, len(pl.Albums))
+	var itemlist []tracklist.Item
+	if len(pl.Albums) > 0 && pl.SelectedAlbum < 0 {
+		itemlist = make([]tracklist.Item, len(pl.Albums))
 		for i := range pl.Albums {
-			albumList[i] = tracklist.NewAlbumItem(&pl.Albums[i])
+			itemlist[i] = tracklist.NewAlbumItem(&pl.Albums[i])
 		}
-
-		m.tracklist.SetItems(albumList)
-		m.tracklist.Select(0)
-		m.tracklist.Title = "Liked albums"
-		return
+	} else {
+		itemlist = make([]tracklist.Item, len(pl.Tracks))
+		for i := range pl.Tracks {
+			itemlist[i] = tracklist.NewItem(&pl.Tracks[i])
+		}
+		if pl.Rotor && len(itemlist) > 0 {
+			itemlist[len(itemlist)-1].IsSuggestion = true
+		}
 	}
 
-	trackList := make([]tracklist.Item, len(pl.Tracks))
-	for i := range pl.Tracks {
-		trackList[i] = tracklist.NewItem(&pl.Tracks[i])
-	}
-	if pl.Rotor && len(trackList) > 0 {
-		trackList[len(trackList)-1].IsSuggestion = true
-	}
-
-	m.tracklist.SetItems(trackList)
+	m.tracklist.SetItems(itemlist)
 	m.tracklist.Select(pl.SelectedTrack)
 
 	switch pl.Kind {
@@ -299,12 +307,14 @@ func (m *Model) displayPlaylist(pl *playlist.Item) {
 		m.tracklist.Title = "Liked tracks"
 	case playlist.LOCAL:
 		m.tracklist.Title = "Cached tracks"
-	default:
-		if pl.Kind == playlist.ALBUMS && len(pl.Albums) > 0 && pl.SelectedAlbum >= 0 {
+	case playlist.ALBUMS:
+		if pl.SelectedAlbum >= 0 {
 			m.tracklist.Title = "Tracks from " + pl.Albums[pl.SelectedAlbum].Title
 		} else {
-			m.tracklist.Title = "Tracks from " + pl.Name
+			m.tracklist.Title = "Liked albums"
 		}
+	default:
+		m.tracklist.Title = "Tracks from " + pl.Name
 	}
 }
 
@@ -313,7 +323,7 @@ func (m *Model) indicateCurrentTrackPlaying(playing bool) {
 		return
 	}
 	currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
-	if currentPlaylist.Kind == playlist.ALBUMS && len(currentPlaylist.Albums) > 0 && currentPlaylist.SelectedAlbum < 0 {
+	if currentPlaylist.Kind == playlist.ALBUMS && len(currentPlaylist.Albums) > 0 && currentPlaylist.SelectedAlbum != m.currentAlbumIndex {
 		return
 	}
 	if currentPlaylist.IsSame(m.playlists.SelectedItem()) && currentPlaylist.CurrentTrack < len(m.tracklist.Items()) {
