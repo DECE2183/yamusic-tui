@@ -409,7 +409,7 @@ func (m *Model) initialLoad() {
 			switch st.Name {
 			case "albums":
 				albumsIdx = i
-			case "pins":
+			case "pins:":
 				pinsIdx = i
 			}
 		}
@@ -596,7 +596,7 @@ func (m *Model) initialLoad() {
 			if len(albumTracks) == 0 {
 				continue
 			}
-			m.playlists.InsertItem(pinsIdx, &playlist.Item{
+			m.playlists.InsertItem(pinsIdx+1, &playlist.Item{
 				Name:    album.Title,
 				Kind:    playlist.ALBUMS,
 				Active:  true,
@@ -604,7 +604,6 @@ func (m *Model) initialLoad() {
 				Tracks:  albumTracks,
 			})
 			pinsIdx++
-			localIdx++
 		}
 	} else if pinnedAlbumsErr != nil {
 		log.Print(log.LVL_ERROR, "failed to obtain pinned albums: %s", pinnedAlbumsErr)
