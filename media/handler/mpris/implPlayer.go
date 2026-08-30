@@ -132,7 +132,7 @@ func (mh *MprisHandler) Metadata() (md types.Metadata, err error) {
 
 	md.TrackId = dbus.ObjectPath("/org/mpris/MediaPlayer2/" + resp.TrackId)
 	md.Length = types.Microseconds(resp.Length.Microseconds())
-	md.ArtUrl = resp.CoverUrl
+	md.ArtUrl = "file://" + resp.CoverUrl
 	md.Album = resp.AlbumName
 	md.AlbumArtist = resp.AlbumArtists
 	md.Artist = resp.Artists
