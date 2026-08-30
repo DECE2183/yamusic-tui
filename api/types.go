@@ -278,8 +278,10 @@ type StationDesc struct {
 }
 
 type StationTracks struct {
-	Id       StationId `json:"id"`
-	Sequence []struct {
+	// Deprecated: Use AcceptedSeeds instead
+	Id            StationId   `json:"id"`
+	AcceptedSeeds []StationId `json:"acceptedSeeds"`
+	Sequence      []struct {
 		Type  string `json:"type"`
 		Track Track  `json:"track"`
 		Liked bool   `json:"liked"`

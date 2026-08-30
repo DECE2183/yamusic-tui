@@ -550,11 +550,17 @@ func (m *Model) initialLoad() {
 
 	if myWaveIdx >= 0 && myWaveErr == nil && m.client != nil {
 		st := m.playlists.Items()[myWaveIdx]
-		st.StationId = myWaveSession.Id
-		st.SessionId = myWaveSession.RadioSessionId
-		st.SessionBatch = myWaveSession.BatchId
+		st.SessionId = session.RadioSessionId
+		st.SessionBatch = session.BatchId
+		if len(session.AcceptedSeeds) > 0 {
+			st.StationId = session.AcceptedSeeds[0]
+		} else {
+			st.StationId = session.Id
+		}
 		if len(myWaveSession.Sequence) > 0 {
 			st.Tracks = []api.Track{myWaveSession.Sequence[0].Track}
+		} else {
+			m.tracker.ShowError("unable to get session tracks")
 		}
 		m.playlists.SetItem(myWaveIdx, st)
 	} else if myWaveErr != nil {
