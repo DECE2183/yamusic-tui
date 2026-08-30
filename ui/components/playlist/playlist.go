@@ -33,18 +33,14 @@ const (
 	USER
 )
 
-var defaultPlaylists = []list.Item{
-	&Item{Name: "my wave", Kind: MYWAVE, Active: true, Subitem: false, Rotor: true},
-	&Item{Name: "likes:", Kind: NONE, Active: false, Subitem: false},
-	&Item{Name: "tracks", Kind: LIKES, Active: true, Subitem: true},
-	&Item{Name: "albums", Kind: NONE, Active: false, Subitem: true},
-	&Item{Name: "local", Kind: LOCAL, Active: true, Subitem: false},
+var emptyItem = Item{Name: "", Kind: NONE, Active: false, Subitem: false}
 
-	&Item{Name: "", Kind: NONE, Active: false, Subitem: false},
-	&Item{Name: "pins:", Kind: NONE, Active: false, Subitem: false},
+func ItemEmpty() *Item {
+	return &emptyItem
+}
 
-	&Item{Name: "", Kind: NONE, Active: false, Subitem: false},
-	&Item{Name: "playlists:", Kind: NONE, Active: false, Subitem: false},
+func ItemCategory(name string) *Item {
+	return &Item{Name: name, Kind: NONE, Active: false, Subitem: false}
 }
 
 type Model struct {
@@ -64,7 +60,7 @@ func New(p *tea.Program, title string) *Model {
 	}
 
 	controls := config.Current.Controls
-	m.list = list.New(defaultPlaylists, ItemDelegate{programm: p}, 512, 512)
+	m.list = list.New([]list.Item{}, ItemDelegate{programm: p}, 512, 512)
 	m.list.Title = title
 	m.list.SetShowStatusBar(false)
 	m.list.Styles.Title = m.list.Styles.Title.Foreground(style.AccentColor).UnsetBackground().Padding(0)
@@ -162,7 +158,7 @@ func (m *Model) Items() []*Item {
 }
 
 func (m *Model) Reset() tea.Cmd {
-	return m.list.SetItems(defaultPlaylists)
+	return m.list.SetItems([]list.Item{})
 }
 
 func (m *Model) SetItems(items []*Item) tea.Cmd {
