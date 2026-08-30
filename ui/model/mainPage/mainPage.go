@@ -91,7 +91,7 @@ func (m *Model) Send(msg tea.Msg) {
 func (m *Model) Init() tea.Cmd {
 	m.isLoading = true
 	go m.initialLoad()
-	return m.spinner.Tick
+	return tea.Batch(tea.SetWindowTitle(config.DirName), m.spinner.Tick)
 }
 
 func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
