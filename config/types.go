@@ -134,6 +134,7 @@ type Config struct {
 	CacheTracks    CacheType `yaml:"cache-tracks"`
 	CacheDir       string    `yaml:"cache-dir"`
 	Proxy          string    `yaml:"proxy"`
+	SSLCerts       []string  `yaml:"ssl-certs"`
 	Search         *Search   `yaml:"search"`
 	Controls       *Controls `yaml:"controls"`
 	Style          *Style    `yaml:"style"`

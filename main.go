@@ -21,7 +21,7 @@ func main() {
 	}
 
 	style.Apply(config.Current.Style)
-	api.SetupClient(config.Current.Proxy)
+	api.SetupClient(config.Current.Proxy, config.Current.SSLCerts)
 
 	if config.Current.Token == "" {
 		err = loginpage.New().Run()
