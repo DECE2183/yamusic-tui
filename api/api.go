@@ -16,12 +16,9 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/dece2183/yamusic-tui/log"
 )
 
 const (
@@ -203,7 +200,7 @@ func createTrackUrl(info fullDownloadInfo, codec string) string {
 	return "https://" + info.Host + "/get-" + codec + "/" + hashedUrl + "/" + info.Ts + info.Path
 }
 
-func SetupClient(proxyUrl string, certs []string) {
+func SetupClient(proxyUrl string, certPool *x509.CertPool) {
 	transport := &http.Transport{
 		TLSClientConfig:       mTLSConfig,
 		ResponseHeaderTimeout: _RESPONSE_TIMEOUT,
@@ -220,27 +217,7 @@ func SetupClient(proxyUrl string, certs []string) {
 		transport.Proxy = http.ProxyFromEnvironment
 	}
 
-	if len(certs) > 0 {
-		certPool, err := x509.SystemCertPool()
-		if err != nil {
-			log.Print(log.LVL_WARNIGN, "failed to obtain system certificate pool: %s", err.Error())
-			goto skipcert
-		}
-		for _, certPath := range certs {
-			certBytes, err := os.ReadFile(certPath)
-			if err != nil {
-				log.Print(log.LVL_WARNIGN, "failed to load certificate at '%s': %s", certPath, err.Error())
-				continue
-			}
-			if !certPool.AppendCertsFromPEM(certBytes) {
-				log.Print(log.LVL_WARNIGN, "failed to parse certificate at '%s'", certPath)
-				continue
-			}
-		}
-		transport.TLSClientConfig.RootCAs = certPool
-	skipcert:
-	}
-
+	transport.TLSClientConfig.RootCAs = certPool
 	httpClient = http.Client{Transport: transport}
 }
 
