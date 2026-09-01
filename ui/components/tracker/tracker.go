@@ -419,7 +419,7 @@ func (m *Model) Stop() {
 }
 
 func (m *Model) IsPlaying() bool {
-	return m.player != nil && m.trackWrapper.trackBuffer != nil && m.player.IsPlaying()
+	return m.player != nil && m.trackWrapper.trackBuffer != nil && m.player.IsPlaying() && !m.paused
 }
 
 func (m *Model) IsStoped() bool {
@@ -534,7 +534,7 @@ func (m *Model) dynamicVolumeStep() float64 {
 }
 
 func (m *Model) volumeFadeTick() {
-	if !m.IsPlaying() {
+	if m.player == nil || !m.player.IsPlaying() {
 		return
 	}
 
