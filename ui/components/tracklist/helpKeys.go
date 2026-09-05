@@ -24,6 +24,7 @@ type helpKeyMap struct {
 	CloseHelp          key.Binding
 	HideTracklist      key.Binding
 
+	HasArtist  bool
 	Shafflable bool
 }
 
@@ -51,16 +52,22 @@ func newHelpMap() *helpKeyMap {
 }
 
 func (k helpKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.CursorUp, k.CursorDown, k.Play, k.LikeUnlike, k.ShowArtist, k.ShowHelp}
+	if k.HasArtist {
+		return []key.Binding{k.CursorUp, k.CursorDown, k.Play, k.LikeUnlike, k.ShowArtist, k.ShowHelp}
+	}
+	return []key.Binding{k.CursorUp, k.CursorDown, k.Play, k.LikeUnlike, k.ShowHelp}
 }
 
 func (k helpKeyMap) FullHelp() [][]key.Binding {
 	bindings := [][]key.Binding{
 		{k.CursorUp, k.CursorDown, k.PageUp, k.PageDown},
 		{k.Play, k.LikeUnlike, k.AddToPlaylist, k.RemoveFromPlaylist},
-		{k.ShowArtist, k.Search, k.Share},
+		{k.Search, k.Share},
 	}
 
+	if k.HasArtist {
+		bindings[2] = append(bindings[2], k.ShowArtist)
+	}
 	if k.Shafflable {
 		bindings[2] = append(bindings[2], k.Shuffle)
 	}

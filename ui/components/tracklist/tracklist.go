@@ -88,7 +88,24 @@ func (m *Model) View() string {
 		m.list.Title = m.Title
 	}
 
-	m.helpMap.Shafflable = m.Shufflable
+	track := m.list.SelectedItem()
+	if track != nil {
+		m.helpMap.Shafflable = m.Shufflable
+		m.helpMap.HasArtist = false
+		if track.(Item).Track != nil {
+			artists := track.(Item).Track.Artists
+			for i := range artists {
+				if artists[i].Id > 0 {
+					m.helpMap.HasArtist = true
+					break
+				}
+			}
+		}
+	} else {
+		m.helpMap.Shafflable = false
+		m.helpMap.HasArtist = false
+	}
+
 	helpView := m.help.View(m.helpMap)
 	m.list.SetHeight(m.height - lipgloss.Height(helpView) - 4)
 
