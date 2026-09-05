@@ -12,6 +12,8 @@ import (
 	"github.com/dece2183/yamusic-tui/ui/components/playlist"
 	"github.com/dece2183/yamusic-tui/ui/components/search"
 	"github.com/dece2183/yamusic-tui/ui/components/tracklist"
+	"github.com/dece2183/yamusic-tui/ui/helpers"
+	"github.com/dece2183/yamusic-tui/ui/style"
 )
 
 func (m *Model) addPlaylistControl(msg search.Control) tea.Cmd {
@@ -238,6 +240,7 @@ func (m *Model) shufflePlaylist(pl *playlist.Item) tea.Cmd {
 	if m.currentPlaylistIndex >= 0 {
 		currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
 		if pl.IsSame(currentPlaylist) && m.tracker.IsPlaying() {
+			m.playQueue = pl.Tracks
 			m.indicateCurrentTrackPlaying(true)
 		}
 	}
@@ -247,7 +250,7 @@ func (m *Model) shufflePlaylist(pl *playlist.Item) tea.Cmd {
 
 func (m *Model) albumListActive() bool {
 	pl := m.playlists.SelectedItem()
-	return pl.Kind == playlist.ALBUMS && len(pl.Albums) > 0 && pl.SelectedAlbum < 0
+	return len(pl.Albums) > 0 && pl.SelectedAlbum < 0
 }
 
 func (m *Model) openAlbum(index int) tea.Cmd {
@@ -271,12 +274,14 @@ func (m *Model) openAlbum(index int) tea.Cmd {
 
 	pl.Tracks = albumTracks
 	pl.SelectedAlbum = index
-	if !isCurrentAlbum {
+	if isCurrentAlbum {
+		pl.SelectedTrack = pl.CurrentTrack
+	} else {
 		pl.SelectedTrack = 0
 	}
 
 	m.displayPlaylist(pl)
-	m.indicateCurrentTrackPlaying(isCurrentAlbum)
+	m.indicateCurrentTrackPlaying(m.tracker.IsPlaying())
 	return m.playlists.SetItem(m.playlists.Index(), pl)
 }
 
@@ -309,12 +314,20 @@ func (m *Model) displayPlaylist(pl *playlist.Item) {
 		m.tracklist.Title = "Cached tracks"
 	case playlist.ALBUMS:
 		if pl.SelectedAlbum >= 0 {
-			m.tracklist.Title = "Tracks from " + pl.Albums[pl.SelectedAlbum].Title
+			album := pl.Albums[pl.SelectedAlbum]
+			title := style.TrackTitleStyle.Render(album.Title)
+			artists := style.TrackArtistStyle.Render(" (" + helpers.ArtistList(album.Artists) + ")")
+			m.tracklist.Title = "Tracks from " + title + artists
 		} else {
-			m.tracklist.Title = "Liked albums"
+			if pl.Name == "albums" {
+				m.tracklist.Title = "Liked albums"
+			} else {
+				m.tracklist.Title = pl.Name
+			}
 		}
 	default:
-		m.tracklist.Title = "Tracks from " + pl.Name
+		title := style.TrackTitleStyle.Render(pl.Name)
+		m.tracklist.Title = "Tracks from " + title
 	}
 }
 
@@ -322,12 +335,27 @@ func (m *Model) indicateCurrentTrackPlaying(playing bool) {
 	if m.currentPlaylistIndex < 0 {
 		return
 	}
+
 	currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
-	if currentPlaylist.Kind == playlist.ALBUMS && len(currentPlaylist.Albums) > 0 && currentPlaylist.SelectedAlbum != m.currentAlbumIndex {
+	if !currentPlaylist.IsSame(m.playlists.SelectedItem()) {
 		return
 	}
-	if currentPlaylist.IsSame(m.playlists.SelectedItem()) && currentPlaylist.CurrentTrack < len(m.tracklist.Items()) {
-		track := m.tracklist.Items()[currentPlaylist.CurrentTrack]
+
+	if len(currentPlaylist.Albums) > 0 && m.currentAlbumIndex != currentPlaylist.SelectedAlbum {
+		if currentPlaylist.SelectedAlbum < 0 {
+			albums := m.tracklist.Items()
+			if m.currentAlbumIndex > -1 && m.currentAlbumIndex < len(albums) {
+				album := albums[m.currentAlbumIndex]
+				album.IsPlaying = playing
+				m.tracklist.SetItem(m.currentAlbumIndex, album)
+			}
+		}
+		return
+	}
+
+	tracks := m.tracklist.Items()
+	if currentPlaylist.CurrentTrack < len(tracks) {
+		track := tracks[currentPlaylist.CurrentTrack]
 		track.IsPlaying = playing
 		m.tracklist.SetItem(currentPlaylist.CurrentTrack, track)
 	}

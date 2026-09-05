@@ -10,6 +10,12 @@ import (
 	"github.com/dece2183/yamusic-tui/api"
 )
 
+const (
+	TAG_TRACK_ID  = "TRID"
+	TAG_ARTIST_ID = "ARID"
+	TAG_DURATION  = "TLEN"
+)
+
 func ListTracks() ([]api.Track, error) {
 	dir, err := getCacheDir()
 	if err != nil {
@@ -34,19 +40,41 @@ func ListTracks() ([]api.Track, error) {
 			continue
 		}
 
+		idFrame, ok := tag.GetLastFrame(TAG_TRACK_ID).(id3v2.TextFrame)
+		var trackId string
+		if ok && len(idFrame.Text) > 0 {
+			trackId = idFrame.Text
+		} else {
+			trackId = name[:len(name)-len(ext)]
+		}
+
 		artistNames := strings.Split(tag.Artist(), ",")
 		artists := make([]api.Artist, len(artistNames))
+		artistIdsFrames := tag.GetFrames(TAG_ARTIST_ID)
 		for i := range artistNames {
 			artists[i].Name = artistNames[i]
+			if i < len(artistIdsFrames) {
+				artistId, ok := artistIdsFrames[i].(id3v2.UnknownFrame)
+				if !ok {
+					continue
+				}
+				_, str, _ := strings.Cut(string(artistId.Body), string([]byte{0}))
+				artists[i].Id, _ = strconv.ParseUint(str, 10, 64)
+			}
 		}
 
 		stat, _ := entry.Info()
 		year, _ := strconv.Atoi(tag.Year())
-		durationMs, _ := strconv.Atoi(tag.GetTextFrame("TLEN").Text)
 
+		durationFrame, ok := tag.GetLastFrame(TAG_DURATION).(id3v2.TextFrame)
+		if !ok {
+			continue
+		}
+
+		durationMs, _ := strconv.Atoi(durationFrame.Text)
 		if durationMs > 0 {
 			tracks = append(tracks, api.Track{
-				Id:         name[:len(name)-len(ext)],
+				Id:         trackId,
 				Title:      tag.Title(),
 				Available:  true,
 				FileSize:   int(stat.Size()),

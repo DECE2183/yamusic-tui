@@ -572,6 +572,16 @@ func (client *YaMusicClient) ArtistPopularTracks(artistId uint64) (tracks Artist
 	return
 }
 
+func (client *YaMusicClient) ArtistAlbums(artistId uint64) (albums []Album, err error) {
+	var pages PagedAlbums
+	pages, _, err = getRequest[PagedAlbums](client.token, fmt.Sprintf("/artists/%d/direct-albums", artistId), nil)
+	if err != nil {
+		return
+	}
+	albums = pages.Albums
+	return
+}
+
 func (client *YaMusicClient) Album(albumId uint64, withTracks bool) (album Album, err error) {
 	path := fmt.Sprintf("/albums/%d", albumId)
 	if withTracks {

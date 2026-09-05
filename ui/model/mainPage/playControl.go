@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"sync"
 
 	_ "image/jpeg"
@@ -42,29 +43,31 @@ func (m *Model) feedbackOnTrack(batch string) *api.RotorFeedback {
 	return fb
 }
 
-func (m *Model) rotateTracks(currentPlaylist *playlist.Item) {
-	if !currentPlaylist.Rotor {
+func (m *Model) rotateTracks(pl *playlist.Item) {
+	if !pl.Rotor {
 		return
 	}
 
-	suggestedTracks, err := m.client.RotorSessionTracks(currentPlaylist.SessionId, []*api.RotorFeedback{}, currentPlaylist.Tracks)
+	suggestedTracks, err := m.client.RotorSessionTracks(pl.SessionId, []*api.RotorFeedback{}, pl.Tracks)
 	if err != nil {
 		log.Print(log.LVL_ERROR, "failed to obtain more rotor tracks: %s", err)
 		m.tracker.ShowError("next track obtain failure")
-		m.Send(tracker.STOP)
 		return
 	}
 
-	currentPlaylist.SessionBatch = suggestedTracks.BatchId
-	currentPlaylist.Tracks = append(currentPlaylist.Tracks, suggestedTracks.Sequence[0].Track)
+	pl.SessionBatch = suggestedTracks.BatchId
+	pl.Tracks = append(pl.Tracks, suggestedTracks.Sequence[0].Track)
+	if m.playlists.Items()[m.currentPlaylistIndex].IsSame(pl) {
+		m.playQueue = pl.Tracks
+	}
 
-	if m.playlists.SelectedItem().IsSame(currentPlaylist) {
+	if m.playlists.SelectedItem().IsSame(pl) {
 		tackItems := m.tracklist.Items()
 		lastTrack := tackItems[len(tackItems)-1]
 		lastTrack.IsSuggestion = false
 		m.tracklist.SetItem(len(tackItems)-1, lastTrack)
 		m.tracklist.InsertItem(-1, tracklist.Item{
-			Track:        &currentPlaylist.Tracks[len(currentPlaylist.Tracks)-1],
+			Track:        &pl.Tracks[len(pl.Tracks)-1],
 			Artists:      helpers.ArtistList(suggestedTracks.Sequence[0].Track.Artists),
 			IsSuggestion: true,
 		})
@@ -77,12 +80,11 @@ func (m *Model) prevTrack() {
 	}
 
 	currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
-
 	if currentPlaylist.Rotor && m.tracker.IsPlaying() {
 		go m.client.RotorSessionFeedback(currentPlaylist.SessionId, m.feedbackOnTrack(currentPlaylist.SessionBatch))
 	}
 
-	if len(currentPlaylist.Tracks) == 0 || currentPlaylist.CurrentTrack == 0 {
+	if len(m.playQueue) == 0 || currentPlaylist.CurrentTrack == 0 {
 		m.Send(tracker.STOP)
 		return
 	}
@@ -93,12 +95,12 @@ func (m *Model) prevTrack() {
 	m.indicateCurrentTrackPlaying(false)
 
 	currentPlaylist.CurrentTrack--
-	for currentPlaylist.CurrentTrack > 0 && !currentPlaylist.Tracks[currentPlaylist.CurrentTrack].Available {
+	for currentPlaylist.CurrentTrack > 0 && !m.playQueue[currentPlaylist.CurrentTrack].Available {
 		currentPlaylist.CurrentTrack--
 	}
 
 	m.playlists.SetItem(m.currentPlaylistIndex, currentPlaylist)
-	track := &currentPlaylist.Tracks[currentPlaylist.CurrentTrack]
+	track := &m.playQueue[currentPlaylist.CurrentTrack]
 	if !track.Available {
 		m.Send(tracker.STOP)
 		return
@@ -118,19 +120,18 @@ func (m *Model) nextTrack() {
 	}
 
 	currentPlaylist := m.playlists.Items()[m.currentPlaylistIndex]
-
 	if currentPlaylist.Rotor && m.tracker.IsPlaying() {
 		go m.client.RotorSessionFeedback(currentPlaylist.SessionId, m.feedbackOnTrack(currentPlaylist.SessionBatch))
 	}
 
-	if len(currentPlaylist.Tracks) == 0 {
+	if len(m.playQueue) == 0 {
 		m.Send(tracker.STOP)
 		return
 	}
 
 	m.indicateCurrentTrackPlaying(false)
 
-	if currentPlaylist.CurrentTrack+1 >= len(currentPlaylist.Tracks) {
+	if currentPlaylist.CurrentTrack+1 >= len(m.playQueue) {
 		currentPlaylist.CurrentTrack = 0
 		m.playlists.SetItem(m.currentPlaylistIndex, currentPlaylist)
 		m.Send(tracker.STOP)
@@ -141,18 +142,18 @@ func (m *Model) nextTrack() {
 	shouldFollow := currentPlaylist.IsSame(selectedPlaylist) && m.tracklist.Index() == currentPlaylist.CurrentTrack
 
 	currentPlaylist.CurrentTrack++
-	for currentPlaylist.CurrentTrack < len(currentPlaylist.Tracks)-1 && !currentPlaylist.Tracks[currentPlaylist.CurrentTrack].Available {
+	for currentPlaylist.CurrentTrack < len(m.playQueue)-1 && !m.playQueue[currentPlaylist.CurrentTrack].Available {
 		currentPlaylist.CurrentTrack++
 	}
 
 	m.playlists.SetItem(m.currentPlaylistIndex, currentPlaylist)
-	track := &currentPlaylist.Tracks[currentPlaylist.CurrentTrack]
+	track := &m.playQueue[currentPlaylist.CurrentTrack]
 	if !track.Available {
 		m.Send(tracker.STOP)
 		return
 	}
 
-	if currentPlaylist.CurrentTrack == len(currentPlaylist.Tracks)-1 {
+	if currentPlaylist.CurrentTrack == len(m.playQueue)-1 {
 		m.rotateTracks(currentPlaylist)
 	}
 
@@ -283,17 +284,24 @@ func (m *Model) playTrack(track *api.Track) {
 				tag.SetGenre(track.Albums[0].Genre)
 				tag.SetYear(fmt.Sprint(track.Albums[0].Year))
 			}
-			tag.SetArtist(helpers.ArtistList(track.Artists))
+			artists := make([]string, 0, len(track.Artists))
+			for i := range track.Artists {
+				artists = append(artists, track.Artists[i].Name)
+				tag.AddFrame(cache.TAG_ARTIST_ID, id3v2.UserDefinedTextFrame{
+					Encoding:    id3v2.EncodingUTF8,
+					Description: fmt.Sprint(i),
+					Value:       fmt.Sprint(track.Artists[i].Id),
+				})
+			}
+			tag.SetArtist(strings.Join(artists, ","))
 			tag.AddAttachedPicture(id3v2.PictureFrame{
 				MimeType:    coverType,
 				PictureType: id3v2.PTFrontCover,
 				Encoding:    id3v2.EncodingUTF16BE,
 				Picture:     coverBytes,
 			})
-			tag.AddFrame("TLEN", id3v2.TextFrame{
-				Encoding: id3v2.EncodingUTF8,
-				Text:     fmt.Sprint(track.DurationMs),
-			})
+			tag.AddTextFrame(cache.TAG_TRACK_ID, id3v2.EncodingUTF8, fmt.Sprint(track.Id))
+			tag.AddTextFrame(cache.TAG_DURATION, id3v2.EncodingUTF8, fmt.Sprint(track.DurationMs))
 		}
 		tag.WriteTo(metadataFile)
 		io.CopyN(metadataFile, trackBuffer, 32*1024)
@@ -356,13 +364,14 @@ func (m *Model) playSelectedPlaylist(trackIndex int) {
 	m.indicateCurrentTrackPlaying(false)
 
 	if selectedPlaylist.Rotor {
-		if trackIndex == len(selectedPlaylist.Tracks)-1 {
-			m.rotateTracks(selectedPlaylist)
-		}
 		if m.currentPlaylistIndex != m.playlists.Index() {
 			ev := api.NewRadioFeedbackEvent(api.EV_RADIO_STARTED)
 			go m.client.RotorSessionFeedback(selectedPlaylist.SessionId, api.NewFeedback("", ev))
 			log.Print(log.LVL_INFO, "feedback event sended: "+ev.Type)
+			m.currentPlaylistIndex = m.playlists.Index()
+		}
+		if trackIndex == len(selectedPlaylist.Tracks)-1 {
+			m.rotateTracks(selectedPlaylist)
 		}
 	}
 
@@ -375,5 +384,6 @@ func (m *Model) playSelectedPlaylist(trackIndex int) {
 	selectedPlaylist.CurrentTrack = trackIndex
 	m.currentPlaylistIndex = m.playlists.Index()
 	m.playlists.SetItem(m.currentPlaylistIndex, selectedPlaylist)
+	m.playQueue = selectedPlaylist.Tracks
 	m.playTrack(trackToPlay)
 }

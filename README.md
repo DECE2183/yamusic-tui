@@ -75,6 +75,7 @@ proxy: "" # proxy server URL; if not specified, uses the HTTP_PROXY and HTTPS_PR
 ssl-certs: [] # path to certificate files in PEM format
 search:
     artists: true
+    popular: false
     albums: false
     playlists: false
 controls:
@@ -91,6 +92,7 @@ controls:
    tracks-next-page: pgup
    tracks-previous-page: pgdown
    tracks-like: l
+   tracks-artist: ctrl+j
    tracks-add-to-playlist: a
    tracks-remove-from-playlist: ctrl+a
    tracks-share: ctrl+s

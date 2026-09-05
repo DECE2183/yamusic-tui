@@ -12,6 +12,7 @@ type helpKeyMap struct {
 	PageDown           key.Binding
 	Play               key.Binding
 	LikeUnlike         key.Binding
+	ShowArtist         key.Binding
 	AddToPlaylist      key.Binding
 	RemoveFromPlaylist key.Binding
 	Search             key.Binding
@@ -35,6 +36,7 @@ func newHelpMap() *helpKeyMap {
 		PageDown:           key.NewBinding(controls.TracksPrevPage.Binding(), controls.TracksPrevPage.Help("page down")),
 		Play:               key.NewBinding(controls.Apply.Binding(), controls.Apply.Help("play")),
 		LikeUnlike:         key.NewBinding(controls.TracksLike.Binding(), controls.TracksLike.Help("like/unlike")),
+		ShowArtist:         key.NewBinding(controls.TracksArtist.Binding(), controls.TracksArtist.Help("artist")),
 		AddToPlaylist:      key.NewBinding(controls.TracksAddToPlaylist.Binding(), controls.TracksAddToPlaylist.Help("add to")),
 		RemoveFromPlaylist: key.NewBinding(controls.TracksRemoveFromPlaylist.Binding(), controls.TracksRemoveFromPlaylist.Help("remove")),
 		Search:             key.NewBinding(controls.TracksSearch.Binding(), controls.TracksSearch.Help("search")),
@@ -49,14 +51,14 @@ func newHelpMap() *helpKeyMap {
 }
 
 func (k helpKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.CursorUp, k.CursorDown, k.Play, k.LikeUnlike, k.ShowHelp}
+	return []key.Binding{k.CursorUp, k.CursorDown, k.Play, k.LikeUnlike, k.ShowArtist, k.ShowHelp}
 }
 
 func (k helpKeyMap) FullHelp() [][]key.Binding {
 	bindings := [][]key.Binding{
 		{k.CursorUp, k.CursorDown, k.PageUp, k.PageDown},
 		{k.Play, k.LikeUnlike, k.AddToPlaylist, k.RemoveFromPlaylist},
-		{k.Search, k.Share},
+		{k.ShowArtist, k.Search, k.Share},
 	}
 
 	if k.Shafflable {

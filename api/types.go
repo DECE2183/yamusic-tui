@@ -46,6 +46,12 @@ type InvocInfo struct {
 	ReqId              string `json:"req-id"`
 }
 
+type Pager struct {
+	Page    int `json:"page"`
+	PerPage int `json:"perPage"`
+	Total   int `json:"total"`
+}
+
 type UserStatus struct {
 	Account struct {
 		Uid              uint64 `json:"uid"`
@@ -123,6 +129,11 @@ type Album struct {
 	Volumes     [][]Track `json:"volumes"`
 	Artists     []Artist  `json:"artists"`
 	Labels      []Label   `json:"labels"`
+}
+
+type PagedAlbums struct {
+	Pager  Pager   `json:"pager"`
+	Albums []Album `json:"albums"`
 }
 
 type Track struct {
@@ -341,6 +352,38 @@ const (
 	SEARCH_ALL    = "all"
 )
 
+type SearchResultAlbums struct {
+	Type    string  `json:"type"`
+	Total   int     `json:"total"`
+	PerPage int     `json:"perPage"`
+	Order   int     `json:"order"`
+	Results []Album `json:"results"`
+}
+
+type SearchResultArtists struct {
+	Type    string   `json:"type"`
+	Total   int      `json:"total"`
+	PerPage int      `json:"perPage"`
+	Order   int      `json:"order"`
+	Results []Artist `json:"results"`
+}
+
+type SearchResultPlaylists struct {
+	Type    string     `json:"type"`
+	Total   int        `json:"total"`
+	PerPage int        `json:"perPage"`
+	Order   int        `json:"order"`
+	Results []Playlist `json:"results"`
+}
+
+type SearchResultTracks struct {
+	Type    string  `json:"type"`
+	Total   int     `json:"total"`
+	PerPage int     `json:"perPage"`
+	Order   int     `json:"order"`
+	Results []Track `json:"results"`
+}
+
 type SearchResult struct {
 	SearchResultId string `json:"searchResultId"`
 	Text           string `json:"text"`
@@ -350,37 +393,10 @@ type SearchResult struct {
 		Result Track  `json:"result"`
 	} `json:"best"`
 
-	Albums struct {
-		Type    string  `json:"type"`
-		Total   int     `json:"total"`
-		PerPage int     `json:"perPage"`
-		Order   int     `json:"order"`
-		Results []Album `json:"results"`
-	} `json:"albums"`
-
-	Artists struct {
-		Type    string   `json:"type"`
-		Total   int      `json:"total"`
-		PerPage int      `json:"perPage"`
-		Order   int      `json:"order"`
-		Results []Artist `json:"results"`
-	} `json:"artists"`
-
-	Playlists struct {
-		Type    string     `json:"type"`
-		Total   int        `json:"total"`
-		PerPage int        `json:"perPage"`
-		Order   int        `json:"order"`
-		Results []Playlist `json:"results"`
-	} `json:"playlists"`
-
-	Tracks struct {
-		Type    string  `json:"type"`
-		Total   int     `json:"total"`
-		PerPage int     `json:"perPage"`
-		Order   int     `json:"order"`
-		Results []Track `json:"results"`
-	} `json:"tracks"`
+	Albums    SearchResultAlbums    `json:"albums"`
+	Artists   SearchResultArtists   `json:"artists"`
+	Playlists SearchResultPlaylists `json:"playlists"`
+	Tracks    SearchResultTracks    `json:"tracks"`
 
 	Type              string `json:"type"`
 	Page              int    `json:"page"`

@@ -42,6 +42,7 @@ type Model struct {
 	isRenamePlaylistActive bool
 	isPlaylistHideOverride bool
 
+	playQueue            []api.Track
 	currentPlaylistIndex int
 	currentAlbumIndex    int
 
@@ -197,6 +198,25 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				cmd = m.likeSelectedTrack()
 				cmds = append(cmds, cmd)
 			}
+		case tracklist.SHOW_ARTIST:
+			if m.albumListActive() {
+				break
+			}
+			track := m.tracklist.SelectedItem()
+			if track.Track == nil {
+				break
+			}
+			searchRes := api.SearchResult{
+				Artists: api.SearchResultArtists{
+					Results: track.Track.Artists,
+				},
+			}
+			searchConf := config.Search{
+				Artists: true,
+			}
+			m.isLoading = true
+			go m.displaySearchResults(searchRes, &searchConf)
+			cmds = append(cmds, m.spinner.Tick)
 		case tracklist.ADD_TO_PLAYLIST:
 			if m.albumListActive() {
 				break
@@ -228,10 +248,11 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case tracklist.BACK:
 			selectedPlaylist := m.playlists.SelectedItem()
-			if selectedPlaylist.Kind == playlist.ALBUMS && len(selectedPlaylist.Albums) > 0 && selectedPlaylist.SelectedAlbum >= 0 {
+			if len(selectedPlaylist.Albums) > 0 && selectedPlaylist.SelectedAlbum >= 0 {
 				selectedPlaylist.SelectedTrack = selectedPlaylist.SelectedAlbum
 				selectedPlaylist.SelectedAlbum = -1
 				m.displayPlaylist(selectedPlaylist)
+				m.indicateCurrentTrackPlaying(true)
 				cmd = m.playlists.SetItem(m.playlists.Index(), selectedPlaylist)
 				cmds = append(cmds, cmd)
 			}

@@ -26,6 +26,7 @@ const (
 	SHUFFLE
 	SHARE
 	LIKE
+	SHOW_ARTIST
 	ADD_TO_PLAYLIST
 	REMOVE_FROM_PLAYLIST
 	BACK
@@ -135,6 +136,8 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 			cmds = append(cmds, model.Cmd(SHARE))
 		case controls.TracksLike.Contains(keypress):
 			cmds = append(cmds, model.Cmd(LIKE))
+		case controls.TracksArtist.Contains(keypress):
+			cmds = append(cmds, model.Cmd(SHOW_ARTIST))
 		case controls.TracksAddToPlaylist.Contains(keypress):
 			cmds = append(cmds, model.Cmd(ADD_TO_PLAYLIST))
 		case controls.TracksRemoveFromPlaylist.Contains(keypress):

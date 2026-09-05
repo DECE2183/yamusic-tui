@@ -96,6 +96,7 @@ type Controls struct {
 	TracksNextPage           *Key `yaml:"tracks-next-page"`
 	TracksPrevPage           *Key `yaml:"tracks-previous-page"`
 	TracksLike               *Key `yaml:"tracks-like"`
+	TracksArtist             *Key `yaml:"tracks-artist"`
 	TracksAddToPlaylist      *Key `yaml:"tracks-add-to-playlist"`
 	TracksRemoveFromPlaylist *Key `yaml:"tracks-remove-from-playlist"`
 	TracksShare              *Key `yaml:"tracks-share"`
@@ -119,6 +120,7 @@ type Controls struct {
 
 type Search struct {
 	Artists   bool `yaml:"artists"`
+	Popular   bool `yaml:"popular"`
 	Albums    bool `yaml:"albums"`
 	Playlists bool `yaml:"playlists"`
 }
@@ -151,6 +153,7 @@ var defaultConfig = Config{
 	SuppressErrors: false,
 	Search: &Search{
 		Artists:   true,
+		Popular:   false,
 		Albums:    false,
 		Playlists: false,
 	},
@@ -169,6 +172,7 @@ var defaultConfig = Config{
 		TracksNextPage:           NewKey("pgup"),
 		TracksPrevPage:           NewKey("pgdown"),
 		TracksLike:               NewKey("l"),
+		TracksArtist:             NewKey("ctrl+j"),
 		TracksAddToPlaylist:      NewKey("a"),
 		TracksRemoveFromPlaylist: NewKey("ctrl+a"),
 		TracksSearch:             NewKey("ctrl+f"),

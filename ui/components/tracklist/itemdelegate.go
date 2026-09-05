@@ -37,9 +37,6 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 
 	var content string
 	if item.Album != nil {
-		albumTitle := style.TrackTitleStyle.Render(item.Album.Title)
-		albumArtist := style.TrackArtistStyle.Render(item.Artists)
-
 		albumMeta := fmt.Sprintf("%d tracks", item.Album.TrackCount)
 		if item.Album.Year > 0 {
 			albumMeta = fmt.Sprintf("%d · %s", item.Album.Year, albumMeta)
@@ -50,6 +47,11 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 		maxLen := m.Width() - addInfoLen - 2
 		clip := lipgloss.NewStyle().MaxWidth(maxLen - 1)
 
+		var albumTitle string
+		if item.IsPlaying {
+			albumTitle = style.AccentTextStyle.Render(style.IconPlay) + " "
+		}
+		albumTitle += style.TrackTitleStyle.Render(item.Album.Title)
 		albumTitleLen := lipgloss.Width(albumTitle)
 		if albumTitleLen > maxLen {
 			albumTitle = clip.Render(albumTitle) + "…"
@@ -57,6 +59,7 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 			albumTitle += strings.Repeat(" ", maxLen-albumTitleLen)
 		}
 
+		albumArtist := style.TrackArtistStyle.Render(item.Artists)
 		albumArtistLen := lipgloss.Width(albumArtist)
 		if albumArtistLen > maxLen {
 			albumArtist = clip.Render(albumArtist) + "…"
