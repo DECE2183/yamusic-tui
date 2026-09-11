@@ -106,17 +106,22 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 
 		var trackLike string
 		if (*d.likesMap)[item.Track.Id] {
-			trackLike = style.IconLiked
+			trackLike = style.IconLiked + " "
 		} else {
-			trackLike = style.IconNotLiked
+			trackLike = style.IconNotLiked + " "
 		}
 
 		var trackCache string
 		if (*d.cacheMap)[item.Track.Id] {
-			trackCache = style.IconCached
+			trackCache = style.IconCached + " "
 		}
 
-		trackAddInfo := style.TrackAddInfoStyle.Render(trackCache + " " + trackLike + " " + trackTime)
+		var trackAiUsed string
+		if item.IsAiUsed {
+			trackAiUsed = style.AiIndicator + " "
+		}
+
+		trackAddInfo := style.TrackAddInfoStyle.Render(trackAiUsed + trackCache + trackLike + trackTime)
 		addInfoLen := lipgloss.Width(trackAddInfo)
 		maxLen := m.Width() - addInfoLen - 2
 		clip := lipgloss.NewStyle().MaxWidth(maxLen - 1)

@@ -171,10 +171,11 @@ type Track struct {
 
 	Albums []Album `json:"albums"`
 
-	FileSize         int    `json:"fileSize"`
-	StorageDir       string `json:"storageDir"`
-	DurationMs       int    `json:"durationMs"`
-	RememberPosition bool   `json:"rememberPosition"`
+	FileSize         int      `json:"fileSize"`
+	Disclaimers      []string `json:"disclaimers"`
+	StorageDir       string   `json:"storageDir"`
+	DurationMs       int      `json:"durationMs"`
+	RememberPosition bool     `json:"rememberPosition"`
 }
 
 type Playlist struct {
@@ -208,6 +209,15 @@ type Playlist struct {
 		Timestamp string `json:"timestamp"`
 		Track     Track  `json:"track"`
 	} `json:"tracks"`
+}
+
+type Credit struct {
+	Title string `json:"title"`
+	Value string `json:"value"`
+}
+
+type Credits struct {
+	Credits []Credit `json:"credits"`
 }
 
 type StationId struct {

@@ -42,6 +42,7 @@ var (
 	IconVolumeLow  = "🔈"
 	IconVolumeMid  = "🔉"
 	IconVolumeHigh = "🔊"
+	AiIndicator    = "🤖"
 )
 
 var (
@@ -117,6 +118,7 @@ func Apply(style *config.Style) {
 	IconVolumeLow = style.Icons.VolumeLow
 	IconVolumeMid = style.Icons.VolumeMid
 	IconVolumeHigh = style.Icons.VolumeHigh
+	AiIndicator = style.Icons.AiIndicator
 
 	AccentTextStyle = lipgloss.NewStyle().Foreground(AccentColor)
 	ErrorTextStyle = lipgloss.NewStyle().Foreground(ErrorColor)

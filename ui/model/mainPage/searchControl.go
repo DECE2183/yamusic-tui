@@ -76,6 +76,16 @@ func (m *Model) displaySearchResults(res api.SearchResult, searchConfig *config.
 	)
 
 	if len(res.Tracks.Results) > 0 {
+		if config.Current.AiUsageNotice || config.Current.AiUsageFilter {
+			tracks := make([]api.Track, 0, len(res.Tracks.Results))
+			for i := range res.Tracks.Results {
+				if helpers.CheckTrackAi(m.client, &res.Tracks.Results[i]) && config.Current.AiUsageFilter {
+					continue
+				}
+				tracks = append(tracks, res.Tracks.Results[i])
+			}
+			res.Tracks.Results = tracks
+		}
 		playlists = append(playlists, &playlist.Item{
 			Name:    "search \"" + res.Text + "\"",
 			Active:  true,

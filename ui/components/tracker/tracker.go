@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"slices"
 	"strings"
 	"time"
 
@@ -205,7 +206,12 @@ func (m *Model) View() string {
 			trackLike = style.IconNotLiked + " "
 		}
 
-		trackAddInfo := style.TrackAddInfoStyle.Render(trackLike + trackTime)
+		var trackAiUsed string
+		if config.Current.AiUsageNotice && slices.Contains(m.track.Disclaimers, helpers.AI_NOTICE) {
+			trackAiUsed = style.AiIndicator + " "
+		}
+
+		trackAddInfo := style.TrackAddInfoStyle.Render(trackAiUsed + trackLike + trackTime)
 		addInfoLen := lipgloss.Width(trackAddInfo)
 		maxLen := m.Width() - addInfoLen - 4
 		stl := lipgloss.NewStyle().MaxWidth(maxLen - 1)

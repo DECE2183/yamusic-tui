@@ -39,16 +39,17 @@ func (t CacheType) MarshalYAML() (interface{}, error) {
 }
 
 type Icons struct {
-	Play       string `yaml:"play"`
-	Stop       string `yaml:"stop"`
-	Liked      string `yaml:"liked"`
-	NotLiked   string `yaml:"not-liked"`
-	Cached     string `yaml:"cached"`
-	LyricsDot  string `yaml:"lyrics-dot"`
-	VolumeOff  string `yaml:"volume-off"`
-	VolumeLow  string `yaml:"volume-low"`
-	VolumeMid  string `yaml:"volume-mid"`
-	VolumeHigh string `yaml:"volume-high"`
+	Play        string `yaml:"play"`
+	Stop        string `yaml:"stop"`
+	Liked       string `yaml:"liked"`
+	NotLiked    string `yaml:"not-liked"`
+	Cached      string `yaml:"cached"`
+	LyricsDot   string `yaml:"lyrics-dot"`
+	VolumeOff   string `yaml:"volume-off"`
+	VolumeLow   string `yaml:"volume-low"`
+	VolumeMid   string `yaml:"volume-mid"`
+	VolumeHigh  string `yaml:"volume-high"`
+	AiIndicator string `yaml:"ai-indicator"`
 }
 
 type Colors struct {
@@ -133,6 +134,8 @@ type Config struct {
 	VolumeStep     float64   `yaml:"volume-step"`
 	SuppressErrors bool      `yaml:"suppress-errors"`
 	ShowLyrics     bool      `yaml:"show-lyrics"`
+	AiUsageNotice  bool      `yaml:"ai-usage-notice"`
+	AiUsageFilter  bool      `yaml:"ai-usage-filter"`
 	CacheTracks    CacheType `yaml:"cache-tracks"`
 	CacheDir       string    `yaml:"cache-dir"`
 	Proxy          string    `yaml:"proxy"`
@@ -148,8 +151,12 @@ var defaultConfig = Config{
 	Volume:         0.5,
 	VolumeStep:     0.05,
 	ShowLyrics:     false,
+	AiUsageNotice:  false,
+	AiUsageFilter:  false,
 	CacheTracks:    CACHE_LIKED_ONLY,
 	CacheDir:       "",
+	Proxy:          "",
+	SSLCerts:       []string{},
 	SuppressErrors: false,
 	Search: &Search{
 		Artists:   true,
@@ -199,16 +206,17 @@ var defaultConfig = Config{
 		SidePanelAutohide:       96,
 		SearchModalWidth:        56,
 		Icons: &Icons{
-			Play:       "▶",
-			Stop:       "■",
-			Liked:      "💛",
-			NotLiked:   "🤍",
-			Cached:     "💿",
-			LyricsDot:  "•",
-			VolumeOff:  "🔇",
-			VolumeLow:  "🔈",
-			VolumeMid:  "🔉",
-			VolumeHigh: "🔊",
+			Play:        "▶",
+			Stop:        "■",
+			Liked:       "💛",
+			NotLiked:    "🤍",
+			Cached:      "💿",
+			LyricsDot:   "•",
+			VolumeOff:   "🔇",
+			VolumeLow:   "🔈",
+			VolumeMid:   "🔉",
+			VolumeHigh:  "🔊",
+			AiIndicator: "🤖",
 		},
 		Colors: &Colors{
 			Accent:            "#FC0",

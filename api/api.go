@@ -523,6 +523,11 @@ func (client *YaMusicClient) UnlikeTrack(trackId string) (err error) {
 	return
 }
 
+func (client *YaMusicClient) TrackCreadits(trackId string) (credits Credits, err error) {
+	credits, _, err = getRequest[Credits](client.token, fmt.Sprintf("/tracks/%s/credits", trackId), nil)
+	return
+}
+
 func (client *YaMusicClient) TrackDownloadInfo(trackId string) (dowInfos []TrackDownloadInfo, err error) {
 	dowInfos, _, err = getRequest[[]TrackDownloadInfo](client.token, fmt.Sprintf("/tracks/%s/download-info", trackId), nil)
 	return

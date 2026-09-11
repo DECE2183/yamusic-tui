@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/bogem/id3v2/v2"
 	"github.com/dece2183/yamusic-tui/api"
 	"github.com/dece2183/yamusic-tui/cache"
+	"github.com/dece2183/yamusic-tui/config"
 	"github.com/dece2183/yamusic-tui/log"
 	"github.com/dece2183/yamusic-tui/stream"
 	"github.com/dece2183/yamusic-tui/ui/components/playlist"
@@ -48,6 +50,7 @@ func (m *Model) rotateTracks(pl *playlist.Item) {
 		return
 	}
 
+loadmore:
 	suggestedTracks, err := m.client.RotorSessionTracks(pl.SessionId, []*api.RotorFeedback{}, pl.Tracks)
 	if err != nil {
 		log.Print(log.LVL_ERROR, "failed to obtain more rotor tracks: %s", err)
@@ -55,8 +58,25 @@ func (m *Model) rotateTracks(pl *playlist.Item) {
 		return
 	}
 
+	var aiUsed bool
+	var suggestedTrack *api.Track
+	for i := range suggestedTracks.Sequence {
+		if config.Current.AiUsageNotice || config.Current.AiUsageFilter {
+			aiUsed = helpers.CheckTrackAi(m.client, &suggestedTracks.Sequence[i].Track)
+			if aiUsed && config.Current.AiUsageFilter {
+				continue
+			}
+		}
+		suggestedTrack = &suggestedTracks.Sequence[i].Track
+		break
+	}
+
+	if suggestedTrack == nil {
+		goto loadmore
+	}
+
 	pl.SessionBatch = suggestedTracks.BatchId
-	pl.Tracks = append(pl.Tracks, suggestedTracks.Sequence[0].Track)
+	pl.Tracks = append(pl.Tracks, *suggestedTrack)
 	if m.playlists.Items()[m.currentPlaylistIndex].IsSame(pl) {
 		m.playQueue = pl.Tracks
 	}
@@ -68,7 +88,8 @@ func (m *Model) rotateTracks(pl *playlist.Item) {
 		m.tracklist.SetItem(len(tackItems)-1, lastTrack)
 		m.tracklist.InsertItem(-1, tracklist.Item{
 			Track:        &pl.Tracks[len(pl.Tracks)-1],
-			Artists:      helpers.ArtistList(suggestedTracks.Sequence[0].Track.Artists),
+			Artists:      helpers.ArtistList(suggestedTrack.Artists),
+			IsAiUsed:     aiUsed,
 			IsSuggestion: true,
 		})
 	}
@@ -181,7 +202,7 @@ func (m *Model) playTrack(track *api.Track) {
 	go func() {
 		defer wg.Done()
 		coverPath := m.coverFilePath(track)
-		coverFile, ferr := os.OpenFile(coverPath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0755)
+		coverFile, ferr := os.OpenFile(coverPath, os.O_CREATE|os.O_RDWR, 0755)
 		if ferr != nil {
 			log.Print(log.LVL_WARNIGN, "unable to open cover file [%s]: %s", coverPath, ferr)
 			return
@@ -215,6 +236,17 @@ func (m *Model) playTrack(track *api.Track) {
 				return
 			}
 			lyrics = lyr
+		}()
+	}
+
+	if m.client != nil && config.Current.AiUsageNotice {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if slices.Contains(track.Disclaimers, helpers.AI_NOTICE) {
+				return
+			}
+			helpers.CheckTrackAi(m.client, track)
 		}()
 	}
 

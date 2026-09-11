@@ -1,6 +1,8 @@
 package tracklist
 
 import (
+	"slices"
+
 	"github.com/dece2183/yamusic-tui/api"
 	"github.com/dece2183/yamusic-tui/ui/helpers"
 )
@@ -11,12 +13,14 @@ type Item struct {
 	Artists      string
 	IsPlaying    bool
 	IsSuggestion bool
+	IsAiUsed     bool
 }
 
 func NewItem(track *api.Track) Item {
 	return Item{
-		Track:   track,
-		Artists: helpers.ArtistList(track.Artists),
+		Track:    track,
+		Artists:  helpers.ArtistList(track.Artists),
+		IsAiUsed: slices.Contains(track.Disclaimers, helpers.AI_NOTICE),
 	}
 }
 
