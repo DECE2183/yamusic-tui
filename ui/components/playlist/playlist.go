@@ -19,6 +19,7 @@ const (
 	CURSOR_DOWN
 	RENAME
 	TOGGLE_VIEW
+	STATION_CONFIG
 )
 
 type PlaylistType = uint64
@@ -127,6 +128,8 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 			cmds = append(cmds, model.Cmd(CURSOR_DOWN))
 		case controls.PlaylistsRename.Contains(keypress):
 			cmds = append(cmds, model.Cmd(RENAME))
+		case controls.StationConfig.Contains(keypress):
+			cmds = append(cmds, model.Cmd(STATION_CONFIG))
 		case controls.PlaylistsHide.Contains(keypress):
 			m.Hidden = !m.Hidden
 			cmds = append(cmds, model.Cmd(TOGGLE_VIEW))

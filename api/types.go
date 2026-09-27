@@ -288,6 +288,16 @@ type StationDesc struct {
 	RupDescription string `json:"rupDescription"`
 }
 
+// RotorSettings holds the settings sent when starting a rotor session. The
+// zero value means "server defaults", so omitted fields are sent as empty.
+// The JSON names match the station Settings the server reports back.
+type RotorSettings struct {
+	Language  string  `json:"language,omitempty"`
+	Diversity string  `json:"diversity,omitempty"`
+	Mood      float32 `json:"mood,omitempty"`
+	Energy    float32 `json:"energy,omitempty"`
+}
+
 type StationTracks struct {
 	// Deprecated: Use AcceptedSeeds instead
 	Id            StationId   `json:"id"`

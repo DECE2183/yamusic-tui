@@ -92,6 +92,7 @@ type Controls struct {
 	PlaylistsDown   *Key `yaml:"playlists-down"`
 	PlaylistsRename *Key `yaml:"playlists-rename"`
 	PlaylistsHide   *Key `yaml:"playlists-hide"`
+	StationConfig   *Key `yaml:"station-config"`
 	// Track list control
 	TracksNextPage           *Key `yaml:"tracks-next-page"`
 	TracksPrevPage           *Key `yaml:"tracks-previous-page"`
@@ -125,21 +126,38 @@ type Search struct {
 	Playlists bool `yaml:"playlists"`
 }
 
+// RadioSettings holds the tunable parameters of a radio station, mirroring the
+// rotor station settings Yandex Music exposes (see api.Station.Settings).
+// Empty/zero values mean "leave untouched" so the server keeps its defaults.
+type RadioSettings struct {
+	Language  string  `yaml:"language,omitempty"`
+	Diversity string  `yaml:"diversity,omitempty"`
+	Mood      float32 `yaml:"mood,omitempty"`
+	Energy    float32 `yaml:"energy,omitempty"`
+}
+
+// IsZero reports whether all tunable fields are zero/empty, i.e. the station
+// should be started with the server's default settings.
+func (r RadioSettings) IsZero() bool {
+	return r.Language == "" && r.Diversity == "" && r.Mood == 0 && r.Energy == 0
+}
+
 type Config struct {
-	Token          string    `yaml:"token"`
-	BufferSize     float64   `yaml:"buffer-size-ms"`
-	RewindDuration float64   `yaml:"rewind-duration-s"`
-	Volume         float64   `yaml:"volume"`
-	VolumeStep     float64   `yaml:"volume-step"`
-	SuppressErrors bool      `yaml:"suppress-errors"`
-	ShowLyrics     bool      `yaml:"show-lyrics"`
-	CacheTracks    CacheType `yaml:"cache-tracks"`
-	CacheDir       string    `yaml:"cache-dir"`
-	Proxy          string    `yaml:"proxy"`
-	SSLCerts       []string  `yaml:"ssl-certs"`
-	Search         *Search   `yaml:"search"`
-	Controls       *Controls `yaml:"controls"`
-	Style          *Style    `yaml:"style"`
+	Token          string                   `yaml:"token"`
+	BufferSize     float64                  `yaml:"buffer-size-ms"`
+	RewindDuration float64                  `yaml:"rewind-duration-s"`
+	Volume         float64                  `yaml:"volume"`
+	VolumeStep     float64                  `yaml:"volume-step"`
+	SuppressErrors bool                     `yaml:"suppress-errors"`
+	ShowLyrics     bool                     `yaml:"show-lyrics"`
+	CacheTracks    CacheType                `yaml:"cache-tracks"`
+	CacheDir       string                   `yaml:"cache-dir"`
+	Proxy          string                   `yaml:"proxy"`
+	SSLCerts       []string                 `yaml:"ssl-certs"`
+	Search         *Search                  `yaml:"search"`
+	Controls       *Controls                `yaml:"controls"`
+	Style          *Style                   `yaml:"style"`
+	RadioSettings  map[string]RadioSettings `yaml:"radio,omitempty"`
 }
 
 var defaultConfig = Config{
@@ -169,6 +187,7 @@ var defaultConfig = Config{
 		PlaylistsDown:            NewKey("ctrl+down"),
 		PlaylistsRename:          NewKey("ctrl+r"),
 		PlaylistsHide:            NewKey("ctrl+b"),
+		StationConfig:            NewKey("c"),
 		TracksNextPage:           NewKey("pgup"),
 		TracksPrevPage:           NewKey("pgdown"),
 		TracksLike:               NewKey("l"),

@@ -139,7 +139,7 @@ func (m *Model) loadMyWave(wg *sync.WaitGroup, block *menuBlock) {
 		return
 	}
 
-	session, err := m.client.RotorNewSession(api.MyWaveId)
+	session, err := m.client.RotorNewSession(api.MyWaveId, rotorSettingsFor(api.MyWaveId.String()))
 	if err != nil {
 		block.err = err
 		return
@@ -324,5 +324,26 @@ func (m *Model) loadUserPlaylists(wg *sync.WaitGroup, block *menuBlock) {
 				Tracks:   tracks,
 			})
 		}
+	}
+}
+
+// rotorSettingsFor returns the persisted radio settings for a station as an
+// api.RotorSettings, or nil when the user configured nothing (so the server
+// keeps its own defaults). A shared "default" entry applies to all stations.
+func rotorSettingsFor(stationStr string) *api.RotorSettings {
+	var s config.RadioSettings
+	var ok bool
+	if s, ok = config.Current.GetRadioSettings(stationStr); !ok {
+		s, ok = config.Current.GetRadioSettings("default")
+	}
+	if !ok || s.IsZero() {
+		return nil
+	}
+
+	return &api.RotorSettings{
+		Language:  s.Language,
+		Diversity: s.Diversity,
+		Mood:      s.Mood,
+		Energy:    s.Energy,
 	}
 }

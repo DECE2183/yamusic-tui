@@ -10,6 +10,7 @@ type helpKeyMap struct {
 	CursorDown    key.Binding
 	Rename        key.Binding
 	HidePlaylists key.Binding
+	StationConfig key.Binding
 	Renamable     bool
 }
 
@@ -20,6 +21,7 @@ func newHelpMap() *helpKeyMap {
 		CursorDown:    key.NewBinding(controls.PlaylistsDown.Binding(), controls.PlaylistsDown.Help("down")),
 		Rename:        key.NewBinding(controls.PlaylistsRename.Binding(), controls.PlaylistsRename.Help("rename")),
 		HidePlaylists: key.NewBinding(controls.PlaylistsHide.Binding(), controls.PlaylistsHide.Help("hide")),
+		StationConfig: key.NewBinding(controls.StationConfig.Binding(), controls.StationConfig.Help("radio config")),
 	}
 }
 
@@ -37,6 +39,7 @@ func (k helpKeyMap) FullHelp() [][]key.Binding {
 	}
 
 	bindings = append(bindings, []key.Binding{k.HidePlaylists})
+	bindings = append(bindings, []key.Binding{k.StationConfig})
 
 	return bindings
 }

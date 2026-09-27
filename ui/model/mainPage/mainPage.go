@@ -7,9 +7,11 @@ import (
 
 	"github.com/dece2183/yamusic-tui/api"
 	"github.com/dece2183/yamusic-tui/config"
+	"github.com/dece2183/yamusic-tui/log"
 	"github.com/dece2183/yamusic-tui/media/handler"
 	"github.com/dece2183/yamusic-tui/ui/components/input"
 	"github.com/dece2183/yamusic-tui/ui/components/playlist"
+	"github.com/dece2183/yamusic-tui/ui/components/radioconfig"
 	"github.com/dece2183/yamusic-tui/ui/components/search"
 	"github.com/dece2183/yamusic-tui/ui/components/tracker"
 	"github.com/dece2183/yamusic-tui/ui/components/tracklist"
@@ -36,10 +38,12 @@ type Model struct {
 
 	searchDialog           *search.Model
 	inputDialog            *input.Model
+	radioDialog            *radioconfig.Model
 	isLoading              bool
 	isSearchActive         bool
 	isAddPlaylistActive    bool
 	isRenamePlaylistActive bool
+	isRadioConfigActive    bool
 	isPlaylistHideOverride bool
 
 	playQueue            []api.Track
@@ -67,6 +71,7 @@ func New(mediaHandler handler.MediaHandler) *Model {
 	m.tracker = tracker.New(m.program, &m.likedTracksMap)
 	m.searchDialog = search.New()
 	m.inputDialog = input.New()
+	m.radioDialog = radioconfig.New("")
 
 	return m
 }
@@ -124,6 +129,9 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case m.isRenamePlaylistActive:
 			m.inputDialog, cmd = m.inputDialog.Update(message)
 			cmds = append(cmds, cmd)
+		case m.isRadioConfigActive:
+			m.radioDialog, cmd = m.radioDialog.Update(message)
+			cmds = append(cmds, cmd)
 		case controls.Reload.Contains(keypress):
 			m.isLoading = true
 			cmd = m.playlists.Reset()
@@ -178,6 +186,39 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			m.isRenamePlaylistActive = true
 		case playlist.TOGGLE_VIEW:
 			m.isPlaylistHideOverride = !m.isPlaylistHideOverride
+		case playlist.STATION_CONFIG:
+			sel := m.playlists.SelectedItem()
+			// Radio settings apply to My Wave (the rotor station the original
+			// client supports). Non-rotor entries have no radio settings.
+			if sel == nil || sel.Kind != playlist.MYWAVE {
+				break
+			}
+			m.radioDialog = radioconfig.New(sel.StationId.String())
+			m.isRadioConfigActive = true
+		}
+
+	// radio configuration control update
+	case radioconfig.Control:
+		switch msg {
+		case radioconfig.APPLY:
+			m.isRadioConfigActive = false
+			station := m.radioDialog.Station()
+			if station == "" {
+				break
+			}
+			res := m.radioDialog.Result()
+			if res.IsZero() {
+				config.Current.DeleteRadioSettings(station)
+			} else {
+				config.Current.SetRadioSettings(station, res)
+			}
+			if err := config.Save(); err != nil {
+				log.Print(log.LVL_ERROR, "failed to save radio settings: %s", err)
+			}
+		case radioconfig.CANCEL:
+			m.isRadioConfigActive = false
+		case radioconfig.CURSOR_UP, radioconfig.CURSOR_DOWN, radioconfig.VALUE_LEFT, radioconfig.VALUE_RIGHT:
+			// handled inside the dialog; nothing extra to do
 		}
 
 	// tracklist control update
@@ -323,6 +364,9 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		} else if m.isRenamePlaylistActive {
 			m.inputDialog, cmd = m.inputDialog.Update(message)
 			cmds = append(cmds, cmd)
+		} else if m.isRadioConfigActive {
+			m.radioDialog, cmd = m.radioDialog.Update(message)
+			cmds = append(cmds, cmd)
 		} else {
 			m.playlists, cmd = m.playlists.Update(message)
 			cmds = append(cmds, cmd)
@@ -345,6 +389,8 @@ func (m *Model) View() string {
 		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, m.searchDialog.View())
 	} else if m.isRenamePlaylistActive {
 		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, m.inputDialog.View())
+	} else if m.isRadioConfigActive {
+		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, m.radioDialog.View())
 	}
 
 	playlistView := m.playlists.View()
@@ -390,6 +436,9 @@ func (m *Model) resize(width, height int) {
 
 	m.searchDialog.SetSize(searchWidth, m.height-4)
 	m.inputDialog.SetWidth(searchWidth)
+	if m.radioDialog != nil {
+		m.radioDialog.SetSize(searchWidth, m.height-4)
+	}
 }
 
 func (m *Model) mediaHandle() {
