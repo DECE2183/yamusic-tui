@@ -319,7 +319,7 @@ func (m *Model) displayPlaylist(pl *playlist.Item) {
 	case playlist.LOCAL:
 		m.tracklist.Title = "Cached tracks"
 	case playlist.ALBUMS:
-		if pl.SelectedAlbum >= 0 {
+		if pl.SelectedAlbum >= 0 && pl.SelectedAlbum < len(pl.Albums) {
 			album := pl.Albums[pl.SelectedAlbum]
 			title := style.TrackTitleStyle.Render(album.Title)
 			artists := style.TrackArtistStyle.Render(" (" + helpers.ArtistList(album.Artists) + ")")
