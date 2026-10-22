@@ -252,10 +252,7 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 			m.help.ShowAll = !m.help.ShowAll
 
 		case controls.PlayerPause.Contains(keypress):
-			if m.player == nil {
-				break
-			}
-			if m.player.IsPlaying() {
+			if m.player != nil && m.player.IsPlaying() {
 				m.Pause()
 				cmds = append(cmds, model.Cmd(PAUSE))
 			} else {

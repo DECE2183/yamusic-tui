@@ -184,16 +184,8 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	case tracklist.Control:
 		switch msg {
 		case tracklist.PLAY:
-			playlistItem := m.playlists.SelectedItem()
-			if !playlistItem.Active {
-				break
-			}
-			if m.albumListActive() {
-				cmd = m.openAlbum(m.tracklist.Index())
-				cmds = append(cmds, cmd)
-			} else {
-				m.playSelectedPlaylist(m.tracklist.Index())
-			}
+			cmd = m.playSelected()
+			cmds = append(cmds, cmd)
 		case tracklist.CURSOR_UP, tracklist.CURSOR_DOWN:
 			currentPlaylist := m.playlists.SelectedItem()
 			cursorIndex := m.tracklist.Index()
@@ -275,7 +267,14 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case tracker.LIKE:
 			cmd = m.likePlayingTrack()
 			cmds = append(cmds, cmd)
-		case tracker.PLAY, tracker.PAUSE:
+		case tracker.PLAY:
+			if m.tracker.IsStoped() {
+				cmd = m.playSelected()
+				cmds = append(cmds, cmd)
+			} else {
+				m.mediaHandler.OnPlayPause()
+			}
+		case tracker.PAUSE:
 			m.mediaHandler.OnPlayPause()
 		case tracker.STOP:
 			m.mediaHandler.OnEnded()
