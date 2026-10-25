@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -33,11 +34,24 @@ var (
 	// ErrExpiredToken means the device code is no longer valid and a new one
 	// has to be requested.
 	ErrExpiredToken = errors.New("device code expired")
+	// ErrMalformedResponse means the OAuth service returned something that is
+	// not the expected JSON: a proxy page, an empty body or a truncated reply.
+	ErrMalformedResponse = errors.New("malformed oauth response")
 )
+
+// HTTPStatusError is an OAuth response with an unexpected HTTP status.
+type HTTPStatusError struct {
+	Status int
+}
+
+func (e *HTTPStatusError) Error() string {
+	return fmt.Sprintf("oauth: unexpected status %d", e.Status)
+}
 
 type oauthError struct {
 	Code        string `json:"error"`
 	Description string `json:"error_description"`
+	HTTPStatus  int    `json:"-"`
 }
 
 func (e *oauthError) Error() string {
@@ -65,18 +79,18 @@ func RequestDeviceCode(ctx context.Context, deviceID, deviceName string) (*Devic
 
 	var code DeviceCode
 	if err := json.Unmarshal(body, &code); err != nil {
-		return nil, fmt.Errorf("device code: %w", err)
+		return nil, fmt.Errorf("%w: device code: %v", ErrMalformedResponse, err)
 	}
 	if code.DeviceCode == "" || code.UserCode == "" {
-		return nil, errors.New("device code: empty response")
+		return nil, fmt.Errorf("%w: empty device code", ErrMalformedResponse)
 	}
-	if code.VerificationURL == "" {
+	if u, err := url.Parse(code.VerificationURL); err != nil || (u.Scheme != "http" && u.Scheme != "https") {
 		code.VerificationURL = "https://ya.ru/device"
 	}
 	if code.Interval <= 0 {
 		code.Interval = 5
 	}
-	if code.ExpiresIn <= 0 {
+	if code.ExpiresIn <= 0 || code.ExpiresIn > 24*60*60 {
 		code.ExpiresIn = 300
 	}
 
@@ -104,10 +118,10 @@ func PollDeviceToken(ctx context.Context, deviceCode string) (string, error) {
 		AccessToken string `json:"access_token"`
 	}
 	if err := json.Unmarshal(body, &token); err != nil {
-		return "", fmt.Errorf("access token: %w", err)
+		return "", fmt.Errorf("%w: access token: %v", ErrMalformedResponse, err)
 	}
 	if token.AccessToken == "" {
-		return "", errors.New("access token: empty response")
+		return "", fmt.Errorf("%w: empty access token", ErrMalformedResponse)
 	}
 
 	return token.AccessToken, nil
@@ -150,7 +164,39 @@ func oauthResponseError(body []byte, status int) error {
 		case "expired_token":
 			return ErrExpiredToken
 		}
+		oauthErr.HTTPStatus = status
 		return &oauthErr
 	}
-	return fmt.Errorf("oauth: unexpected status %d", status)
+	return &HTTPStatusError{Status: status}
+}
+
+// IsRetryable reports whether a poll may be repeated without asking the user
+// to authorize again: a pending confirmation, a network problem, a rate limit
+// or a temporary server failure.
+func IsRetryable(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, ErrAuthorizationPending) || errors.Is(err, ErrSlowDown) {
+		return true
+	}
+	if errors.Is(err, context.Canceled) {
+		return false
+	}
+	var statusErr *HTTPStatusError
+	if errors.As(err, &statusErr) {
+		return statusErr.Status == http.StatusTooManyRequests || statusErr.Status >= 500
+	}
+	var oauthErr *oauthError
+	if errors.As(err, &oauthErr) {
+		return oauthErr.HTTPStatus == http.StatusTooManyRequests || oauthErr.HTTPStatus >= 500
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return true
+	}
+	if errors.Is(err, ErrMalformedResponse) || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+		return true
+	}
+	return false
 }

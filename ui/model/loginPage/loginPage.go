@@ -22,6 +22,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+const oauthRequestTimeout = 15 * time.Second
+
 type Model struct {
 	err           error
 	program       *tea.Program
@@ -40,9 +42,11 @@ type Model struct {
 	status      string
 	notice      string
 	codeGen     int
+	requesting  bool
 	expiresAt   time.Time
 	remaining   time.Duration
 	expired     bool
+	saveFailed  bool
 }
 
 // loginpage.Model constructor.
@@ -115,13 +119,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.ClearScreen
 
 	case deviceCodeMsg:
+		if msg.gen != m.codeGen {
+			return m, nil
+		}
+		m.requesting = false
 		if msg.err != nil {
 			m.status = "Can't start browser login: " + msg.err.Error()
 			return m, nil
 		}
 		m.code = msg.code
-		m.codeGen++
-		gen := m.codeGen
+		gen := msg.gen
 		m.notice = ""
 		m.expired = false
 		m.poll = time.Duration(msg.code.Interval) * time.Second
@@ -154,7 +161,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case msg.err == nil:
 			config.Current.Token = msg.token
-			m.err = config.Save()
+			m.code = nil
+			m.remaining = 0
+			m.expired = false
+			if err := config.Save(); err != nil {
+				m.saveFailed = true
+				m.status = "Signed in, but the token was not saved: " + err.Error()
+				m.notice = "Press enter to retry saving"
+				return m, nil
+			}
 			return m, tea.Quit
 		case errors.Is(msg.err, api.ErrExpiredToken):
 			m.expired = true
@@ -173,6 +188,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.poll += 5 * time.Second
 			return m, m.pollTokenCmd(msg.gen)
 		default:
+			if m.expired {
+				return m, nil
+			}
+			if api.IsRetryable(msg.err) {
+				return m, m.pollTokenCmd(msg.gen)
+			}
 			m.status = "Browser login failed: " + msg.err.Error()
 			return m, nil
 		}
@@ -180,6 +201,20 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		controls := config.Current.Controls
 		keypress := msg.String()
+
+		if m.saveFailed {
+			switch {
+			case controls.Quit.Contains(keypress):
+				return m, tea.Quit
+			case controls.Apply.Contains(keypress):
+				if err := config.Save(); err != nil {
+					m.status = "Still can't save the token: " + err.Error()
+					return m, nil
+				}
+				return m, tea.Quit
+			}
+			return m, nil
+		}
 
 		switch {
 		case keypress == "ctrl+y":
@@ -191,8 +226,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case keypress == "ctrl+r":
-			if m.deviceLogin {
-				m.codeGen++
+			if m.deviceLogin && !m.requesting {
 				m.code = nil
 				m.expired = false
 				m.status = ""
@@ -209,7 +243,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			config.Current.Token = token
-			m.err = config.Save()
+			if err := config.Save(); err != nil {
+				m.saveFailed = true
+				m.status = "Can't save the token: " + err.Error()
+				m.notice = "Press enter to retry saving"
+				return m, nil
+			}
 			return m, tea.Quit
 		default:
 			if !m.deviceLogin {
@@ -293,10 +332,15 @@ func (m *Model) copyCode(quiet bool) {
 }
 
 func (m *Model) requestDeviceCodeCmd() tea.Cmd {
+	m.codeGen++
+	m.requesting = true
+	gen := m.codeGen
 	ctx := m.ctx
 	return func() tea.Msg {
-		code, err := api.RequestDeviceCode(ctx, randomDeviceID(), "yamusic-tui")
-		return deviceCodeMsg{code: code, err: err}
+		reqCtx, cancel := context.WithTimeout(ctx, oauthRequestTimeout)
+		defer cancel()
+		code, err := api.RequestDeviceCode(reqCtx, randomDeviceID(), "yamusic-tui")
+		return deviceCodeMsg{gen: gen, code: code, err: err}
 	}
 }
 
@@ -316,11 +360,10 @@ func (m *Model) pollTokenCmd(gen int) tea.Cmd {
 		case <-timer.C:
 		}
 
-		token, err := api.PollDeviceToken(ctx, code.DeviceCode)
+		reqCtx, cancel := context.WithTimeout(ctx, oauthRequestTimeout)
+		defer cancel()
+		token, err := api.PollDeviceToken(reqCtx, code.DeviceCode)
 		if err != nil {
-			return devicePollMsg{gen: gen, err: err}
-		}
-		if _, err := api.NewClient(config.DirName, token); err != nil {
 			return devicePollMsg{gen: gen, err: err}
 		}
 		return devicePollMsg{gen: gen, token: token}
@@ -343,6 +386,7 @@ func formatRemaining(d time.Duration) string {
 }
 
 type deviceCodeMsg struct {
+	gen  int
 	code *api.DeviceCode
 	err  error
 }

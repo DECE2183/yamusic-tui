@@ -159,3 +159,55 @@ func TestPollDeviceToken(t *testing.T) {
 		})
 	}
 }
+
+func TestRequestDeviceCodeImplausibleValues(t *testing.T) {
+	withOAuthServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"device_code":"dc","user_code":"uc","verification_url":"file:///etc/passwd","expires_in":1099511627776}`))
+	}))
+
+	code, err := RequestDeviceCode(context.Background(), "device1234", "yamusic-tui")
+	if err != nil {
+		t.Fatalf("RequestDeviceCode: %v", err)
+	}
+	if code.VerificationURL != "https://ya.ru/device" {
+		t.Errorf("unsafe verification url kept: %q", code.VerificationURL)
+	}
+	if code.ExpiresIn != 300 {
+		t.Errorf("implausible expires_in kept: %d", code.ExpiresIn)
+	}
+}
+
+func TestIsRetryable(t *testing.T) {
+	cases := []struct {
+		name   string
+		status int
+		body   string
+		want   bool
+	}{
+		{"pending", http.StatusBadRequest, `{"error":"authorization_pending"}`, true},
+		{"slow down", http.StatusBadRequest, `{"error":"slow_down"}`, true},
+		{"rate limit", http.StatusTooManyRequests, `{"error":"rate_limit"}`, true},
+		{"server error", http.StatusInternalServerError, `{"error":"internal"}`, true},
+		{"html 502", http.StatusBadGateway, `<html>`, true},
+		{"invalid client", http.StatusBadRequest, `{"error":"invalid_client"}`, false},
+		{"access denied", http.StatusBadRequest, `{"error":"access_denied"}`, false},
+		{"expired", http.StatusBadRequest, `{"error":"expired_token"}`, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := IsRetryable(oauthResponseError([]byte(tc.body), tc.status)); got != tc.want {
+				t.Errorf("IsRetryable = %v, want %v", got, tc.want)
+			}
+		})
+	}
+
+	if !IsRetryable(ErrMalformedResponse) {
+		t.Error("malformed response must be retryable")
+	}
+	if !IsRetryable(context.DeadlineExceeded) {
+		t.Error("request timeout must be retryable")
+	}
+	if IsRetryable(context.Canceled) {
+		t.Error("cancellation must not be retryable")
+	}
+}
