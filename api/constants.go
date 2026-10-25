@@ -5,6 +5,11 @@ const (
 	yaOauthServerURL    = "https://oauth.yandex.ru/"
 	yaOauthClientID     = "23cabbbdc6cd418abb4b39c32c41195d"
 	yaOauthClientSecret = "53bc75238f0c4d08a118e51fe9203300"
+
+	// Only the Music scopes are requested. The Android client id also allows
+	// login, payments, passport, disk and messenger scopes that this client
+	// never uses, so they are left out on purpose.
+	yaOauthMusicScope = "music:content music:read music:write"
 )
 
 // Yandex Music service information
