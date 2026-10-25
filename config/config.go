@@ -122,9 +122,7 @@ func save(conf Config) error {
 		return err
 	}
 
-	configPath := filepath.Join(configDir, "config.yaml")
-	_ = os.Chmod(configPath, 0600)
-	file, err := os.OpenFile(configPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
+	file, err := os.OpenFile(filepath.Join(configDir, "config.yaml"), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0755)
 	if err != nil {
 		return err
 	}

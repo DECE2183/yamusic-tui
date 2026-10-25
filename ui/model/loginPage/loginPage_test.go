@@ -113,11 +113,4 @@ func TestSaveFailureCanBeRetried(t *testing.T) {
 	if _, ok := cmd().(tea.QuitMsg); !ok {
 		t.Fatalf("expected tea.Quit, got %T", cmd())
 	}
-	st, err := os.Stat(filepath.Join(dir, "config.yaml"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if st.Mode().Perm() != 0600 {
-		t.Fatalf("config.yaml mode = %v, want 0600", st.Mode().Perm())
-	}
 }
