@@ -7,6 +7,8 @@ import (
 
 type helpKeyMap struct {
 	apply key.Binding
+	copy  key.Binding
+	open  key.Binding
 	quit  key.Binding
 }
 
@@ -17,6 +19,14 @@ func newHelpMap() *helpKeyMap {
 			controls.Apply.Binding(),
 			controls.Apply.Help("login"),
 		),
+		copy: key.NewBinding(
+			key.WithKeys("ctrl+y"),
+			key.WithHelp("ctrl+y", "copy code"),
+		),
+		open: key.NewBinding(
+			key.WithKeys("ctrl+o"),
+			key.WithHelp("ctrl+o", "open link"),
+		),
 		quit: key.NewBinding(
 			controls.Quit.Binding(),
 			controls.Quit.Help("quit"),
@@ -25,6 +35,9 @@ func newHelpMap() *helpKeyMap {
 }
 
 func (k helpKeyMap) ShortHelp() []key.Binding {
+	if config.Current.DeviceLogin {
+		return []key.Binding{k.copy, k.open, k.quit}
+	}
 	return []key.Binding{k.apply, k.quit}
 }
 

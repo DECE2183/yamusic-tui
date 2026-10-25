@@ -14,6 +14,10 @@ Based on [yandex-music-open-api](https://github.com/acherkashin/yandex-music-ope
 To use this client, you should have a valid Yandex Music account and an access token.<br>
 The easiest way to get a token is to use a browser extension ([Chrome](https://chrome.google.com/webstore/detail/yandex-music-token/lcbjeookjibfhjjopieifgjnhlegmkib), [Firefox](https://addons.mozilla.org/en-US/firefox/addon/yandex-music-token/)).
 
+Alternatively, enable `device-login: true` in the config and the app signs in
+with a Yandex device code on the first run: it requests a code, opens
+[ya.ru/device](https://ya.ru/device) and saves the token once you confirm.
+
 ### Implemented features
 
  - [x] Player
@@ -62,6 +66,7 @@ This is the default configuration which is automatically created after the first
 
 ```yaml
 token: <your yandex music token>
+device-login: false # set to true to sign in with a Yandex device code instead of pasting a token
 buffer-size-ms: 80
 rewind-duration-s: 5
 volume: 0.5
