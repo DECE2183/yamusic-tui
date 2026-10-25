@@ -17,6 +17,7 @@ The easiest way to get a token is to use a browser extension ([Chrome](https://c
 Alternatively, enable `device-login: true` in the config and the app signs in
 with a Yandex device code on the first run: it requests a code, opens
 [ya.ru/device](https://ya.ru/device) and saves the token once you confirm.
+The code is valid for five minutes; press `ctrl+r` to request a new one.
 
 ### Implemented features
 

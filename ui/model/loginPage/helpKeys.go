@@ -9,6 +9,7 @@ type helpKeyMap struct {
 	apply key.Binding
 	copy  key.Binding
 	open  key.Binding
+	retry key.Binding
 	quit  key.Binding
 }
 
@@ -27,6 +28,10 @@ func newHelpMap() *helpKeyMap {
 			key.WithKeys("ctrl+o"),
 			key.WithHelp("ctrl+o", "open link"),
 		),
+		retry: key.NewBinding(
+			key.WithKeys("ctrl+r"),
+			key.WithHelp("ctrl+r", "new code"),
+		),
 		quit: key.NewBinding(
 			controls.Quit.Binding(),
 			controls.Quit.Help("quit"),
@@ -36,7 +41,7 @@ func newHelpMap() *helpKeyMap {
 
 func (k helpKeyMap) ShortHelp() []key.Binding {
 	if config.Current.DeviceLogin {
-		return []key.Binding{k.copy, k.open, k.quit}
+		return []key.Binding{k.copy, k.open, k.retry, k.quit}
 	}
 	return []key.Binding{k.apply, k.quit}
 }

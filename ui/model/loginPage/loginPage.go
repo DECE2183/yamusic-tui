@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"runtime"
@@ -38,6 +39,10 @@ type Model struct {
 	poll        time.Duration
 	status      string
 	notice      string
+	codeGen     int
+	expiresAt   time.Time
+	remaining   time.Duration
+	expired     bool
 }
 
 // loginpage.Model constructor.
@@ -115,24 +120,58 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.code = msg.code
+		m.codeGen++
+		gen := m.codeGen
 		m.notice = ""
+		m.expired = false
 		m.poll = time.Duration(msg.code.Interval) * time.Second
+		m.expiresAt = time.Now().Add(time.Duration(msg.code.ExpiresIn) * time.Second)
+		m.remaining = time.Duration(msg.code.ExpiresIn) * time.Second
 		m.status = "Or sign in at " + msg.code.VerificationURL + " and enter the code:"
 		openBrowser(msg.code.VerificationURL)
 		m.copyCode(true)
-		return m, m.pollTokenCmd()
+		return m, tea.Batch(m.pollTokenCmd(gen), tickCmd(gen))
+
+	case tickMsg:
+		if msg.gen != m.codeGen || m.code == nil {
+			return m, nil
+		}
+		if remaining := time.Until(m.expiresAt); remaining <= 0 {
+			m.expired = true
+			m.remaining = 0
+			m.notice = ""
+			m.status = "Code expired. Press ctrl+r to get a new code."
+			return m, nil
+		} else {
+			m.remaining = remaining
+		}
+		return m, tickCmd(msg.gen)
 
 	case devicePollMsg:
+		if msg.gen != m.codeGen {
+			return m, nil
+		}
 		switch {
 		case msg.err == nil:
 			config.Current.Token = msg.token
 			m.err = config.Save()
 			return m, tea.Quit
+		case errors.Is(msg.err, api.ErrExpiredToken):
+			m.expired = true
+			m.notice = ""
+			m.status = "Code expired. Press ctrl+r to get a new code."
+			return m, nil
 		case errors.Is(msg.err, api.ErrAuthorizationPending):
-			return m, m.pollTokenCmd()
+			if m.expired {
+				return m, nil
+			}
+			return m, m.pollTokenCmd(msg.gen)
 		case errors.Is(msg.err, api.ErrSlowDown):
+			if m.expired {
+				return m, nil
+			}
 			m.poll += 5 * time.Second
-			return m, m.pollTokenCmd()
+			return m, m.pollTokenCmd(msg.gen)
 		default:
 			m.status = "Browser login failed: " + msg.err.Error()
 			return m, nil
@@ -149,6 +188,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case keypress == "ctrl+o":
 			if m.code != nil {
 				openBrowser(m.code.VerificationURL)
+			}
+			return m, nil
+		case keypress == "ctrl+r":
+			if m.deviceLogin {
+				m.codeGen++
+				m.code = nil
+				m.expired = false
+				m.status = ""
+				m.notice = ""
+				return m, m.requestDeviceCodeCmd()
 			}
 			return m, nil
 		case controls.Quit.Contains(keypress):
@@ -199,6 +248,9 @@ func (m *Model) View() string {
 			Padding(0, 2).
 			Render(m.code.UserCode)
 		lines = append(lines, "", lipgloss.PlaceHorizontal(width, lipgloss.Center, code), "")
+		if !m.expired {
+			lines = append(lines, style.DialogHelpStyle.Render("Code expires in "+formatRemaining(m.remaining)))
+		}
 	}
 	if m.notice != "" {
 		lines = append(lines, style.DialogHelpStyle.Render(m.notice))
@@ -251,7 +303,7 @@ func (m *Model) requestDeviceCodeCmd() tea.Cmd {
 // pollTokenCmd waits for the polling interval and asks the OAuth service once.
 // Polling is driven by the UI instead of a long-running goroutine, so quitting
 // the login page stops it immediately.
-func (m *Model) pollTokenCmd() tea.Cmd {
+func (m *Model) pollTokenCmd(gen int) tea.Cmd {
 	ctx := m.ctx
 	code := m.code
 	delay := m.poll
@@ -260,19 +312,34 @@ func (m *Model) pollTokenCmd() tea.Cmd {
 		defer timer.Stop()
 		select {
 		case <-ctx.Done():
-			return devicePollMsg{err: ctx.Err()}
+			return devicePollMsg{gen: gen, err: ctx.Err()}
 		case <-timer.C:
 		}
 
 		token, err := api.PollDeviceToken(ctx, code.DeviceCode)
 		if err != nil {
-			return devicePollMsg{err: err}
+			return devicePollMsg{gen: gen, err: err}
 		}
 		if _, err := api.NewClient(config.DirName, token); err != nil {
-			return devicePollMsg{err: err}
+			return devicePollMsg{gen: gen, err: err}
 		}
-		return devicePollMsg{token: token}
+		return devicePollMsg{gen: gen, token: token}
 	}
+}
+
+type tickMsg struct {
+	gen int
+}
+
+func tickCmd(gen int) tea.Cmd {
+	return tea.Tick(time.Second, func(time.Time) tea.Msg { return tickMsg{gen: gen} })
+}
+
+func formatRemaining(d time.Duration) string {
+	if d < 0 {
+		d = 0
+	}
+	return fmt.Sprintf("%d:%02d", int(d.Minutes()), int(d.Seconds())%60)
 }
 
 type deviceCodeMsg struct {
@@ -281,6 +348,7 @@ type deviceCodeMsg struct {
 }
 
 type devicePollMsg struct {
+	gen   int
 	token string
 	err   error
 }

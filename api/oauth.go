@@ -30,6 +30,9 @@ var (
 	ErrAuthorizationPending = errors.New("authorization pending")
 	// ErrSlowDown means the client polls the token endpoint too often.
 	ErrSlowDown = errors.New("slow down")
+	// ErrExpiredToken means the device code is no longer valid and a new one
+	// has to be requested.
+	ErrExpiredToken = errors.New("device code expired")
 )
 
 type oauthError struct {
@@ -144,6 +147,8 @@ func oauthResponseError(body []byte, status int) error {
 			return ErrAuthorizationPending
 		case "slow_down":
 			return ErrSlowDown
+		case "expired_token":
+			return ErrExpiredToken
 		}
 		return &oauthErr
 	}

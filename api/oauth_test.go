@@ -114,9 +114,10 @@ func TestPollDeviceToken(t *testing.T) {
 			wantErr: ErrSlowDown,
 		},
 		{
-			name:   "expired",
-			status: http.StatusBadRequest,
-			body:   `{"error":"expired_token","error_description":"Code has expired"}`,
+			name:    "expired",
+			status:  http.StatusBadRequest,
+			body:    `{"error":"expired_token","error_description":"Code has expired"}`,
+			wantErr: ErrExpiredToken,
 		},
 	}
 
@@ -154,9 +155,6 @@ func TestPollDeviceToken(t *testing.T) {
 					t.Errorf("token = %q, want %q", token, tc.want)
 				}
 				return
-			}
-			if err == nil || !strings.Contains(err.Error(), "expired_token") {
-				t.Fatalf("want expired_token error, got %v", err)
 			}
 		})
 	}
