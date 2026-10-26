@@ -56,7 +56,7 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 
 	if !item.Active {
 		if item.Subitem {
-			fmt.Fprint(w, style.SideBoxSubItemStyle.Render(name))
+			fmt.Fprint(w, style.SideBoxSubItemStyle.Foreground(style.InactiveTextColor).Render(name))
 		} else {
 			fmt.Fprint(w, style.SideBoxInactiveItemStyle.Render(name))
 		}

@@ -297,6 +297,7 @@ func (m *Model) loadUserPlaylists(wg *sync.WaitGroup, block *menuBlock) {
 	}
 
 	playlistTracks := make([][]api.Track, len(playlists))
+	playlistErrors := make([]error, len(playlists))
 	var innerWg sync.WaitGroup
 	for i, pl := range playlists {
 		innerWg.Add(1)
@@ -305,6 +306,7 @@ func (m *Model) loadUserPlaylists(wg *sync.WaitGroup, block *menuBlock) {
 			tracks, terr := m.client.PlaylistTracks(pl.Kind, pl.Owner.Uid, false)
 			if terr != nil {
 				log.Print(log.LVL_ERROR, "failed to obtain user playlist [%s] tracks: %s", pl.Title, terr)
+				playlistErrors[i] = terr
 				return
 			}
 			playlistTracks[i] = tracks
@@ -317,16 +319,18 @@ func (m *Model) loadUserPlaylists(wg *sync.WaitGroup, block *menuBlock) {
 		block.items = append(block.items, playlist.ItemCategory("playlists:"))
 
 		for i, pl := range playlists {
-			tracks := playlistTracks[i]
-			if len(tracks) == 0 {
+			// Only a failed request is an error. A playlist that returned no
+			// tracks is simply empty: list it inactive, like empty likes.
+			if playlistErrors[i] != nil {
 				m.tracker.ShowError("playlist tracks")
 				continue
 			}
+			tracks := playlistTracks[i]
 			block.items = append(block.items, &playlist.Item{
 				Name:     pl.Title,
 				Kind:     pl.Kind,
 				Revision: pl.Revision,
-				Active:   true,
+				Active:   len(tracks) > 0,
 				Subitem:  true,
 				Tracks:   tracks,
 			})
