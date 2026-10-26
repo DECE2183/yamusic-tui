@@ -127,6 +127,7 @@ type Search struct {
 
 type Config struct {
 	Token          string    `yaml:"token"`
+	DeviceLogin    bool      `yaml:"device-login"`
 	BufferSize     float64   `yaml:"buffer-size-ms"`
 	RewindDuration float64   `yaml:"rewind-duration-s"`
 	Volume         float64   `yaml:"volume"`
