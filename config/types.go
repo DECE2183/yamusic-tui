@@ -108,6 +108,7 @@ type Controls struct {
 	PlayerPause          *Key `yaml:"player-pause"`
 	PlayerNext           *Key `yaml:"player-next"`
 	PlayerPrevious       *Key `yaml:"player-previous"`
+	PlayerRepeat         *Key `yaml:"player-repeat"`
 	PlayerRewindForward  *Key `yaml:"player-rewind-forward"`
 	PlayerRewindBackward *Key `yaml:"player-rewind-backward"`
 	PlayerLike           *Key `yaml:"player-like"`
@@ -183,6 +184,7 @@ var defaultConfig = Config{
 		PlayerPause:              NewKey("space"),
 		PlayerNext:               NewKey("right"),
 		PlayerPrevious:           NewKey("left"),
+		PlayerRepeat:             NewKey("r"),
 		PlayerRewindForward:      NewKey("ctrl+right"),
 		PlayerRewindBackward:     NewKey("ctrl+left"),
 		PlayerLike:               NewKey("L"),
