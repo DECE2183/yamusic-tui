@@ -185,6 +185,9 @@ func (m *Model) View() string {
 		} else {
 			trackTitle = style.TrackTitleStyle.Strikethrough(true).Render(m.track.Title)
 		}
+		if m.trackWrapper.repeatOne.Load() {
+			trackTitle += " 🔂"
+		}
 
 		trackVersion := style.TrackVersionStyle.Render(" " + m.track.Version)
 		trackTitle = lipgloss.JoinHorizontal(lipgloss.Top, trackTitle, trackVersion)
@@ -273,6 +276,9 @@ func (m *Model) Update(message tea.Msg) (*Model, tea.Cmd) {
 
 		case controls.PlayerPrevious.Contains(keypress):
 			cmds = append(cmds, model.Cmd(PREV))
+
+		case controls.PlayerRepeat.Contains(keypress):
+			m.trackWrapper.repeatOne.Store(!m.trackWrapper.repeatOne.Load())
 
 		case controls.PlayerLike.Contains(keypress):
 			cmds = append(cmds, model.Cmd(LIKE))
