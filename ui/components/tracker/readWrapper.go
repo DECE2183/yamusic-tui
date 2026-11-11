@@ -2,6 +2,7 @@ package tracker
 
 import (
 	"io"
+	"sync/atomic"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -20,6 +21,7 @@ type readWrapper struct {
 	trackBuffer    *stream.BufferedStream
 	trackBuffered  bool
 	trackDone      bool
+	repeatOne      atomic.Bool
 	lastUpdateTime time.Time
 }
 
@@ -75,8 +77,14 @@ func (w *readWrapper) Read(dest []byte) (n int, err error) {
 	if w.trackBuffer.IsDone() && !w.trackDone {
 		w.trackDone = true
 		w.decoder.Seek(0, io.SeekStart)
-		w.trackBuffer.Close()
-		go w.program.Send(NEXT)
+		if w.repeatOne.Load() {
+			// Seeking the buffered stream resets its read position and done state.
+			// Keep the buffer open so the current track can be decoded again.
+			w.trackDone = false
+		} else {
+			w.trackBuffer.Close()
+			go w.program.Send(NEXT)
+		}
 	} else if !w.trackDone && time.Since(w.lastUpdateTime) > _PROGRESS_UPDATE_PERIOD {
 		w.lastUpdateTime = time.Now()
 		fraction := ProgressControl(w.trackBuffer.Progress())
