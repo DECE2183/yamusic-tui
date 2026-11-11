@@ -11,6 +11,7 @@ type helpKeyMap struct {
 	PlayPause    key.Binding
 	PrevTrack    key.Binding
 	NextTrack    key.Binding
+	RepeatTrack  key.Binding
 	LikeUnlike   key.Binding
 	CacheTrack   key.Binding
 	Forward      key.Binding
@@ -35,6 +36,10 @@ func newHelpMap() *helpKeyMap {
 		NextTrack: key.NewBinding(
 			controls.PlayerNext.Binding(),
 			controls.PlayerNext.Help("next track"),
+		),
+		RepeatTrack: key.NewBinding(
+			controls.PlayerRepeat.Binding(),
+			controls.PlayerRepeat.Help("repeat one"),
 		),
 		LikeUnlike: key.NewBinding(
 			controls.PlayerLike.Binding(),
@@ -72,12 +77,13 @@ func newHelpMap() *helpKeyMap {
 }
 
 func (k helpKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.PlayPause, k.NextTrack, k.PrevTrack, k.LikeUnlike, k.VolUp, k.VolDown}
+	return []key.Binding{k.PlayPause, k.NextTrack, k.PrevTrack, k.RepeatTrack, k.LikeUnlike, k.VolUp, k.VolDown}
 }
 
 func (k helpKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.PlayPause, k.LikeUnlike, k.ToggleLyrics, k.CacheTrack},
+		{k.RepeatTrack},
 		{k.NextTrack, k.PrevTrack, k.Forward, k.Backward},
 		{k.VolUp, k.VolDown, k.HidePlayer},
 	}
